@@ -17,6 +17,7 @@ const layout = () => {
         tabBarStyle: { backgroundColor: theme.colors.primary, height: "9%" },
         tabBarAllowFontScaling: true,
         tabBarLabelStyle: { marginBottom: "10%", fontSize: 12 },
+        tabBarActiveTintColor: theme.colors.textColor,
       }}
     >
       <Tabs.Screen

@@ -4,7 +4,14 @@ import React, {
   useLayoutEffect,
   useEffect,
 } from "react";
-import { StyleSheet, Text, Pressable, View, Vibration } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  Pressable,
+  View,
+  Vibration,
+  ScrollView,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Button, useTheme, IconButton } from "react-native-paper";
@@ -12,8 +19,8 @@ import { useTranslation } from "react-i18next";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import recitations from "../../assets/recitations.json";
 
-const recitations = ["سبحان الله", "الحمد لله", "الله أكبر"];
 const soundModes = {
   sound: "volume-high",
   vibrate: "vibrate",
@@ -27,24 +34,15 @@ const Tazbih = () => {
 
   const [counter, setCounter] = useState(0);
   const [reciteIndex, setReciteIndex] = useState(0);
-  const [soundMode, setSoundMode] = useState("sound");
+  const [soundMode, setSoundMode] = useState("vibrate");
   const [sound, setSound] = useState();
-  const [maxCount, setMaxCount] = useState(33);
-  const [badgeCount, setBadgeCount] = useState(0);
+  const maxCount = 1000;
 
   const saveCounterToStorage = async (counter) => {
     try {
       await AsyncStorage.setItem("counter", counter.toString());
     } catch (error) {
       console.error("Failed to save counter to Async Storage", error);
-    }
-  };
-
-  const saveBadgeCountToStorage = async (badgeCount) => {
-    try {
-      await AsyncStorage.setItem("badgeCount", badgeCount.toString());
-    } catch (error) {
-      console.error("Failed to save badge count to Async Storage", error);
     }
   };
 
@@ -59,24 +57,10 @@ const Tazbih = () => {
     }
   };
 
-  const getBadgeCountFromStorage = async () => {
-    try {
-      const badgeCountValue = await AsyncStorage.getItem("badgeCount");
-
-      return badgeCountValue !== null ? parseInt(badgeCountValue) : 0;
-    } catch (error) {
-      console.error("Failed to retrieve badge count from Async Storage", error);
-      return 0;
-    }
-  };
-
   useEffect(() => {
     const initializeState = async () => {
       const storedCounter = await getCounterFromStorage();
-      const storedBadgeCount = await getBadgeCountFromStorage();
-      console.log(storedBadgeCount);
       setCounter(storedCounter);
-      setBadgeCount(storedBadgeCount);
     };
 
     initializeState();
@@ -85,10 +69,6 @@ const Tazbih = () => {
   useEffect(() => {
     saveCounterToStorage(counter);
   }, [counter]);
-
-  useEffect(() => {
-    saveBadgeCountToStorage(badgeCount);
-  }, [badgeCount]);
 
   useEffect(() => {
     let soundObject;
@@ -126,21 +106,12 @@ const Tazbih = () => {
 
   const handleReset = () => {
     setCounter(0);
-    setBadgeCount(0);
   };
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Button
-            mode="contained"
-            onPress={handleCycleMaxCount}
-            textColor={theme.colors.textColor}
-            buttonColor={theme.colors.background}
-          >
-            {maxCount}
-          </Button>
           <IconButton
             icon="refresh"
             onPress={handleReset}
@@ -167,11 +138,6 @@ const Tazbih = () => {
   const handleIncrement = async () => {
     setCounter((prevCounter) => {
       const newCounter = prevCounter + 1;
-      if (newCounter === maxCount) {
-        setBadgeCount((prevBadgeCount) => prevBadgeCount + 1);
-        saveBadgeCountToStorage(badgeCount + 1); // Save the updated badge count
-        return 0;
-      }
       saveCounterToStorage(newCounter); // Save the updated counter
       return newCounter;
     });
@@ -195,14 +161,6 @@ const Tazbih = () => {
     setReciteIndex((prevIndex) =>
       prevIndex === 0 ? recitations.length - 1 : prevIndex - 1
     );
-  };
-
-  const handleCycleMaxCount = () => {
-    setMaxCount((prevMaxCount) => {
-      if (prevMaxCount === 33) return 66;
-      if (prevMaxCount === 66) return 99;
-      return 33;
-    });
   };
 
   return (
@@ -231,46 +189,45 @@ const Tazbih = () => {
               >
                 {counter}
               </Text>
-              <View style={styles.badgeContainer}>
-                <Text style={styles.badgeText}>{badgeCount}</Text>
-              </View>
             </>
           )}
         </AnimatedCircularProgress>
         <Text style={{ marginTop: 10, color: theme.colors.textColor }}>
           Click to count
         </Text>
-        <View
-          style={[
-            styles.reciteContainer,
-            {
-              backgroundColor: theme.colors.background,
-              borderWidth: 0.5,
-              borderColor: theme.colors.textColor,
-            },
-          ]}
-        >
-          <Button
-            icon="chevron-left"
-            mode="contained"
-            onPress={handlePreviousRecite}
-            textColor={theme.colors.textColor}
-            buttonColor={theme.colors.background}
-            style={styles.navButton}
-          />
+      </Pressable>
+      <View
+        style={[
+          styles.reciteContainer,
+          {
+            backgroundColor: theme.colors.background,
+            borderWidth: 0.5,
+            borderColor: "#D2D2D2",
+          },
+        ]}
+      >
+        <Button
+          icon="chevron-left"
+          mode="contained"
+          onPress={handlePreviousRecite}
+          textColor={theme.colors.textColor}
+          buttonColor={theme.colors.background}
+          style={styles.navButton}
+        />
+        <ScrollView>
           <Text style={[styles.reciteText, { color: theme.colors.textColor }]}>
             {recitations[reciteIndex]}
           </Text>
-          <Button
-            icon="chevron-right"
-            mode="contained"
-            onPress={handleNextRecite}
-            style={styles.navButton}
-            textColor={theme.colors.textColor}
-            buttonColor={theme.colors.background}
-          />
-        </View>
-      </Pressable>
+        </ScrollView>
+        <Button
+          icon="chevron-right"
+          mode="contained"
+          onPress={handleNextRecite}
+          style={styles.navButton}
+          textColor={theme.colors.textColor}
+          buttonColor={theme.colors.background}
+        />
+      </View>
     </View>
   );
 };
@@ -297,27 +254,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    width: "85%",
-    padding: 10,
+    width: "95%",
     height: 90,
     backgroundColor: "white",
     borderRadius: 15,
-    marginBottom: 20,
     position: "absolute",
-    bottom: 0,
+    top: 15,
     elevation: 10,
-  },
-  badgeContainer: {
-    marginTop: 100,
-  },
-  badgeText: {
-    color: "red",
-    fontSize: 24,
   },
 
   reciteText: {
     fontSize: 20,
     flex: 1,
     textAlign: "center",
+  },
+  navButton: {
+    width: 40,
   },
 });

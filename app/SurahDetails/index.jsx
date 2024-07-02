@@ -60,7 +60,7 @@ const SurahDetails = () => {
           return (
             <IconButton
               icon={`chevron-${direction === -1 ? "left" : "right"}`}
-              color={theme.colors.textColor}
+              iconColor={theme.colors.textColor}
               size={30}
               onPress={() => {
                 navigation.setParams({ surahName: targetSurahName });
@@ -73,6 +73,7 @@ const SurahDetails = () => {
           title: `سورة ${surahName}`,
           headerShown: true,
           headerTitleStyle: { color: theme.colors.textColor },
+
           headerLeft: () => setNavigationOptions(-1),
           headerRight: () => setNavigationOptions(1),
         });

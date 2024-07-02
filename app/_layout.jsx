@@ -57,9 +57,10 @@ const rootLayout = () => {
             headerStyle: { backgroundColor: theme.colors.primary },
             headerShown: false,
             animation: "ios",
+            headerTintColor: theme.colors.textColor,
           }}
         >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" />
         </Stack>
       </I18nextProvider>
     </PaperProvider>
