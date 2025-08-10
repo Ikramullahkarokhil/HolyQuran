@@ -96,7 +96,7 @@ const RootLayout = () => {
             >
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen
-                name="Hadiths/index"
+                name="HadithBooks/index"
                 options={{ headerTitle: "Sahih Bukhari Hadiths" }}
               />
             </Stack>

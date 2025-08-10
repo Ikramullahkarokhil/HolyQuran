@@ -18,7 +18,7 @@ const cardData = [
     title: "Hadith",
     description: "Explore sacred narrations",
     icon: <FontAwesome5 name="book" size={32} color="#ffffff" />,
-    href: { pathname: "Hadiths" },
+    href: { pathname: "HadithBooks" },
     backgroundColor: "#2563eb",
   },
   {
