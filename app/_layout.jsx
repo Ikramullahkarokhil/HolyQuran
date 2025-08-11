@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Stack } from "expo-router";
+import { Stack, useGlobalSearchParams } from "expo-router";
 import { initI18n, i18n } from "../components/i18n";
 import { I18nextProvider } from "react-i18next";
 import { StatusBar } from "expo-status-bar";
@@ -21,6 +21,7 @@ const RootLayout = () => {
   const colorScheme = useColorScheme();
   const { isDarkTheme, themeMode, initializeTheme } = useThemeStore();
   const { initializeTranslationLanguage } = useQuranTranslationStore();
+  const { bookName } = useGlobalSearchParams();
 
   const theme = isDarkTheme ? darkTheme : lightTheme;
 
@@ -98,6 +99,17 @@ const RootLayout = () => {
               <Stack.Screen
                 name="HadithBooks/index"
                 options={{ headerTitle: "Sahih Bukhari Hadiths" }}
+              />
+              <Stack.Screen
+                name="Hadiths/index"
+                options={{ headerTitle: bookName }}
+              />
+              <Stack.Screen
+                name="Bookmarks/index"
+                options={{
+                  headerTitle: "Bookmarks",
+                  headerShadowVisible: false,
+                }}
               />
             </Stack>
           </I18nextProvider>

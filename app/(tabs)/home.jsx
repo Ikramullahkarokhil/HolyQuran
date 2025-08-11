@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, Animated } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  TouchableOpacity,
+  Animated,
+} from "react-native";
 import { IconButton, useTheme } from "react-native-paper";
 import { loadSurahNames } from "../../components/utils";
 import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
@@ -10,7 +17,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const theme = useTheme();
   const fadeAnim = useState(new Animated.Value(0))[0];
-  const router = useRouter()
+  const router = useRouter();
 
   useEffect(() => {
     const fetchSurahNames = async () => {
@@ -20,10 +27,10 @@ const Home = () => {
         if (names && Array.isArray(names)) {
           setSurahNames(names);
         } else {
-          console.error('Invalid surah names format:', names);
+          console.error("Invalid surah names format:", names);
         }
       } catch (error) {
-        console.error('Error loading surah names:', error);
+        console.error("Error loading surah names:", error);
       } finally {
         setLoading(false);
         Animated.timing(fadeAnim, {
@@ -34,29 +41,29 @@ const Home = () => {
       }
     };
 
-    fetchSurahNames().catch(err => {
+    fetchSurahNames().catch((err) => {
       console.error("Unhandled error in fetchSurahNames:", err);
     });
   }, []);
 
   handleBookmarks = () => {
     router.navigate("/Bookmarks");
-  }
+  };
 
-  handleSurahPress =(item, currentSurahName) => {
+  handleSurahPress = (item, currentSurahName) => {
     router.navigate({
-              pathname: "SurahDetails",
-              params: {
-                surahId: item.surah,
-                surahName: currentSurahName,
-              },
-            })
-  }
+      pathname: "SurahDetails",
+      params: {
+        surahId: item.surah,
+        surahName: currentSurahName,
+      },
+    });
+  };
 
   const versesPerSurah = useMemo(() => {
     try {
       if (!ArabicQuran?.quran?.["quran-uthmani-hafs"]) {
-        console.error('Invalid Quran data structure');
+        console.error("Invalid Quran data structure");
         return {};
       }
 
@@ -73,14 +80,14 @@ const Home = () => {
 
       return versesPerSurah;
     } catch (error) {
-      console.error('Error calculating verses:', error);
+      console.error("Error calculating verses:", error);
       return {};
     }
   }, []);
 
   const renderItem = ({ item }) => {
     if (!theme?.colors || !surahNames[item.surah - 1]) {
-      console.error('Theme or surah name not initialized properly');
+      console.error("Theme or surah name not initialized properly");
       return null;
     }
 
@@ -88,22 +95,27 @@ const Home = () => {
 
     return (
       <Animated.View style={[styles.itemContainer, { opacity: fadeAnim }]}>
-        <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-          
-            <TouchableOpacity style={styles.item} onPress={() => handleSurahPress(item, currentSurahName)}>
-              <Text style={[styles.verses, { color: theme.colors.accent }]}>
-                {versesPerSurah[item.surah] || 0} آيات
+        <View style={[styles.card, { backgroundColor: theme.colors.primary }]}>
+          <TouchableOpacity
+            style={styles.item}
+            onPress={() => handleSurahPress(item, currentSurahName)}
+          >
+            <Text style={[styles.verses, { color: theme.colors.textColor }]}>
+              {versesPerSurah[item.surah] || 0} آيات
+            </Text>
+            <View style={styles.surahContainer}>
+              <Text
+                style={[styles.surahNumber, { color: theme.colors.textColor }]}
+              >
+                {item.surah}
               </Text>
-              <View style={styles.surahContainer}>
-                <Text style={[styles.surahNumber, { color: theme.colors.textColor }]}>
-                  {item.surah}
-                </Text>
-                <Text style={[styles.surahName, { color: theme.colors.textColor }]}>
-                  سورة {currentSurahName}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          
+              <Text
+                style={[styles.surahName, { color: theme.colors.textColor }]}
+              >
+                سورة {currentSurahName}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </Animated.View>
     );
@@ -111,17 +123,26 @@ const Home = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme?.colors?.background }]}>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: theme?.colors?.background },
+        ]}
+      >
         <Text style={styles.loadingText}>جاري التحميل...</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme?.colors?.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme?.colors?.background }]}
+    >
       <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
         <FlatList
-          data={Array.from({ length: 114 }, (_, index) => ({ surah: index + 1 }))}
+          data={Array.from({ length: 114 }, (_, index) => ({
+            surah: index + 1,
+          }))}
           renderItem={renderItem}
           keyExtractor={(item) => item.surah.toString()}
           initialNumToRender={12} // Increased for smoother initial load
@@ -136,16 +157,21 @@ const Home = () => {
           })}
         />
       </Animated.View>
-     
-        <TouchableOpacity style={[styles.floatingButton, { backgroundColor: theme.colors.primary }]} onPress={handleBookmarks}>
-          <IconButton
-            icon="heart"
-            iconColor={theme.colors.error}
-            size={30}
-            style={styles.floatingButtonIcon}
-          />
-        </TouchableOpacity>
-     
+
+      <TouchableOpacity
+        style={[
+          styles.floatingButton,
+          { backgroundColor: theme.colors.primary },
+        ]}
+        onPress={handleBookmarks}
+      >
+        <IconButton
+          icon="heart"
+          iconColor={theme.colors.error}
+          size={30}
+          style={styles.floatingButtonIcon}
+        />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -163,7 +189,7 @@ const styles = StyleSheet.create({
   itemContainer: {
     marginBottom: 10,
     borderRadius: 15,
-    overflow: 'hidden',
+    overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 }, // Reduced shadow for performance
     shadowOpacity: 0.15,
@@ -172,54 +198,54 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 15,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: "#e0e0e0",
     paddingVertical: 15,
-    paddingHorizontal: 10
+    paddingHorizontal: 10,
   },
   item: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 10,
   },
   surahContainer: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "flex-end",
   },
   surahName: {
     fontSize: 22,
-    fontWeight: '600',
-    textAlign: 'right',
+    fontWeight: "600",
+    textAlign: "right",
     marginRight: 10,
-    fontFamily: 'Amiri-Regular', // Ensure you have this font or use a similar Arabic font
+    fontFamily: "Amiri-Regular", // Ensure you have this font or use a similar Arabic font
   },
   surahNumber: {
     fontSize: 18,
-    fontWeight: '500',
-    color: '#666',
+    fontWeight: "500",
+    color: "#666",
     marginRight: 10,
   },
   verses: {
     fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'left',
+    fontWeight: "500",
+    textAlign: "left",
   },
   loadingText: {
     fontSize: 18,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 20,
-    fontFamily: 'Amiri-Regular',
+    fontFamily: "Amiri-Regular",
   },
   floatingButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 20,
     right: 20,
     borderRadius: 30,
     elevation: 8,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: "#fff",
   },
   floatingButtonIcon: {

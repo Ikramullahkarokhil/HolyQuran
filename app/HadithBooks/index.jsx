@@ -12,6 +12,7 @@ import { useTheme, Text, ActivityIndicator } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import bookNames from "../../assets/Hadiths/sahih_bukhari_books_names.json";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
@@ -21,6 +22,7 @@ const HadithsScreen = () => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   // Use book names data directly
   const booksArray = useMemo(() => {
@@ -52,19 +54,28 @@ const HadithsScreen = () => {
         {
           opacity: pressed ? 0.9 : 1,
           transform: [{ scale: pressed ? 0.98 : 1 }],
+          backgroundColor: theme.colors.primary,
         },
       ]}
       onPress={() => {
-        // TODO: Navigate to book details
-        console.log(`Navigate to book ${item.bookNumber}`);
+        router.navigate({
+          pathname: "Hadiths",
+          params: { bookNumber: item.bookNumber, bookName: item.bookName },
+        });
       }}
-      android_ripple={{ color: "rgba(0, 0, 0, 0.1)" }}
+      android_ripple={{ color: theme.colors.riple }}
     >
       <View style={styles.cardContent}>
-        <Text style={styles.bookName} variant="titleMedium">
+        <Text
+          style={[styles.bookName, { color: theme.colors.textColor }]}
+          variant="titleMedium"
+        >
           {item.bookNumber}: {item.bookName}
         </Text>
-        <Text style={styles.hadithCount} variant="bodyMedium">
+        <Text
+          style={[styles.hadithCount, { color: theme.colors.inactiveColor }]}
+          variant="bodyMedium"
+        >
           {item.count} {t("hadiths")}
         </Text>
       </View>
@@ -74,13 +85,15 @@ const HadithsScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.progressColor} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.primary }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <View style={styles.searchContainer}>
         <TextInput
           placeholder={t("Search sahih bukhari books")}
@@ -143,6 +156,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     position: "relative",
     margin: 10,
+    marginTop: 15,
   },
   searchBar: {
     elevation: 8,

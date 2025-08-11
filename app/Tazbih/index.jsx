@@ -277,7 +277,9 @@ const Tazbih = () => {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.primary }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       {showMaxCountModal && (
         <Animated.View
           style={[
@@ -426,7 +428,7 @@ const Tazbih = () => {
       <Pressable
         style={[
           styles.progressContainer,
-          { backgroundColor: theme.colors.primary },
+          { backgroundColor: theme.colors.background },
         ]}
         onPress={handleIncrement}
         accessibilityLabel="Tap to increment counter"
@@ -437,7 +439,7 @@ const Tazbih = () => {
           width={18}
           fill={(counter / maxCount) * 100}
           tintColor={theme.colors.progressColor}
-          backgroundColor={theme.colors.background}
+          backgroundColor={theme.colors.primary}
           rotation={0}
           lineCap="round"
         >
@@ -494,9 +496,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-start",
     alignItems: "center",
-    paddingTop: 32,
-    paddingBottom: 20,
-    gap: 12,
+    paddingTop: 10,
   },
   loadingContainer: {
     justifyContent: "center",
@@ -554,10 +554,8 @@ const styles = StyleSheet.create({
     width: "94%",
     minHeight: 72,
     borderRadius: 16,
-
     paddingHorizontal: 8,
     paddingVertical: 12,
-
     elevation: 6,
   },
   reciteText: {
