@@ -8,14 +8,18 @@ import da from "../locales/da.json";
 
 const LANGUAGE_PREFERENCE = "language_preference";
 
-
 const getDeviceLanguage = () => {
   // Expo SDK 53: Localization.getLocales() returns an array of locale objects
   try {
-    const locales = Localization.getLocales && typeof Localization.getLocales === 'function'
-      ? Localization.getLocales()
-      : [];
-    if (Array.isArray(locales) && locales.length > 0 && locales[0].languageCode) {
+    const locales =
+      Localization.getLocales && typeof Localization.getLocales === "function"
+        ? Localization.getLocales()
+        : [];
+    if (
+      Array.isArray(locales) &&
+      locales.length > 0 &&
+      locales[0].languageCode
+    ) {
       return locales[0].languageCode;
     }
     // Fallback to old API if available
@@ -55,12 +59,12 @@ const initI18n = async () => {
       },
     });
   } catch (error) {
-    console.error('Failed to initialize i18n:', error);
+    console.error("Failed to initialize i18n:", error);
     await i18n.use(initReactI18next).init({
       compatibilityJSON: "v3",
       resources: { en: { translation: en } },
-      lng: 'en',
-      fallbackLng: 'en',
+      lng: "en",
+      fallbackLng: "en",
       interpolation: { escapeValue: false },
     });
   }

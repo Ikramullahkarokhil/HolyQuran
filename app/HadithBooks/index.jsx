@@ -17,7 +17,6 @@ import { useRouter } from "expo-router";
 const { width } = Dimensions.get("window");
 
 const HadithsScreen = () => {
-  const navigation = useNavigation();
   const theme = useTheme();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");

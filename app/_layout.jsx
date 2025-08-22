@@ -7,7 +7,10 @@ import { View, useColorScheme, Text } from "react-native";
 import useThemeStore from "../components/store/useThemeStore";
 import { darkTheme, lightTheme } from "../components/Theme";
 import { PaperProvider } from "react-native-paper";
-import useQuranTranslationStore from "../components/store/store";
+import {
+  useQuranTranslationStore,
+  useHadithTranslationStore,
+} from "../components/store/store";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import * as NavigationBar from "expo-navigation-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -20,7 +23,8 @@ const RootLayout = () => {
   const [error, setError] = useState(null);
   const colorScheme = useColorScheme();
   const { isDarkTheme, themeMode, initializeTheme } = useThemeStore();
-  const { initializeTranslationLanguage } = useQuranTranslationStore();
+  const { initializeQuranTranslationLanguage } = useQuranTranslationStore();
+  const { initializeHadithTranslationLanguage } = useHadithTranslationStore();
   const { bookName } = useGlobalSearchParams();
 
   const theme = isDarkTheme ? darkTheme : lightTheme;
@@ -32,7 +36,8 @@ const RootLayout = () => {
         await Promise.all([
           initI18n(),
           initializeTheme(colorScheme === "dark"),
-          initializeTranslationLanguage(),
+          initializeQuranTranslationLanguage(),
+          initializeHadithTranslationLanguage(),
         ]);
       } catch (e) {
         console.error("Initialization error:", e);

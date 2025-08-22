@@ -29,7 +29,7 @@ const HadithsScreen = () => {
   // Filter hadiths for the selected book
   const hadiths = useMemo(() => {
     return hadithsData.filter(
-      (h) => String(h.reference.book) === String(bookNumber)
+      (h) => String(h.reference.book) === String(bookNumber),
     );
   }, [bookNumber]);
 
@@ -41,24 +41,24 @@ const HadithsScreen = () => {
       // Avoid duplicates
       if (
         !hadithBookmarks.some(
-          (b) => b.reference?.hadith === item.reference?.hadith
+          (b) => b.reference?.hadith === item.reference?.hadith,
         )
       ) {
         const itemWithBookName = { ...item, bookName };
         hadithBookmarks.push(itemWithBookName);
         await AsyncStorage.setItem(
           "hadithBookmarks",
-          JSON.stringify(hadithBookmarks)
+          JSON.stringify(hadithBookmarks),
         );
 
         ToastAndroid.show(
           t(`Hadith #${item.reference.hadith} added to bookmarks`),
-          ToastAndroid.SHORT
+          ToastAndroid.SHORT,
         );
       } else {
         ToastAndroid.show(
           t(`Hadith #${item.reference.hadith} Already bookmarked`),
-          ToastAndroid.SHORT
+          ToastAndroid.SHORT,
         );
       }
     } catch (e) {
@@ -70,6 +70,7 @@ const HadithsScreen = () => {
   const handleLongPress = (item) => {
     const options = [t("Copy"), t("Share"), t("Bookmark"), t("Cancel")];
     const cancelButtonIndex = 3;
+
     showActionSheetWithOptions(
       {
         options,
@@ -83,7 +84,7 @@ const HadithsScreen = () => {
             await Clipboard.setStringAsync(item.text);
             ToastAndroid.show(
               t(`Hadith #${item.reference.hadith} copied to clipboard`),
-              ToastAndroid.SHORT
+              ToastAndroid.SHORT,
             );
           } catch (e) {
             Alert.alert(t("Error"), t("Could not copy"));
@@ -99,7 +100,7 @@ const HadithsScreen = () => {
           // Bookmark
           handleBookmark(item);
         }
-      }
+      },
     );
   };
 

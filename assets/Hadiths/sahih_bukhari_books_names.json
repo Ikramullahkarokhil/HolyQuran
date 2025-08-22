@@ -1,219 +1,487 @@
 [
-  { "Book_Number": 1, "Book_Name": "Revelation", "Hadith_Count": 7 },
-  { "Book_Number": 2, "Book_Name": "Belief", "Hadith_Count": 51 },
-  { "Book_Number": 3, "Book_Name": "Knowledge", "Hadith_Count": 76 },
-  { "Book_Number": 4, "Book_Name": "Ablution", "Hadith_Count": 113 },
-  { "Book_Number": 5, "Book_Name": "Bathing", "Hadith_Count": 66 },
-  { "Book_Number": 6, "Book_Name": "Menses", "Hadith_Count": 40 },
-  { "Book_Number": 7, "Book_Name": "Tayammum", "Hadith_Count": 13 },
-  { "Book_Number": 8, "Book_Name": "Prayer", "Hadith_Count": 172 },
-  { "Book_Number": 9, "Book_Name": "Prayer Times", "Hadith_Count": 103 },
-  { "Book_Number": 10, "Book_Name": "Adhan", "Hadith_Count": 132 },
-  { "Book_Number": 11, "Book_Name": "Friday Prayer", "Hadith_Count": 88 },
-  { "Book_Number": 12, "Book_Name": "Fear Prayer", "Hadith_Count": 8 },
-  { "Book_Number": 13, "Book_Name": "Eclipse Prayer", "Hadith_Count": 20 },
-  { "Book_Number": 14, "Book_Name": "Rain Prayer", "Hadith_Count": 14 },
-  { "Book_Number": 15, "Book_Name": "Witr Prayer", "Hadith_Count": 7 },
-  { "Book_Number": 16, "Book_Name": "Voluntary Prayers", "Hadith_Count": 46 },
-  { "Book_Number": 17, "Book_Name": "Shortening Prayers", "Hadith_Count": 28 },
   {
-    "Book_Number": 18,
-    "Book_Name": "Prostration During Recitation",
-    "Hadith_Count": 15
-  },
-  { "Book_Number": 19, "Book_Name": "Funerals", "Hadith_Count": 149 },
-  { "Book_Number": 20, "Book_Name": "Zakat", "Hadith_Count": 118 },
-  { "Book_Number": 21, "Book_Name": "Fasting", "Hadith_Count": 111 },
-  {
-    "Book_Number": 22,
-    "Book_Name": "Night Prayer in Ramadan (Taraweeh)",
-    "Hadith_Count": 10
-  },
-  { "Book_Number": 23, "Book_Name": "Pilgrimage (Hajj)", "Hadith_Count": 260 },
-  { "Book_Number": 24, "Book_Name": "Umrah", "Hadith_Count": 22 },
-  { "Book_Number": 25, "Book_Name": "Hajj Rituals", "Hadith_Count": 75 },
-  { "Book_Number": 26, "Book_Name": "Sacrifices", "Hadith_Count": 22 },
-  { "Book_Number": 27, "Book_Name": "Virtues of Madinah", "Hadith_Count": 24 },
-  {
-    "Book_Number": 28,
-    "Book_Name": "Fasting and Breaking Fast",
-    "Hadith_Count": 30
-  },
-  {
-    "Book_Number": 29,
-    "Book_Name": "Virtues of the Qur'an",
-    "Hadith_Count": 68
-  },
-  { "Book_Number": 30, "Book_Name": "Marriage", "Hadith_Count": 189 },
-  { "Book_Number": 31, "Book_Name": "Divorce", "Hadith_Count": 100 },
-  {
-    "Book_Number": 32,
-    "Book_Name": "Business Transactions",
-    "Hadith_Count": 104
-  },
-  { "Book_Number": 33, "Book_Name": "Partnership", "Hadith_Count": 13 },
-  { "Book_Number": 34, "Book_Name": "Mortgaging", "Hadith_Count": 7 },
-  { "Book_Number": 35, "Book_Name": "Hiring", "Hadith_Count": 16 },
-  {
-    "Book_Number": 36,
-    "Book_Name": "Lost Things Picked Up by Someone",
-    "Hadith_Count": 20
-  },
-  { "Book_Number": 37, "Book_Name": "Oppression", "Hadith_Count": 29 },
-  { "Book_Number": 38, "Book_Name": "Laws of Inheritance", "Hadith_Count": 36 },
-  { "Book_Number": 39, "Book_Name": "Gifts", "Hadith_Count": 41 },
-  { "Book_Number": 40, "Book_Name": "Witnesses", "Hadith_Count": 53 },
-  { "Book_Number": 41, "Book_Name": "Peacemaking", "Hadith_Count": 16 },
-  { "Book_Number": 42, "Book_Name": "Conditions", "Hadith_Count": 10 },
-  { "Book_Number": 43, "Book_Name": "Wills", "Hadith_Count": 44 },
-  { "Book_Number": 44, "Book_Name": "Jihad", "Hadith_Count": 309 },
-  { "Book_Number": 45, "Book_Name": "Expeditions", "Hadith_Count": 242 },
-  {
-    "Book_Number": 46,
-    "Book_Name": "Beginning of Creation",
-    "Hadith_Count": 136
-  },
-  { "Book_Number": 47, "Book_Name": "Prophets", "Hadith_Count": 139 },
-  {
-    "Book_Number": 48,
-    "Book_Name": "Virtues and Merits of the Prophet",
-    "Hadith_Count": 56
-  },
-  {
-    "Book_Number": 49,
-    "Book_Name": "Virtues of the Companions",
-    "Hadith_Count": 127
-  },
-  { "Book_Number": 50, "Book_Name": "Virtues of Abu Bakr", "Hadith_Count": 24 },
-  { "Book_Number": 51, "Book_Name": "Virtues of Umar", "Hadith_Count": 23 },
-  {
-    "Book_Number": 52,
-    "Book_Name": "Virtues of Uthman and Ali",
-    "Hadith_Count": 25
-  },
-  {
-    "Book_Number": 53,
-    "Book_Name": "Virtues of the Ansar",
-    "Hadith_Count": 69
-  },
-  {
-    "Book_Number": 54,
-    "Book_Name": "Virtues of the Quraysh",
-    "Hadith_Count": 15
-  },
-  {
-    "Book_Number": 55,
-    "Book_Name": "Virtues of the Muhajirun",
-    "Hadith_Count": 16
-  },
-  { "Book_Number": 56, "Book_Name": "Virtues of Women", "Hadith_Count": 22 },
-  { "Book_Number": 57, "Book_Name": "Virtues of Children", "Hadith_Count": 10 },
-  {
-    "Book_Number": 58,
-    "Book_Name": "Virtues of the Night of Qadr",
+    "Book_Number": 1,
+    "Book_Name": "Revelation",
     "Hadith_Count": 7
   },
   {
-    "Book_Number": 59,
-    "Book_Name": "Virtues of the Mosque",
-    "Hadith_Count": 25
+    "Book_Number": 2,
+    "Book_Name": "Belief",
+    "Hadith_Count": 51
   },
   {
-    "Book_Number": 60,
-    "Book_Name": "Virtues of the Qur'an Recitation",
+    "Book_Number": 3,
+    "Book_Name": "Knowledge",
+    "Hadith_Count": 76
+  },
+  {
+    "Book_Number": 4,
+    "Book_Name": "Ablutions (Wudu')",
+    "Hadith_Count": 113
+  },
+  {
+    "Book_Number": 5,
+    "Book_Name": "Bathing (Ghusl)",
+    "Hadith_Count": 45
+  },
+  {
+    "Book_Number": 6,
+    "Book_Name": "Menstrual Periods",
+    "Hadith_Count": 37
+  },
+  {
+    "Book_Number": 7,
+    "Book_Name": "Rubbing hands and feet with dust (Tayammum)",
+    "Hadith_Count": 15
+  },
+  {
+    "Book_Number": 8,
+    "Book_Name": "Prayers (Salat)",
+    "Hadith_Count": 167
+  },
+  {
+    "Book_Number": 9,
+    "Book_Name": "Times of the Prayers",
+    "Hadith_Count": 77
+  },
+  {
+    "Book_Number": 10,
+    "Book_Name": "Call to Prayers (Adhaan)",
+    "Hadith_Count": 266
+  },
+  {
+    "Book_Number": 11,
+    "Book_Name": "Friday Prayer",
+    "Hadith_Count": 65
+  },
+  {
+    "Book_Number": 12,
+    "Book_Name": "Fear Prayer",
+    "Hadith_Count": 6
+  },
+  {
+    "Book_Number": 13,
+    "Book_Name": "The Two Festivals (Eids)",
+    "Hadith_Count": 37
+  },
+  {
+    "Book_Number": 14,
+    "Book_Name": "Witr Prayer",
+    "Hadith_Count": 15
+  },
+  {
+    "Book_Number": 15,
+    "Book_Name": "Invoking Allah for Rain (Istisqaa)",
     "Hadith_Count": 34
   },
   {
-    "Book_Number": 61,
-    "Book_Name": "Interpretation of Dreams",
-    "Hadith_Count": 53
+    "Book_Number": 16,
+    "Book_Name": "Eclipses",
+    "Hadith_Count": 24
   },
-  { "Book_Number": 62, "Book_Name": "Medicine", "Hadith_Count": 59 },
-  { "Book_Number": 63, "Book_Name": "Dress", "Hadith_Count": 117 },
-  { "Book_Number": 64, "Book_Name": "Food", "Hadith_Count": 113 },
-  { "Book_Number": 65, "Book_Name": "Drinks", "Hadith_Count": 37 },
-  { "Book_Number": 66, "Book_Name": "Sacrifice on Eid", "Hadith_Count": 17 },
+  {
+    "Book_Number": 17,
+    "Book_Name": "Prostration During Recital of Qur'an",
+    "Hadith_Count": 13
+  },
+  {
+    "Book_Number": 18,
+    "Book_Name": "Shortening the Prayers (At-Taqseer)",
+    "Hadith_Count": 39
+  },
+  {
+    "Book_Number": 19,
+    "Book_Name": "Prayer at Night (Tahajjud)",
+    "Hadith_Count": 63
+  },
+  {
+    "Book_Number": 20,
+    "Book_Name": "Virtues of Prayer at Masjid Makkah and Madinah",
+    "Hadith_Count": 9
+  },
+  {
+    "Book_Number": 21,
+    "Book_Name": "Actions while Praying",
+    "Hadith_Count": 27
+  },
+  {
+    "Book_Number": 22,
+    "Book_Name": "Forgetfulness in Prayer",
+    "Hadith_Count": 14
+  },
+  {
+    "Book_Number": 23,
+    "Book_Name": "Funerals (Al-Janaa'iz)",
+    "Hadith_Count": 148
+  },
+  {
+    "Book_Number": 24,
+    "Book_Name": "Obligatory Charity Tax (Zakat)",
+    "Hadith_Count": 112
+  },
+  {
+    "Book_Number": 25,
+    "Book_Name": "Hajj (Pilgrimage)",
+    "Hadith_Count": 247
+  },
+  {
+    "Book_Number": 26,
+    "Book_Name": "`Umrah (Minor pilgrimage)",
+    "Hadith_Count": 30
+  },
+  {
+    "Book_Number": 27,
+    "Book_Name": "Pilgrims Prevented from Completing the Pilgrimage",
+    "Hadith_Count": 15
+  },
+  {
+    "Book_Number": 28,
+    "Book_Name": "Penalty of Hunting while on Pilgrimage",
+    "Hadith_Count": 46
+  },
+  {
+    "Book_Number": 29,
+    "Book_Name": "Virtues of Madinah",
+    "Hadith_Count": 24
+  },
+  {
+    "Book_Number": 30,
+    "Book_Name": "Fasting",
+    "Hadith_Count": 112
+  },
+  {
+    "Book_Number": 31,
+    "Book_Name": "Praying at Night in Ramadaan (Taraweeh)",
+    "Hadith_Count": 6
+  },
+  {
+    "Book_Number": 32,
+    "Book_Name": "Virtues of the Night of Qadr",
+    "Hadith_Count": 11
+  },
+  {
+    "Book_Number": 33,
+    "Book_Name": "Retiring to a Mosque for Remembrance of Allah (I'tikaf)",
+    "Hadith_Count": 21
+  },
+  {
+    "Book_Number": 34,
+    "Book_Name": "Sales and Trade",
+    "Hadith_Count": 184
+  },
+  {
+    "Book_Number": 35,
+    "Book_Name": "Sales in which a Price is paid for Goods to be Delivered Later (As-Salam)",
+    "Hadith_Count": 16
+  },
+  {
+    "Book_Number": 36,
+    "Book_Name": "Shuf'a",
+    "Hadith_Count": 3
+  },
+  {
+    "Book_Number": 37,
+    "Book_Name": "Hiring",
+    "Hadith_Count": 25
+  },
+  {
+    "Book_Number": 38,
+    "Book_Name": "Transferance of a Debt from One Person to Another (Al-Hawaala)",
+    "Hadith_Count": 3
+  },
+  {
+    "Book_Number": 39,
+    "Book_Name": "Kafalah",
+    "Hadith_Count": 9
+  },
+  {
+    "Book_Number": 40,
+    "Book_Name": "Representation, Authorization, Business by Proxy",
+    "Hadith_Count": 18
+  },
+  {
+    "Book_Number": 41,
+    "Book_Name": "Agriculture",
+    "Hadith_Count": 28
+  },
+  {
+    "Book_Number": 42,
+    "Book_Name": "Distribution of Water",
+    "Hadith_Count": 31
+  },
+  {
+    "Book_Number": 43,
+    "Book_Name": "Loans, Payment of Loans, Freezing of Property, Bankruptcy",
+    "Hadith_Count": 24
+  },
+  {
+    "Book_Number": 44,
+    "Book_Name": "Khusoomaat",
+    "Hadith_Count": 15
+  },
+  {
+    "Book_Number": 45,
+    "Book_Name": "Lost Things Picked up by Someone (Luqatah)",
+    "Hadith_Count": 15
+  },
+  {
+    "Book_Number": 46,
+    "Book_Name": "Oppressions",
+    "Hadith_Count": 43
+  },
+  {
+    "Book_Number": 47,
+    "Book_Name": "Partnership",
+    "Hadith_Count": 22
+  },
+  {
+    "Book_Number": 48,
+    "Book_Name": "Mortgaging",
+    "Hadith_Count": 8
+  },
+  {
+    "Book_Number": 49,
+    "Book_Name": "Manumission of Slaves",
+    "Hadith_Count": 41
+  },
+  {
+    "Book_Number": 50,
+    "Book_Name": "Makaatib",
+    "Hadith_Count": 6
+  },
+  {
+    "Book_Number": 51,
+    "Book_Name": "Gifts",
+    "Hadith_Count": 68
+  },
+  {
+    "Book_Number": 52,
+    "Book_Name": "Witnesses",
+    "Hadith_Count": 50
+  },
+  {
+    "Book_Number": 53,
+    "Book_Name": "Peacemaking",
+    "Hadith_Count": 20
+  },
+  {
+    "Book_Number": 54,
+    "Book_Name": "Conditions",
+    "Hadith_Count": 24
+  },
+  {
+    "Book_Number": 55,
+    "Book_Name": "Wills and Testaments (Wasaayaa)",
+    "Hadith_Count": 44
+  },
+  {
+    "Book_Number": 56,
+    "Book_Name": "Fighting for the Cause of Allah (Jihaad)",
+    "Hadith_Count": 294
+  },
+  {
+    "Book_Number": 57,
+    "Book_Name": "One-fifth of Booty to the Cause of Allah (Khumus)",
+    "Hadith_Count": 63
+  },
+  {
+    "Book_Number": 58,
+    "Book_Name": "Jizyah and Mawaada'ah",
+    "Hadith_Count": 30
+  },
+  {
+    "Book_Number": 59,
+    "Book_Name": "Beginning of Creation",
+    "Hadith_Count": 131
+  },
+  {
+    "Book_Number": 60,
+    "Book_Name": "Prophets",
+    "Hadith_Count": 154
+  },
+  {
+    "Book_Number": 61,
+    "Book_Name": "Virtues and Merits of the Prophet (pbuh) and his Companions",
+    "Hadith_Count": 151
+  },
+  {
+    "Book_Number": 62,
+    "Book_Name": "Companions of the Prophet",
+    "Hadith_Count": 120
+  },
+  {
+    "Book_Number": 63,
+    "Book_Name": "Merits of the Helpers in Madinah (Ansaar)",
+    "Hadith_Count": 172
+  },
+  {
+    "Book_Number": 64,
+    "Book_Name": "Military Expeditions led by the Prophet (pbuh) (Al-Maghaazi)",
+    "Hadith_Count": 488
+  },
+  {
+    "Book_Number": 65,
+    "Book_Name": "Prophetic Commentary on the Qur'an (Tafseer of the Prophet (pbuh))",
+    "Hadith_Count": 499
+  },
+  {
+    "Book_Number": 66,
+    "Book_Name": "Virtues of the Qur'an",
+    "Hadith_Count": 87
+  },
   {
     "Book_Number": 67,
-    "Book_Name": "Hunting and Slaughtering",
-    "Hadith_Count": 49
+    "Book_Name": "Wedlock, Marriage (Nikaah)",
+    "Hadith_Count": 183
   },
-  { "Book_Number": 68, "Book_Name": "Al-Adha Festival", "Hadith_Count": 19 },
-  { "Book_Number": 69, "Book_Name": "Oaths and Vows", "Hadith_Count": 60 },
-  { "Book_Number": 70, "Book_Name": "Expiation of Oaths", "Hadith_Count": 15 },
-  { "Book_Number": 71, "Book_Name": "Invocations", "Hadith_Count": 147 },
-  { "Book_Number": 72, "Book_Name": "Repentance", "Hadith_Count": 33 },
+  {
+    "Book_Number": 68,
+    "Book_Name": "Divorce",
+    "Hadith_Count": 95
+  },
+  {
+    "Book_Number": 69,
+    "Book_Name": "Supporting the Family",
+    "Hadith_Count": 22
+  },
+  {
+    "Book_Number": 70,
+    "Book_Name": "Food, Meals",
+    "Hadith_Count": 95
+  },
+  {
+    "Book_Number": 71,
+    "Book_Name": "Sacrifice on Occasion of Birth (`Aqiqa)",
+    "Hadith_Count": 9
+  },
+  {
+    "Book_Number": 72,
+    "Book_Name": "Hunting, Slaughtering",
+    "Hadith_Count": 69
+  },
   {
     "Book_Number": 73,
-    "Book_Name": "Softening of the Heart",
-    "Hadith_Count": 97
+    "Book_Name": "Al-Adha Festival Sacrifice (Adaahi)",
+    "Hadith_Count": 30
   },
-  { "Book_Number": 74, "Book_Name": "Divine Will (Qadar)", "Hadith_Count": 27 },
+  {
+    "Book_Number": 74,
+    "Book_Name": "Drinks",
+    "Hadith_Count": 65
+  },
   {
     "Book_Number": 75,
-    "Book_Name": "Holding Fast to the Qur'an and Sunnah",
+    "Book_Name": "Patients",
     "Hadith_Count": 37
   },
   {
     "Book_Number": 76,
-    "Book_Name": "Tafsir of the Qur'an",
-    "Hadith_Count": 557
+    "Book_Name": "Medicine",
+    "Hadith_Count": 93
   },
   {
     "Book_Number": 77,
-    "Book_Name": "Virtues of the Qur'an",
-    "Hadith_Count": 36
+    "Book_Name": "Dress",
+    "Hadith_Count": 185
   },
   {
     "Book_Number": 78,
-    "Book_Name": "Monotheism (Tawheed)",
-    "Hadith_Count": 149
+    "Book_Name": "Good Manners and Form (Al-Adab)",
+    "Hadith_Count": 250
   },
-  { "Book_Number": 79, "Book_Name": "Oneness of Allah", "Hadith_Count": 44 },
-  { "Book_Number": 80, "Book_Name": "Attributes of Allah", "Hadith_Count": 24 },
+  {
+    "Book_Number": 79,
+    "Book_Name": "Asking Permission",
+    "Hadith_Count": 75
+  },
+  {
+    "Book_Number": 80,
+    "Book_Name": "Invocations",
+    "Hadith_Count": 106
+  },
   {
     "Book_Number": 81,
-    "Book_Name": "Names and Qualities of Allah",
-    "Hadith_Count": 19
+    "Book_Name": "To make the Heart Tender (Ar-Riqaq)",
+    "Hadith_Count": 181
   },
-  { "Book_Number": 82, "Book_Name": "Faith and Actions", "Hadith_Count": 53 },
+  {
+    "Book_Number": 82,
+    "Book_Name": "Divine Will (Al-Qadar)",
+    "Hadith_Count": 26
+  },
   {
     "Book_Number": 83,
-    "Book_Name": "Punishment in the Grave",
-    "Hadith_Count": 24
+    "Book_Name": "Oaths and Vows",
+    "Hadith_Count": 84
   },
-  { "Book_Number": 84, "Book_Name": "Signs of the Hour", "Hadith_Count": 46 },
-  { "Book_Number": 85, "Book_Name": "Paradise", "Hadith_Count": 70 },
-  { "Book_Number": 86, "Book_Name": "Hellfire", "Hadith_Count": 44 },
-  { "Book_Number": 87, "Book_Name": "Intercession", "Hadith_Count": 14 },
+  {
+    "Book_Number": 84,
+    "Book_Name": "Expiation for Unfulfilled Oaths",
+    "Hadith_Count": 15
+  },
+  {
+    "Book_Number": 85,
+    "Book_Name": "Laws of Inheritance (Al-Faraa'id)",
+    "Hadith_Count": 47
+  },
+  {
+    "Book_Number": 86,
+    "Book_Name": "Limits and Punishments set by Allah (Hudood)",
+    "Hadith_Count": 81
+  },
+  {
+    "Book_Number": 87,
+    "Book_Name": "Blood Money (Ad-Diyat)",
+    "Hadith_Count": 55
+  },
   {
     "Book_Number": 88,
-    "Book_Name": "Accountability on the Day of Judgment",
-    "Hadith_Count": 30
+    "Book_Name": "Apostates",
+    "Hadith_Count": 21
   },
-  { "Book_Number": 89, "Book_Name": "Destiny", "Hadith_Count": 17 },
-  { "Book_Number": 90, "Book_Name": "The Book of Manners", "Hadith_Count": 71 },
-  { "Book_Number": 91, "Book_Name": "The Book of Trials", "Hadith_Count": 64 },
-  { "Book_Number": 92, "Book_Name": "The Book of Dreams", "Hadith_Count": 35 },
+  {
+    "Book_Number": 89,
+    "Book_Name": "(Statements made under) Coercion",
+    "Hadith_Count": 13
+  },
+  {
+    "Book_Number": 90,
+    "Book_Name": "Tricks",
+    "Hadith_Count": 28
+  },
+  {
+    "Book_Number": 91,
+    "Book_Name": "Interpretation of Dreams",
+    "Hadith_Count": 61
+  },
+  {
+    "Book_Number": 92,
+    "Book_Name": "Afflictions and the End of the World",
+    "Hadith_Count": 83
+  },
   {
     "Book_Number": 93,
-    "Book_Name": "The Book of Interpretation",
-    "Hadith_Count": 66
+    "Book_Name": "Judgments (Ahkaam)",
+    "Hadith_Count": 84
   },
-  { "Book_Number": 94, "Book_Name": "The Book of Tawheed", "Hadith_Count": 58 },
   {
-    "Book_Number": 95,
-    "Book_Name": "The Book of Holding Fast to the Qur'an",
+    "Book_Number": 94,
+    "Book_Name": "Wishes",
     "Hadith_Count": 20
   },
   {
+    "Book_Number": 95,
+    "Book_Name": "Accepting Information Given by a Truthful Person",
+    "Hadith_Count": 21
+  },
+  {
     "Book_Number": 96,
-    "Book_Name": "The Book of Asking Permission",
-    "Hadith_Count": 77
+    "Book_Name": "Holding Fast to the Qur'an and Sunnah",
+    "Hadith_Count": 97
   },
   {
     "Book_Number": 97,
-    "Book_Name": "The Book of Oneness of Allah",
-    "Hadith_Count": 22
+    "Book_Name": "Oneness, Uniqueness of Allah (Tawheed)",
+    "Hadith_Count": 188
   }
 ]
