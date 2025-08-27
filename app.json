@@ -8,9 +8,7 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "hermes": {
-      "enabled": true
-    },
+    "jsEngine": "hermes",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.holyquran.app"
@@ -44,7 +42,8 @@
         }
       ],
       "expo-localization",
-      "expo-audio"
+      "expo-audio",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
