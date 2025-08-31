@@ -10,7 +10,7 @@ import {
 import { IconButton, useTheme } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import useQuranTranslationStore from "../../components/store/store";
+import { useQuranTranslationStore } from "../../components/store/store";
 import useThemeStore from "../../components/store/useThemeStore";
 
 const Settings = () => {

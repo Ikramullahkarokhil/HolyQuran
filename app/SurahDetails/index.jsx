@@ -1,15 +1,37 @@
-import React, { useMemo, useCallback, useRef, useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert, Share, FlatList, Pressable } from "react-native";
+import React, {
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  useState,
+} from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  Share,
+  FlatList,
+  Pressable,
+} from "react-native";
 import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
 import EnglishQuran from "../../assets/QuranData/EnglishQuran.json";
 import PashtoQuran from "../../assets/QuranData/PashtoQuran.json";
 import DariQuran from "../../assets/QuranData/PersianQuran.json";
 import SurahNames from "../../assets/QuranData/SurahNames.json";
-import { LongPressGestureHandler, State, GestureHandlerRootView } from "react-native-gesture-handler";
-import { ActionSheetProvider, connectActionSheet, useActionSheet } from "@expo/react-native-action-sheet";
+import {
+  LongPressGestureHandler,
+  State,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import {
+  ActionSheetProvider,
+  connectActionSheet,
+  useActionSheet,
+} from "@expo/react-native-action-sheet";
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import useQuranTranslationStore from "../../components/store/store";
+import { useQuranTranslationStore } from "../../components/store/store";
 import { useNavigation } from "@react-navigation/native";
 import { useGlobalSearchParams, useFocusEffect } from "expo-router";
 import { IconButton, useTheme } from "react-native-paper";
@@ -32,10 +54,14 @@ const SurahDetails = () => {
   const getTranslationData = useMemo(() => {
     return (language) => {
       switch (language) {
-        case "pashto": return PashtoQuran;
-        case "dari": return DariQuran;
-        case "english": return EnglishQuran;
-        default: return PashtoQuran;
+        case "pashto":
+          return PashtoQuran;
+        case "dari":
+          return DariQuran;
+        case "english":
+          return EnglishQuran;
+        default:
+          return PashtoQuran;
       }
     };
   }, []);
@@ -61,18 +87,20 @@ const SurahDetails = () => {
     );
   }, [surahName, translationData, surahNames]);
 
-
   useFocusEffect(
     useCallback(() => {
       if (surahName) {
         const setNavigationOptions = (direction) => {
-          const targetSurahName = surahNames[currentSurahIndex + direction] || surahName;
+          const targetSurahName =
+            surahNames[currentSurahIndex + direction] || surahName;
           return (
             <IconButton
               icon={`chevron-${direction === -1 ? "left" : "right"}`}
               iconColor={theme.colors.textColor}
               size={30}
-              onPress={() => navigation.setParams({ surahName: targetSurahName })}
+              onPress={() =>
+                navigation.setParams({ surahName: targetSurahName })
+              }
             />
           );
         };
@@ -85,7 +113,13 @@ const SurahDetails = () => {
           headerRight: () => setNavigationOptions(1),
         });
       }
-    }, [surahName, currentSurahIndex, theme.colors.textColor, surahNames, navigation])
+    }, [
+      surahName,
+      currentSurahIndex,
+      theme.colors.textColor,
+      surahNames,
+      navigation,
+    ])
   );
 
   const handleLongPress = useCallback(
@@ -95,11 +129,17 @@ const SurahDetails = () => {
       const { verse: verseText, translationVerse } = verse;
 
       try {
-        const existingBookmarks = JSON.parse(await AsyncStorage.getItem("bookmarks")) || [];
-        const isBookmarked = existingBookmarks.some((bookmark) => bookmark.id === verse.id);
+        const existingBookmarks =
+          JSON.parse(await AsyncStorage.getItem("bookmarks")) || [];
+        const isBookmarked = existingBookmarks.some(
+          (bookmark) => bookmark.id === verse.id
+        );
 
         if (isBookmarked) {
-          Alert.alert("Already Bookmarked", `${verseText}\n\n${translationVerse}`);
+          Alert.alert(
+            "Already Bookmarked",
+            `${verseText}\n\n${translationVerse}`
+          );
           return;
         }
 
@@ -109,12 +149,21 @@ const SurahDetails = () => {
             switch (buttonIndex) {
               case 0:
                 const updatedBookmarks = [...existingBookmarks, verse];
-                await AsyncStorage.setItem("bookmarks", JSON.stringify(updatedBookmarks));
-                Alert.alert("Bookmarked", `${verseText}\n\n${translationVerse}`);
+                await AsyncStorage.setItem(
+                  "bookmarks",
+                  JSON.stringify(updatedBookmarks)
+                );
+                Alert.alert(
+                  "Bookmarked",
+                  `${verseText}\n\n${translationVerse}`
+                );
                 break;
               case 1:
                 Clipboard.setString(`${verseText}\n\n${translationVerse}`);
-                Alert.alert("Copied to Clipboard", `${verseText}\n\n${translationVerse}`);
+                Alert.alert(
+                  "Copied to Clipboard",
+                  `${verseText}\n\n${translationVerse}`
+                );
                 break;
               case 2:
                 Share.share({ message: `${verseText}\n\n${translationVerse}` });
@@ -133,8 +182,11 @@ const SurahDetails = () => {
 
   const renderItem = useCallback(
     ({ item }) => {
-      const translationItem = translationVerses.find((verse) => verse.id === item.id);
-      const translationVerse = translationItem?.verse || "Translation not available";
+      const translationItem = translationVerses.find(
+        (verse) => verse.id === item.id
+      );
+      const translationVerse =
+        translationItem?.verse || "Translation not available";
 
       return (
         <LongPressGestureHandler
@@ -161,22 +213,35 @@ const SurahDetails = () => {
             ]}
           >
             <View style={styles.verseRow}>
-              <Text style={[styles.verseText, { color: theme.colors.textColor }]}>
+              <Text
+                style={[styles.verseText, { color: theme.colors.textColor }]}
+              >
                 <View style={styles.ayahBadge}>
                   <Text style={styles.ayahBadgeText}>{item.ayah}</Text>
                 </View>{" "}
                 {item.verse}
               </Text>
             </View>
-            <Text style={[styles.translationText, { color: theme.colors.textColor }]}>
+            <Text
+              style={[
+                styles.translationText,
+                { color: theme.colors.textColor },
+              ]}
+            >
               {translationVerse}
             </Text>
-           
           </Pressable>
         </LongPressGestureHandler>
       );
     },
-    [handleLongPress, translationVerses, theme.colors.inactiveColor, theme.colors.textColor, theme.colors.surface, theme.colors.riple]
+    [
+      handleLongPress,
+      translationVerses,
+      theme.colors.inactiveColor,
+      theme.colors.textColor,
+      theme.colors.surface,
+      theme.colors.riple,
+    ]
   );
 
   const getItemLayout = useCallback(
@@ -188,13 +253,10 @@ const SurahDetails = () => {
     []
   );
 
-  const handleScroll = useCallback(
-    (event) => {
-      const y = event.nativeEvent.contentOffset.y;
-      setShowScrollTop(y > 200);
-    },
-    []
-  );
+  const handleScroll = useCallback((event) => {
+    const y = event.nativeEvent.contentOffset.y;
+    setShowScrollTop(y > 200);
+  }, []);
 
   if (!surahName) {
     return (
@@ -204,9 +266,10 @@ const SurahDetails = () => {
     );
   }
 
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <FlatList
         ref={flatListRef}
         data={verses}
@@ -217,7 +280,7 @@ const SurahDetails = () => {
         windowSize={5}
         removeClippedSubviews={true}
         updateCellsBatchingPeriod={50}
-        ItemSeparatorComponent={() =>  <View style={styles.divider} />}
+        ItemSeparatorComponent={() => <View style={styles.divider} />}
         onScroll={handleScroll}
         // getItemLayout={getItemLayout}
       />
@@ -225,7 +288,9 @@ const SurahDetails = () => {
         <Pressable
           style={styles.scrollTopBtn}
           android_ripple={{ color: theme.colors.riple }}
-          onPress={() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true })}
+          onPress={() =>
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+          }
         >
           <Text style={styles.scrollTopBtnText}>↑</Text>
         </Pressable>
@@ -289,7 +354,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
     shadowRadius: 2,
-   
   },
   ayahBadgeText: {
     fontSize: 15,
@@ -300,7 +364,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: "#e0e0e0",
-    
+
     opacity: 0.7,
   },
   translationText: {
