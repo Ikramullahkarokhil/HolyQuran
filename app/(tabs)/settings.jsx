@@ -10,7 +10,10 @@ import {
 import { IconButton, useTheme } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { useActionSheet } from "@expo/react-native-action-sheet";
-import { useQuranTranslationStore } from "../../components/store/store";
+import {
+  useQuranTranslationStore,
+  useHadithTranslationStore,
+} from "../../components/store/store";
 import useThemeStore from "../../components/store/useThemeStore";
 
 const Settings = () => {
@@ -19,6 +22,10 @@ const Settings = () => {
   const { showActionSheetWithOptions } = useActionSheet();
   const { translationLanguage, setTranslationLanguage } =
     useQuranTranslationStore();
+  const {
+    translationLanguage: hadithTranslationLanguage,
+    setTranslationLanguage: setHadithTranslationLanguage,
+  } = useHadithTranslationStore();
   const { themeMode, setThemeMode } = useThemeStore();
   const colorScheme = useColorScheme();
 
@@ -32,6 +39,11 @@ const Settings = () => {
     { label: "English", value: "english" },
     { label: "پښتو", value: "pashto" },
     { label: "دری", value: "dari" },
+  ];
+
+  const hadithLanguages = [
+    { label: "English", value: "english" },
+    { label: "العربية", value: "arabic" },
   ];
 
   const getActionSheetStyles = () => ({
@@ -94,6 +106,29 @@ const Settings = () => {
           selectedIndex !== undefined
         ) {
           setTranslationLanguage(quranLanguages[selectedIndex].value);
+        }
+      }
+    );
+  };
+
+  const handleHadithLanguageSelect = () => {
+    const options = [...hadithLanguages.map((lang) => lang.label), t("Cancel")];
+    const cancelButtonIndex = options.length - 1;
+    const styles = getActionSheetStyles();
+
+    showActionSheetWithOptions(
+      {
+        options,
+        cancelButtonIndex,
+        title: t("Choose Your Preferred Hadith Translation"),
+        ...styles,
+      },
+      (selectedIndex) => {
+        if (
+          selectedIndex !== cancelButtonIndex &&
+          selectedIndex !== undefined
+        ) {
+          setHadithTranslationLanguage(hadithLanguages[selectedIndex].value);
         }
       }
     );
@@ -231,6 +266,42 @@ const Settings = () => {
             >
               {quranLanguages.find((lang) => lang.value === translationLanguage)
                 ?.label || "English"}
+            </Text>
+            <IconButton icon="chevron-right" size={20} />
+          </Pressable>
+        </View>
+        <View
+          style={[
+            styles.card,
+            styles.cardGradient,
+            { backgroundColor: theme.colors.primary },
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <IconButton
+              icon="book-open-page-variant"
+              size={18}
+              iconColor={theme.colors.progressColor}
+              style={styles.cardIcon}
+            />
+            <Text style={[styles.title, { color: theme.colors.textColor }]}>
+              {t("Hadith Translation")}
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleHadithLanguageSelect}
+            style={({ pressed }) => [
+              styles.selector,
+              { backgroundColor: theme.colors.background },
+              pressed && styles.selectorPressed,
+            ]}
+          >
+            <Text
+              style={[styles.selectorText, { color: theme.colors.textColor }]}
+            >
+              {hadithLanguages.find(
+                (lang) => lang.value === hadithTranslationLanguage
+              )?.label || "English"}
             </Text>
             <IconButton icon="chevron-right" size={20} />
           </Pressable>

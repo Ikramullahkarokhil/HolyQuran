@@ -6,12 +6,9 @@ import {
   Text,
   TouchableOpacity,
   Animated,
-  Dimensions,
 } from "react-native";
 import { useTheme } from "react-native-paper";
-import { FontAwesome5, FontAwesome, Ionicons } from "@expo/vector-icons";
-
-const { width: screenWidth } = Dimensions.get("window");
+import { FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 
 const cardData = [
   {
@@ -22,19 +19,13 @@ const cardData = [
     backgroundColor: "#2563eb",
   },
   {
-    title: "Islamic History",
-    description: "Learn historical events",
-    icon: <Ionicons name="time-outline" size={32} color="#ffffff" />,
+    title: "Verse & Hadith of the Day",
+    description: "Learn verses and hadiths of the day",
+    icon: <MaterialIcons name="lightbulb-outline" size={32} color="#ffffff" />,
     href: { pathname: "IslamicHistory" },
     backgroundColor: "#16a34a",
   },
-  {
-    title: "Allah Names",
-    description: "Discover divine names",
-    icon: <FontAwesome name="star" size={32} color="#ffffff" />,
-    href: { pathname: "AllahNames" },
-    backgroundColor: "#eab308",
-  },
+
   {
     title: "Tasbih",
     description: "Practice remembrance",

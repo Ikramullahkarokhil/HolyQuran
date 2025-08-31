@@ -7,14 +7,12 @@ import {
   TextInput,
 } from "react-native";
 import React, { useEffect, useState, useMemo } from "react";
-import { useNavigation } from "@react-navigation/native";
 import { useTheme, Text, ActivityIndicator } from "react-native-paper";
 import { useTranslation } from "react-i18next";
-import bookNames from "../../assets/Hadiths/sahih_bukhari_books_names.json";
+import bookNames from "../../assets/Hadiths/bukhari_books.json";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
-const { width } = Dimensions.get("window");
+import { useHadithTranslationStore } from "../../components/store/store";
 
 const HadithsScreen = () => {
   const theme = useTheme();
@@ -22,15 +20,19 @@ const HadithsScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { translationLanguage: hadithLanguage } = useHadithTranslationStore();
 
-  // Use book names data directly
+  // Use book names data directly with language support
   const booksArray = useMemo(() => {
     return bookNames.map((book) => ({
       bookNumber: book.Book_Number,
-      bookName: book.Book_Name,
+      bookName:
+        hadithLanguage === "arabic"
+          ? book.Book_Name.arabic
+          : book.Book_Name.english,
       count: book.Hadith_Count,
     }));
-  }, []);
+  }, [hadithLanguage]);
 
   const filteredBooks = useMemo(() => {
     if (!searchQuery) return booksArray;
@@ -66,13 +68,27 @@ const HadithsScreen = () => {
     >
       <View style={styles.cardContent}>
         <Text
-          style={[styles.bookName, { color: theme.colors.textColor }]}
+          style={[
+            styles.bookName,
+            {
+              color: theme.colors.textColor,
+              textAlign: hadithLanguage === "arabic" ? "right" : "left",
+              writingDirection: hadithLanguage === "arabic" ? "rtl" : "ltr",
+            },
+          ]}
           variant="titleMedium"
         >
           {item.bookNumber}: {item.bookName}
         </Text>
         <Text
-          style={[styles.hadithCount, { color: theme.colors.inactiveColor }]}
+          style={[
+            styles.hadithCount,
+            {
+              color: theme.colors.inactiveColor,
+              textAlign: hadithLanguage === "arabic" ? "right" : "left",
+              writingDirection: hadithLanguage === "arabic" ? "rtl" : "ltr",
+            },
+          ]}
           variant="bodyMedium"
         >
           {item.count} {t("hadiths")}

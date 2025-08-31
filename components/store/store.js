@@ -2,7 +2,7 @@ import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const QURAN_LANGUAGE_PREFERENCE = "quran_language_preference";
-const HADITH_LANGUAGE_PREFERENCE = "quran_language_preference";
+const HADITH_LANGUAGE_PREFERENCE = "hadith_language_preference";
 
 const useQuranTranslationStore = create((set) => ({
   translationLanguage: "english",

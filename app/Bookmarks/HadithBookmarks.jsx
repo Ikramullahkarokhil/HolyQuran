@@ -13,12 +13,14 @@ import { useTheme } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { useHadithTranslationStore } from "../../components/store/store";
 
 const HadithBookmark = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const theme = useTheme();
   const { t } = useTranslation();
+  const { translationLanguage: hadithLanguage } = useHadithTranslationStore();
 
   const loadBookmarks = async () => {
     try {
@@ -87,9 +89,8 @@ const HadithBookmark = () => {
       }
     };
 
-    // Determine translation direction
-    const lang = t("translation_language") || t("language") || "en";
-    const isEnglish = lang.startsWith("en");
+    // Determine translation direction based on hadith language
+    const isEnglish = hadithLanguage === "english";
 
     return (
       <Animated.View
@@ -126,7 +127,7 @@ const HadithBookmark = () => {
                 styles.translationText,
                 {
                   color: theme.colors.textColor,
-                  textAlign: isEnglish ? "left" : "left",
+                  textAlign: isEnglish ? "left" : "right",
                   writingDirection: isEnglish ? "ltr" : "rtl",
                 },
               ]}

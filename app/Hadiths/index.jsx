@@ -14,8 +14,8 @@ import { useTheme, Text, ActivityIndicator } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { useTranslation } from "react-i18next";
-import hadithsData from "../../assets/Hadiths/sahih_bukhari_english.json";
 import { useLocalSearchParams } from "expo-router";
+import { useHadithTranslationStore } from "../../components/store/store";
 
 const { width } = Dimensions.get("window");
 
@@ -25,13 +25,36 @@ const HadithsScreen = () => {
   const { bookNumber, bookName } = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const { showActionSheetWithOptions } = useActionSheet();
+  const { translationLanguage: hadithLanguage } = useHadithTranslationStore();
+  const [hadithsData, setHadithsData] = useState([]);
+
+  // Load hadith data based on selected language
+  const loadHadithData = async () => {
+    try {
+      setLoading(true);
+      let data;
+      if (hadithLanguage === "arabic") {
+        data = require("../../assets/Hadiths/sahih_bukhari_arabic.json");
+      } else {
+        data = require("../../assets/Hadiths/sahih_bukhari_english.json");
+      }
+      setHadithsData(data);
+    } catch (error) {
+      console.error("Error loading hadith data:", error);
+      // Fallback to English if there's an error
+      const fallbackData = require("../../assets/Hadiths/sahih_bukhari_english.json");
+      setHadithsData(fallbackData);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter hadiths for the selected book
   const hadiths = useMemo(() => {
     return hadithsData.filter(
-      (h) => String(h.reference.book) === String(bookNumber),
+      (h) => String(h.reference.book) === String(bookNumber)
     );
-  }, [bookNumber]);
+  }, [bookNumber, hadithsData]);
 
   // Handle bookmarking
   const handleBookmark = async (item) => {
@@ -41,24 +64,24 @@ const HadithsScreen = () => {
       // Avoid duplicates
       if (
         !hadithBookmarks.some(
-          (b) => b.reference?.hadith === item.reference?.hadith,
+          (b) => b.reference?.hadith === item.reference?.hadith
         )
       ) {
         const itemWithBookName = { ...item, bookName };
         hadithBookmarks.push(itemWithBookName);
         await AsyncStorage.setItem(
           "hadithBookmarks",
-          JSON.stringify(hadithBookmarks),
+          JSON.stringify(hadithBookmarks)
         );
 
         ToastAndroid.show(
           t(`Hadith #${item.reference.hadith} added to bookmarks`),
-          ToastAndroid.SHORT,
+          ToastAndroid.SHORT
         );
       } else {
         ToastAndroid.show(
           t(`Hadith #${item.reference.hadith} Already bookmarked`),
-          ToastAndroid.SHORT,
+          ToastAndroid.SHORT
         );
       }
     } catch (e) {
@@ -84,7 +107,7 @@ const HadithsScreen = () => {
             await Clipboard.setStringAsync(item.text);
             ToastAndroid.show(
               t(`Hadith #${item.reference.hadith} copied to clipboard`),
-              ToastAndroid.SHORT,
+              ToastAndroid.SHORT
             );
           } catch (e) {
             Alert.alert(t("Error"), t("Could not copy"));
@@ -100,7 +123,7 @@ const HadithsScreen = () => {
           // Bookmark
           handleBookmark(item);
         }
-      },
+      }
     );
   };
 
@@ -122,7 +145,14 @@ const HadithsScreen = () => {
             {t("Hadith")} #{item.reference?.hadith || item.hadithnumber}
           </Text>
           <Text
-            style={[styles.hadithText, { color: theme.colors.inactiveColor }]}
+            style={[
+              styles.hadithText,
+              {
+                color: theme.colors.inactiveColor,
+                textAlign: hadithLanguage === "arabic" ? "right" : "left",
+                writingDirection: hadithLanguage === "arabic" ? "rtl" : "ltr",
+              },
+            ]}
             variant="bodyMedium"
           >
             {item.text}
@@ -132,11 +162,10 @@ const HadithsScreen = () => {
     );
   }
 
-  // Simulate loading for smoother UX
+  // Load hadith data when language or book changes
   React.useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, [bookNumber]);
+    loadHadithData();
+  }, [hadithLanguage, bookNumber]);
 
   if (loading) {
     return (
