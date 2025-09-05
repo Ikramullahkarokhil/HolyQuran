@@ -67,7 +67,11 @@ const HadithsScreen = () => {
           (b) => b.reference?.hadith === item.reference?.hadith
         )
       ) {
-        const itemWithBookName = { ...item, bookName };
+        const itemWithBookName = {
+          ...item,
+          bookName,
+          language: hadithLanguage,
+        };
         hadithBookmarks.push(itemWithBookName);
         await AsyncStorage.setItem(
           "hadithBookmarks",

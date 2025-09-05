@@ -36,11 +36,14 @@ const HadithBookmark = () => {
     loadBookmarks();
   }, []);
 
-  const deleteBookmark = async (id) => {
+  const deleteBookmark = async (item) => {
     try {
-      const updatedBookmarks = bookmarks.filter(
-        (bookmark) => bookmark.id !== id
-      );
+      const updatedBookmarks = bookmarks.filter((bookmark) => {
+        // Use hadithnumber as primary identifier, fallback to reference.hadith
+        const bookmarkId = bookmark.hadithnumber || bookmark.reference?.hadith;
+        const itemId = item.hadithnumber || item.reference?.hadith;
+        return bookmarkId !== itemId;
+      });
       setBookmarks(updatedBookmarks);
       await AsyncStorage.setItem(
         "hadithBookmarks",
@@ -81,7 +84,7 @@ const HadithBookmark = () => {
                   toValue: -Dimensions.get("window").width,
                   duration: 300,
                   useNativeDriver: true,
-                }).start(() => deleteBookmark(item.id));
+                }).start(() => deleteBookmark(item));
               },
             },
           ]
@@ -89,8 +92,10 @@ const HadithBookmark = () => {
       }
     };
 
-    // Determine translation direction based on hadith language
-    const isEnglish = hadithLanguage === "english";
+    // Determine translation direction based on individual hadith language
+    // Check if the bookmark has stored language info, otherwise fallback to global setting
+    const bookmarkLanguage = item.language || hadithLanguage;
+    const isEnglish = bookmarkLanguage === "english";
 
     return (
       <Animated.View
@@ -114,12 +119,11 @@ const HadithBookmark = () => {
                 styles.verseText,
                 {
                   color: theme.colors.activeColor,
-                  textAlign: "left",
-                  writingDirection: "rtl",
+                  textAlign: isEnglish ? "left" : "right",
+                  writingDirection: isEnglish ? "ltr" : "rtl",
                 },
               ]}
             >
-              Sahih Bukhari Chapter {item.reference.book} {": "}
               {item.bookName}
             </Text>
             <Text
@@ -219,8 +223,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 8,
     letterSpacing: 0.2,
-    textAlign: "right",
-    writingDirection: "rtl",
+    // textAlign and writingDirection set dynamically
   },
   ayahText: {
     fontSize: 16,
