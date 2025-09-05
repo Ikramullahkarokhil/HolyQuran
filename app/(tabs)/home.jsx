@@ -126,10 +126,7 @@ const Home = () => {
   if (loading) {
     return (
       <View
-        style={[
-          styles.container,
-          { backgroundColor: theme?.colors?.background },
-        ]}
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
         <Text style={styles.loadingText}>{t("جاري التحميل...")}</Text>
       </View>

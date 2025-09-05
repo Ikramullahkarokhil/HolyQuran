@@ -6,7 +6,6 @@ import {
   Text,
   TouchableOpacity,
   Animated,
-  I18nManager,
 } from "react-native";
 import { useTheme } from "react-native-paper";
 import { FontAwesome5, MaterialIcons } from "@expo/vector-icons";

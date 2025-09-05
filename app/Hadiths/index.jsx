@@ -184,7 +184,7 @@ const HadithsScreen = () => {
       <View
         style={[
           styles.loadingContainer,
-          { backgroundColor: theme.colors.primary },
+          { backgroundColor: theme.colors.background },
         ]}
       >
         <ActivityIndicator size="large" color={theme.colors.progressColor} />
