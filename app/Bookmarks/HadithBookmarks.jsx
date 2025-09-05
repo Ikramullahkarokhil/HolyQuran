@@ -28,7 +28,7 @@ const HadithBookmark = () => {
         JSON.parse(await AsyncStorage.getItem("hadithBookmarks")) || [];
       setBookmarks(storedBookmarks);
     } catch (error) {
-      Alert.alert("Error", "Failed to load bookmarks");
+      Alert.alert(t("Error"), t("Failed to load bookmarks"));
     }
   };
 
@@ -50,7 +50,7 @@ const HadithBookmark = () => {
         JSON.stringify(updatedBookmarks)
       );
     } catch (error) {
-      Alert.alert("Error", "Failed to delete bookmark");
+      Alert.alert(t("Error"), t("Failed to delete bookmark"));
     }
   };
 
@@ -67,28 +67,21 @@ const HadithBookmark = () => {
 
     const handleDelete = () => {
       if (!swiped) {
-        Alert.alert(
-          t("delete_bookmark", "Delete Bookmark"),
-          t(
-            "delete_bookmark_confirm",
-            "Are you sure you want to delete this bookmark?"
-          ),
-          [
-            { text: t("cancel", "Cancel"), style: "cancel" },
-            {
-              text: t("delete", "Delete"),
-              style: "destructive",
-              onPress: () => {
-                swiped = true;
-                Animated.timing(translateX, {
-                  toValue: -Dimensions.get("window").width,
-                  duration: 300,
-                  useNativeDriver: true,
-                }).start(() => deleteBookmark(item));
-              },
+        Alert.alert(t("delete_bookmark"), t("delete_bookmark_confirm"), [
+          { text: t("cancel"), style: "cancel" },
+          {
+            text: t("delete"),
+            style: "destructive",
+            onPress: () => {
+              swiped = true;
+              Animated.timing(translateX, {
+                toValue: -Dimensions.get("window").width,
+                duration: 300,
+                useNativeDriver: true,
+              }).start(() => deleteBookmark(item));
             },
-          ]
-        );
+          },
+        ]);
       }
     };
 
@@ -160,15 +153,12 @@ const HadithBookmark = () => {
             style={{ marginBottom: 16 }}
           />
           <Text style={[styles.emptyText, { color: theme.colors.textColor }]}>
-            {t("no_bookmarks", "No bookmarks yet!")}
+            {t("no_bookmarks")}
           </Text>
           <Text
             style={[styles.emptySubText, { color: theme.colors.inactiveColor }]}
           >
-            {t(
-              "add_bookmarks_hint",
-              "Add your favorite hadiths to see them here."
-            )}
+            {t("add_hadith_bookmarks_hint")}
           </Text>
         </View>
       ) : (

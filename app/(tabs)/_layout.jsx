@@ -13,7 +13,9 @@ const TabsLayout = () => {
     if (!theme || !t) {
       console.error("Theme or translation not initialized");
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <Text>Loading resources...</Text>
         </View>
       );
@@ -23,19 +25,18 @@ const TabsLayout = () => {
       <Tabs
         screenOptions={{
           headerTitleAlign: "center",
-          headerStyle: { 
-            backgroundColor: theme?.colors?.primary || '#fff'
+          headerStyle: {
+            backgroundColor: theme?.colors?.primary || "#fff",
           },
-          headerTitleStyle: { 
-            color: theme?.colors?.textColor || '#000',
-            fontSize: 20 
+          headerTitleStyle: {
+            color: theme?.colors?.textColor || "#000",
+            fontSize: 20,
           },
-          tabBarStyle: { 
+          tabBarStyle: {
             backgroundColor: theme?.colors?.primary,
-           
           },
-          tabBarActiveTintColor: theme?.colors?.textColor || '#000',
-          tabBarInactiveTintColor: theme?.colors?.disabled || '#666',
+          tabBarActiveTintColor: theme?.colors?.textColor || "#000",
+          tabBarInactiveTintColor: theme?.colors?.disabled || "#666",
         }}
       >
         <Tabs.Screen
@@ -79,7 +80,7 @@ const TabsLayout = () => {
   } catch (error) {
     console.error("Fatal error in Tabs Layout:", error);
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <Text>Error loading tabs: {error.message}</Text>
       </View>
     );

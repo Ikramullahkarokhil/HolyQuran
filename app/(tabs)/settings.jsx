@@ -13,8 +13,16 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import {
   useQuranTranslationStore,
   useHadithTranslationStore,
+  useAppLanguageStore,
 } from "../../components/store/store";
 import useThemeStore from "../../components/store/useThemeStore";
+import {
+  isRTL,
+  getTextAlignment,
+  getWritingDirection,
+  getFlexDirection,
+  getMarginStyle,
+} from "../../components/utils/rtlUtils";
 
 const Settings = () => {
   const theme = useTheme();
@@ -27,7 +35,9 @@ const Settings = () => {
     setTranslationLanguage: setHadithTranslationLanguage,
   } = useHadithTranslationStore();
   const { themeMode, setThemeMode } = useThemeStore();
+  const { language, setLanguage } = useAppLanguageStore();
   const colorScheme = useColorScheme();
+  const isRTLMode = isRTL(language);
 
   const appLanguages = [
     { label: "English", value: "en" },
@@ -47,7 +57,11 @@ const Settings = () => {
   ];
 
   const getActionSheetStyles = () => ({
-    textStyle: { color: theme.colors.textColor },
+    textStyle: {
+      color: theme.colors.textColor,
+      textAlign: getTextAlignment(language),
+      writingDirection: getWritingDirection(language),
+    },
     titleTextStyle: {
       color: theme.colors.textColor,
       textAlign: "center",
@@ -55,6 +69,7 @@ const Settings = () => {
       marginBottom: 8,
       fontSize: 16,
       fontWeight: "600",
+      writingDirection: getWritingDirection(language),
     },
     containerStyle: {
       backgroundColor: theme.colors.primary,
@@ -62,6 +77,7 @@ const Settings = () => {
     messageTextStyle: {
       textAlign: "center",
       color: theme.colors.textColor,
+      writingDirection: getWritingDirection(language),
     },
   });
 
@@ -77,12 +93,14 @@ const Settings = () => {
         title: t("Choose your preferred app language"),
         ...styles,
       },
-      (selectedIndex) => {
+      async (selectedIndex) => {
         if (
           selectedIndex !== cancelButtonIndex &&
           selectedIndex !== undefined
         ) {
-          i18n.changeLanguage(appLanguages[selectedIndex].value);
+          const selectedLanguage = appLanguages[selectedIndex].value;
+          await setLanguage(selectedLanguage);
+          i18n.changeLanguage(selectedLanguage);
         }
       }
     );
@@ -185,8 +203,18 @@ const Settings = () => {
     >
       {/* Language Section */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionIconWrap}>
+        <View
+          style={[
+            styles.sectionHeader,
+            isRTLMode && { flexDirection: getFlexDirection(language) },
+          ]}
+        >
+          <View
+            style={[
+              styles.sectionIconWrap,
+              isRTLMode && getMarginStyle(language, "right", 4),
+            ]}
+          >
             <IconButton
               icon="translate"
               size={22}
@@ -195,7 +223,14 @@ const Settings = () => {
             />
           </View>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.textColor }]}
+            style={[
+              styles.sectionTitle,
+              {
+                color: theme.colors.textColor,
+                textAlign: getTextAlignment(language),
+                writingDirection: getWritingDirection(language),
+              },
+            ]}
           >
             {t("Language Settings")}
           </Text>
@@ -207,14 +242,31 @@ const Settings = () => {
             { backgroundColor: theme.colors.primary },
           ]}
         >
-          <View style={styles.cardHeader}>
+          <View
+            style={[
+              styles.cardHeader,
+              isRTLMode && { flexDirection: getFlexDirection(language) },
+            ]}
+          >
             <IconButton
               icon="earth"
               size={18}
               iconColor={theme.colors.progressColor}
-              style={styles.cardIcon}
+              style={[
+                styles.cardIcon,
+                isRTLMode && getMarginStyle(language, "right", 2),
+              ]}
             />
-            <Text style={[styles.title, { color: theme.colors.textColor }]}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: theme.colors.textColor,
+                  textAlign: getTextAlignment(language),
+                  writingDirection: getWritingDirection(language),
+                },
+              ]}
+            >
               {t("App Language")}
             </Text>
           </View>
@@ -222,17 +274,30 @@ const Settings = () => {
             onPress={handleAppLanguageSelect}
             style={({ pressed }) => [
               styles.selector,
-              { backgroundColor: theme.colors.background },
+              {
+                backgroundColor: theme.colors.background,
+                flexDirection: getFlexDirection(language),
+              },
               pressed && styles.selectorPressed,
             ]}
           >
             <Text
-              style={[styles.selectorText, { color: theme.colors.textColor }]}
+              style={[
+                styles.selectorText,
+                {
+                  color: theme.colors.textColor,
+                  textAlign: getTextAlignment(language),
+                  writingDirection: getWritingDirection(language),
+                },
+              ]}
             >
-              {appLanguages.find((lang) => lang.value === i18n.language)
-                ?.label || "English"}
+              {appLanguages.find((lang) => lang.value === language)?.label ||
+                "English"}
             </Text>
-            <IconButton icon="chevron-right" size={20} />
+            <IconButton
+              icon={isRTLMode ? "chevron-left" : "chevron-right"}
+              size={20}
+            />
           </Pressable>
         </View>
         <View
@@ -242,14 +307,31 @@ const Settings = () => {
             { backgroundColor: theme.colors.primary },
           ]}
         >
-          <View style={styles.cardHeader}>
+          <View
+            style={[
+              styles.cardHeader,
+              isRTLMode && { flexDirection: getFlexDirection(language) },
+            ]}
+          >
             <IconButton
               icon="book-open-variant"
               size={18}
               iconColor={theme.colors.progressColor}
-              style={styles.cardIcon}
+              style={[
+                styles.cardIcon,
+                isRTLMode && getMarginStyle(language, "right", 2),
+              ]}
             />
-            <Text style={[styles.title, { color: theme.colors.textColor }]}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: theme.colors.textColor,
+                  textAlign: getTextAlignment(language),
+                  writingDirection: getWritingDirection(language),
+                },
+              ]}
+            >
               {t("Quran Translation")}
             </Text>
           </View>
@@ -257,17 +339,30 @@ const Settings = () => {
             onPress={handleQuranLanguageSelect}
             style={({ pressed }) => [
               styles.selector,
-              { backgroundColor: theme.colors.background },
+              {
+                backgroundColor: theme.colors.background,
+                flexDirection: getFlexDirection(language),
+              },
               pressed && styles.selectorPressed,
             ]}
           >
             <Text
-              style={[styles.selectorText, { color: theme.colors.textColor }]}
+              style={[
+                styles.selectorText,
+                {
+                  color: theme.colors.textColor,
+                  textAlign: getTextAlignment(language),
+                  writingDirection: getWritingDirection(language),
+                },
+              ]}
             >
               {quranLanguages.find((lang) => lang.value === translationLanguage)
                 ?.label || "English"}
             </Text>
-            <IconButton icon="chevron-right" size={20} />
+            <IconButton
+              icon={isRTLMode ? "chevron-left" : "chevron-right"}
+              size={20}
+            />
           </Pressable>
         </View>
         <View
@@ -277,14 +372,31 @@ const Settings = () => {
             { backgroundColor: theme.colors.primary },
           ]}
         >
-          <View style={styles.cardHeader}>
+          <View
+            style={[
+              styles.cardHeader,
+              isRTLMode && { flexDirection: getFlexDirection(language) },
+            ]}
+          >
             <IconButton
               icon="book-open-page-variant"
               size={18}
               iconColor={theme.colors.progressColor}
-              style={styles.cardIcon}
+              style={[
+                styles.cardIcon,
+                isRTLMode && getMarginStyle(language, "right", 2),
+              ]}
             />
-            <Text style={[styles.title, { color: theme.colors.textColor }]}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: theme.colors.textColor,
+                  textAlign: getTextAlignment(language),
+                  writingDirection: getWritingDirection(language),
+                },
+              ]}
+            >
               {t("Hadith Translation")}
             </Text>
           </View>
@@ -292,25 +404,48 @@ const Settings = () => {
             onPress={handleHadithLanguageSelect}
             style={({ pressed }) => [
               styles.selector,
-              { backgroundColor: theme.colors.background },
+              {
+                backgroundColor: theme.colors.background,
+                flexDirection: getFlexDirection(language),
+              },
               pressed && styles.selectorPressed,
             ]}
           >
             <Text
-              style={[styles.selectorText, { color: theme.colors.textColor }]}
+              style={[
+                styles.selectorText,
+                {
+                  color: theme.colors.textColor,
+                  textAlign: getTextAlignment(language),
+                  writingDirection: getWritingDirection(language),
+                },
+              ]}
             >
               {hadithLanguages.find(
                 (lang) => lang.value === hadithTranslationLanguage
               )?.label || "English"}
             </Text>
-            <IconButton icon="chevron-right" size={20} />
+            <IconButton
+              icon={isRTLMode ? "chevron-left" : "chevron-right"}
+              size={20}
+            />
           </Pressable>
         </View>
       </View>
       {/* Appearance Section */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionIconWrap}>
+        <View
+          style={[
+            styles.sectionHeader,
+            isRTLMode && { flexDirection: getFlexDirection(language) },
+          ]}
+        >
+          <View
+            style={[
+              styles.sectionIconWrap,
+              isRTLMode && getMarginStyle(language, "right", 4),
+            ]}
+          >
             <IconButton
               icon="palette"
               size={22}
@@ -319,7 +454,14 @@ const Settings = () => {
             />
           </View>
           <Text
-            style={[styles.sectionTitle, { color: theme.colors.textColor }]}
+            style={[
+              styles.sectionTitle,
+              {
+                color: theme.colors.textColor,
+                textAlign: getTextAlignment(language),
+                writingDirection: getWritingDirection(language),
+              },
+            ]}
           >
             {t("Appearance")}
           </Text>
@@ -331,14 +473,31 @@ const Settings = () => {
             { backgroundColor: theme.colors.primary },
           ]}
         >
-          <View style={styles.cardHeader}>
+          <View
+            style={[
+              styles.cardHeader,
+              isRTLMode && { flexDirection: getFlexDirection(language) },
+            ]}
+          >
             <IconButton
               icon="theme-light-dark"
               size={18}
               iconColor={theme.colors.progressColor}
-              style={styles.cardIcon}
+              style={[
+                styles.cardIcon,
+                isRTLMode && getMarginStyle(language, "right", 2),
+              ]}
             />
-            <Text style={[styles.title, { color: theme.colors.textColor }]}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: theme.colors.textColor,
+                  textAlign: getTextAlignment(language),
+                  writingDirection: getWritingDirection(language),
+                },
+              ]}
+            >
               {t("Theme")}
             </Text>
           </View>
@@ -346,16 +505,29 @@ const Settings = () => {
             onPress={handleThemeSelect}
             style={({ pressed }) => [
               styles.selector,
-              { backgroundColor: theme.colors.background },
+              {
+                backgroundColor: theme.colors.background,
+                flexDirection: getFlexDirection(language),
+              },
               pressed && styles.selectorPressed,
             ]}
           >
             <Text
-              style={[styles.selectorText, { color: theme.colors.textColor }]}
+              style={[
+                styles.selectorText,
+                {
+                  color: theme.colors.textColor,
+                  textAlign: getTextAlignment(language),
+                  writingDirection: getWritingDirection(language),
+                },
+              ]}
             >
               {getThemeText()}
             </Text>
-            <IconButton icon="chevron-right" size={20} />
+            <IconButton
+              icon={isRTLMode ? "chevron-left" : "chevron-right"}
+              size={20}
+            />
           </Pressable>
         </View>
       </View>

@@ -4,21 +4,23 @@ import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import HadithBookmarks from "./HadithBookmarks";
 import QuranBookmark from "./QuranBookmarks";
 import { useTheme } from "react-native-paper";
+import { useTranslation } from "react-i18next";
 
 const renderScene = SceneMap({
   quran: QuranBookmark,
   hadith: HadithBookmarks,
 });
 
-const routes = [
-  { key: "quran", title: "Quran" },
-  { key: "hadith", title: "Hadith" },
+const getRoutes = (t) => [
+  { key: "quran", title: t("Quran") },
+  { key: "hadith", title: t("Hadith") },
 ];
 
 const index = () => {
   const layout = useWindowDimensions();
   const [index, setIndex] = React.useState(0);
   const theme = useTheme();
+  const { t } = useTranslation();
 
   const renderTabBar = (props) => (
     <TabBar
@@ -32,7 +34,7 @@ const index = () => {
 
   return (
     <TabView
-      navigationState={{ index, routes }}
+      navigationState={{ index, routes: getRoutes(t) }}
       renderScene={renderScene}
       onIndexChange={setIndex}
       initialLayout={{ width: layout.width }}

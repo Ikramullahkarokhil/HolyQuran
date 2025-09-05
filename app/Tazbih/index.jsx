@@ -137,16 +137,6 @@ const Tazbih = () => {
     }
   }, [showMaxCountModal]);
 
-  useFocusEffect(
-    useCallback(() => {
-      navigation.setOptions({
-        title: t(""),
-        headerShown: true,
-        headerTitleStyle: { color: theme.colors.textColor },
-      });
-    }, [navigation, t, theme.colors.textColor])
-  );
-
   const handleReset = async () => {
     setCounter(0);
     setMaxCount(100);
@@ -319,7 +309,7 @@ const Tazbih = () => {
                   styles.inputButton,
                   { backgroundColor: theme.colors.background },
                 ]}
-                accessibilityLabel="Decrease max count"
+                accessibilityLabel={t("Decrease max count")}
               />
               <TextInput
                 style={[
@@ -336,9 +326,9 @@ const Tazbih = () => {
                   if (!isNaN(value)) setTempMaxCount(Math.max(1, value));
                 }}
                 keyboardType="numeric"
-                placeholder="Enter count"
+                placeholder={t("Enter count")}
                 placeholderTextColor={theme.colors.inactiveColor}
-                accessibilityLabel="Max count input"
+                accessibilityLabel={t("Enter count")}
               />
               <IconButton
                 icon="plus"
@@ -348,7 +338,7 @@ const Tazbih = () => {
                   styles.inputButton,
                   { backgroundColor: theme.colors.background },
                 ]}
-                accessibilityLabel="Increase max count"
+                accessibilityLabel={t("Increase max count")}
               />
             </View>
             <View style={styles.modalActions}>
@@ -361,7 +351,7 @@ const Tazbih = () => {
                 style={styles.modalActionButton}
                 buttonColor={theme.colors.progressColor}
                 textColor={theme.colors.buttonText}
-                accessibilityLabel="Save max count"
+                accessibilityLabel={t("Save max count")}
               >
                 {t("Save")}
               </Button>
@@ -373,7 +363,7 @@ const Tazbih = () => {
                 }}
                 style={styles.modalActionButton}
                 textColor={theme.colors.textColor}
-                accessibilityLabel="Cancel max count"
+                accessibilityLabel={t("Cancel max count")}
               >
                 {t("Cancel")}
               </Button>
@@ -399,7 +389,7 @@ const Tazbih = () => {
               styles.navButton,
               { backgroundColor: theme.colors.background },
             ]}
-            accessibilityLabel="Previous recitation"
+            accessibilityLabel={t("Previous recitation")}
           />
           <ScrollView
             horizontal
@@ -420,7 +410,7 @@ const Tazbih = () => {
               styles.navButton,
               { backgroundColor: theme.colors.background },
             ]}
-            accessibilityLabel="Next recitation"
+            accessibilityLabel={t("Next recitation")}
           />
         </Pressable>
       </View>
@@ -431,7 +421,7 @@ const Tazbih = () => {
           { backgroundColor: theme.colors.background },
         ]}
         onPress={handleIncrement}
-        accessibilityLabel="Tap to increment counter"
+        accessibilityLabel={t("Tap to increment counter")}
         accessibilityRole="button"
       >
         <AnimatedCircularProgress

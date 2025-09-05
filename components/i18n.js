@@ -42,9 +42,18 @@ const getSavedLanguage = async () => {
   }
 };
 
-const initI18n = async () => {
+// Function to save language preference
+export const saveLanguagePreference = async (language) => {
   try {
-    const language = await getSavedLanguage();
+    await AsyncStorage.setItem(LANGUAGE_PREFERENCE, language);
+  } catch (error) {
+    console.error("Failed to save language preference:", error);
+  }
+};
+
+const initI18n = async (savedLanguage = null) => {
+  try {
+    const language = savedLanguage || (await getSavedLanguage());
     await i18n.use(initReactI18next).init({
       compatibilityJSON: "v3",
       resources: {

@@ -10,10 +10,11 @@ import { PaperProvider } from "react-native-paper";
 import {
   useQuranTranslationStore,
   useHadithTranslationStore,
+  useAppLanguageStore,
 } from "../components/store/store";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
-import * as NavigationBar from "expo-navigation-bar";
 import * as SplashScreen from "expo-splash-screen";
+import { useTranslation } from "react-i18next";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -25,6 +26,7 @@ const RootLayout = () => {
   const { isDarkTheme, themeMode, initializeTheme } = useThemeStore();
   const { initializeQuranTranslationLanguage } = useQuranTranslationStore();
   const { initializeHadithTranslationLanguage } = useHadithTranslationStore();
+  const { initializeAppLanguage } = useAppLanguageStore();
   const { bookName } = useGlobalSearchParams();
 
   const theme = isDarkTheme ? darkTheme : lightTheme;
@@ -33,8 +35,9 @@ const RootLayout = () => {
     async function prepare() {
       try {
         // Initialize all resources in parallel
+        const savedLanguage = await initializeAppLanguage();
         await Promise.all([
-          initI18n(),
+          initI18n(savedLanguage),
           initializeTheme(colorScheme === "dark"),
           initializeQuranTranslationLanguage(),
           initializeHadithTranslationLanguage(),
@@ -87,40 +90,57 @@ const RootLayout = () => {
         <PaperProvider theme={theme}>
           <I18nextProvider i18n={i18n}>
             <StatusBar style={isDarkTheme ? "light" : "dark"} />
-            <Stack
-              screenOptions={{
-                headerTitleAlign: "center",
-                headerStyle: {
-                  backgroundColor: theme.colors.primary,
-                },
-                headerTitleStyle: {
-                  color: theme.colors.textColor,
-                  fontSize: 20,
-                },
-                headerTintColor: theme.colors.textColor,
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="HadithBooks/index"
-                options={{ headerTitle: "Sahih Bukhari Hadiths" }}
-              />
-              <Stack.Screen
-                name="Hadiths/index"
-                options={{ headerTitle: bookName }}
-              />
-              <Stack.Screen
-                name="Bookmarks/index"
-                options={{
-                  headerTitle: "Bookmarks",
-                  headerShadowVisible: false,
-                }}
-              />
-            </Stack>
+            <AppStack bookName={bookName} />
           </I18nextProvider>
         </PaperProvider>
       </ActionSheetProvider>
     </View>
+  );
+};
+
+// Separate component that uses translation hook
+const AppStack = ({ bookName }) => {
+  const { t } = useTranslation();
+  const theme = useThemeStore((state) =>
+    state.isDarkTheme ? darkTheme : lightTheme
+  );
+
+  return (
+    <Stack
+      screenOptions={{
+        headerTitleAlign: "center",
+        headerStyle: {
+          backgroundColor: theme.colors.primary,
+        },
+        headerTitleStyle: {
+          color: theme.colors.textColor,
+          fontSize: 20,
+        },
+        headerTintColor: theme.colors.textColor,
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="HadithBooks/index"
+        options={{ headerTitle: t("Sahih Bukhari Hadiths") }}
+      />
+      <Stack.Screen name="Hadiths/index" options={{ headerTitle: bookName }} />
+      <Stack.Screen
+        name="Bookmarks/index"
+        options={{
+          headerTitle: t("Bookmarks"),
+          headerShadowVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="Tazbih/index"
+        options={{
+          headerTitle: "",
+
+          headerTitleStyle: { color: theme.colors.textColor },
+        }}
+      />
+    </Stack>
   );
 };
 

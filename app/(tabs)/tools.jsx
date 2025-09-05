@@ -6,29 +6,39 @@ import {
   Text,
   TouchableOpacity,
   Animated,
+  I18nManager,
 } from "react-native";
 import { useTheme } from "react-native-paper";
 import { FontAwesome5, MaterialIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import { useAppLanguageStore } from "../../components/store/store";
+import {
+  isRTL,
+  getTextAlignment,
+  getWritingDirection,
+  getFlexDirection,
+  getMarginStyle,
+} from "../../components/utils/rtlUtils";
 
-const cardData = [
+const getCardData = (t) => [
   {
-    title: "Hadith",
-    description: "Explore sacred narrations",
+    title: t("Hadith"),
+    description: t("Explore sacred narrations"),
     icon: <FontAwesome5 name="book" size={32} color="#ffffff" />,
     href: { pathname: "HadithBooks" },
     backgroundColor: "#2563eb",
   },
   {
-    title: "Verse & Hadith of the Day",
-    description: "Learn verses and hadiths of the day",
+    title: t("Verse & Hadith of the Day"),
+    description: t("Learn verses and hadiths of the day"),
     icon: <MaterialIcons name="lightbulb-outline" size={32} color="#ffffff" />,
     href: { pathname: "IslamicHistory" },
     backgroundColor: "#16a34a",
   },
 
   {
-    title: "Tasbih",
-    description: "Practice remembrance",
+    title: t("Tasbih"),
+    description: t("Practice remembrance"),
     icon: <FontAwesome5 name="praying-hands" size={32} color="#ffffff" />,
     href: { pathname: "Tazbih" },
     backgroundColor: "#db2777",
@@ -37,20 +47,30 @@ const cardData = [
 
 const Tools = () => {
   const theme = useTheme();
+  const { t } = useTranslation();
+  const { language } = useAppLanguageStore();
+  const isRTLMode = isRTL(language);
+
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <View style={styles.grid}>
-        {cardData.map((card, idx) => (
-          <Card key={card.title} card={card} theme={theme} />
+      <View style={[styles.grid, isRTLMode && styles.gridRTL]}>
+        {getCardData(t).map((card, idx) => (
+          <Card
+            key={card.title}
+            card={card}
+            theme={theme}
+            isRTL={isRTLMode}
+            language={language}
+          />
         ))}
       </View>
     </View>
   );
 };
 
-const Card = ({ card, theme }) => {
+const Card = ({ card, theme, isRTL, language }) => {
   const [scaleAnim] = useState(new Animated.Value(1));
 
   const handlePressIn = () => {
@@ -71,6 +91,45 @@ const Card = ({ card, theme }) => {
     }).start();
   };
 
+  // Dynamic styles based on language
+  const cardStyle = [
+    styles.card,
+    isRTL && { flexDirection: getFlexDirection(language) },
+    {
+      transform: [{ scale: scaleAnim }],
+      backgroundColor: card.backgroundColor,
+    },
+  ];
+
+  const iconWrapStyle = [
+    styles.iconWrap,
+    isRTL && getMarginStyle(language, "right", 16),
+    !isRTL && getMarginStyle(language, "right", 16),
+  ];
+
+  const textContainerStyle = [
+    styles.textContainer,
+    isRTL && { alignItems: "flex-end" },
+  ];
+
+  const titleStyle = [
+    styles.cardTitle,
+    {
+      color: "#ffffff",
+      textAlign: getTextAlignment(language),
+      writingDirection: getWritingDirection(language),
+    },
+  ];
+
+  const descriptionStyle = [
+    styles.cardDescription,
+    {
+      color: "rgba(255, 255, 255, 0.8)",
+      textAlign: getTextAlignment(language),
+      writingDirection: getWritingDirection(language),
+    },
+  ];
+
   return (
     <Link
       href={card.href}
@@ -83,32 +142,18 @@ const Card = ({ card, theme }) => {
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
       >
-        <Animated.View
-          style={[
-            styles.card,
-            {
-              transform: [{ scale: scaleAnim }],
-              backgroundColor: card.backgroundColor,
-            },
-          ]}
-        >
-          <View style={styles.iconWrap}>{card.icon}</View>
-          <View style={styles.textContainer}>
+        <Animated.View style={cardStyle}>
+          <View style={iconWrapStyle}>{card.icon}</View>
+          <View style={textContainerStyle}>
             <Text
-              style={[styles.cardTitle, { color: "#ffffff" }]}
+              style={titleStyle}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.7}
             >
               {card.title}
             </Text>
-            <Text
-              style={[
-                styles.cardDescription,
-                { color: "rgba(255, 255, 255, 0.8)" },
-              ]}
-              numberOfLines={2}
-            >
+            <Text style={descriptionStyle} numberOfLines={2}>
               {card.description}
             </Text>
           </View>
@@ -124,16 +169,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
-
     backgroundColor: "#f5f5f5",
   },
   grid: {
     flexDirection: "column",
   },
+  gridRTL: {
+    // RTL-specific grid styles if needed
+  },
   card: {
     width: "100%",
     borderRadius: 12,
-    // minWidth: 330, // removed fixed minWidth for responsiveness
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -143,14 +189,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
     marginBottom: 12,
-    // flex: 1, // Removed to prevent vertical overlapping
-    minHeight: 100, // Added minimum height for better visibility
+    minHeight: 100,
   },
   iconWrap: {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     borderRadius: 12,
     padding: 16,
-    marginRight: 16,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -35,11 +35,13 @@ import { useQuranTranslationStore } from "../../components/store/store";
 import { useNavigation } from "@react-navigation/native";
 import { useGlobalSearchParams, useFocusEffect } from "expo-router";
 import { IconButton, useTheme } from "react-native-paper";
+import { useTranslation } from "react-i18next";
 
 const SurahDetails = () => {
   const { surahName } = useGlobalSearchParams();
   const navigation = useNavigation();
   const theme = useTheme();
+  const { t } = useTranslation();
   const { translationLanguage } = useQuranTranslationStore();
   const { showActionSheetWithOptions } = useActionSheet();
   const flatListRef = useRef(null);
@@ -106,7 +108,7 @@ const SurahDetails = () => {
         };
 
         navigation.setOptions({
-          title: `سورة ${surahName}`,
+          title: `${t("سورة")} ${surahName}`,
           headerShown: true,
           headerTitleStyle: { color: theme.colors.textColor },
           headerLeft: () => setNavigationOptions(-1),
@@ -124,7 +126,7 @@ const SurahDetails = () => {
 
   const handleLongPress = useCallback(
     async (verse) => {
-      const options = ["Bookmark", "Copy", "Share", "Cancel"];
+      const options = [t("Bookmark"), t("Copy"), t("Share"), t("Cancel")];
       const cancelButtonIndex = 3;
       const { verse: verseText, translationVerse } = verse;
 
@@ -137,7 +139,7 @@ const SurahDetails = () => {
 
         if (isBookmarked) {
           Alert.alert(
-            "Already Bookmarked",
+            t("Already Bookmarked"),
             `${verseText}\n\n${translationVerse}`
           );
           return;
@@ -154,14 +156,14 @@ const SurahDetails = () => {
                   JSON.stringify(updatedBookmarks)
                 );
                 Alert.alert(
-                  "Bookmarked",
+                  t("Bookmarked"),
                   `${verseText}\n\n${translationVerse}`
                 );
                 break;
               case 1:
                 Clipboard.setString(`${verseText}\n\n${translationVerse}`);
                 Alert.alert(
-                  "Copied to Clipboard",
+                  t("Copied to Clipboard"),
                   `${verseText}\n\n${translationVerse}`
                 );
                 break;
@@ -174,7 +176,7 @@ const SurahDetails = () => {
           }
         );
       } catch (error) {
-        Alert.alert("Error", "Failed to save bookmark");
+        Alert.alert(t("Error"), t("Failed to save bookmark"));
       }
     },
     [showActionSheetWithOptions]
@@ -186,7 +188,7 @@ const SurahDetails = () => {
         (verse) => verse.id === item.id
       );
       const translationVerse =
-        translationItem?.verse || "Translation not available";
+        translationItem?.verse || t("Translation not available");
 
       return (
         <LongPressGestureHandler
@@ -261,7 +263,7 @@ const SurahDetails = () => {
   if (!surahName) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Invalid Surah Name</Text>
+        <Text style={styles.errorText}>{t("Invalid Surah Name")}</Text>
       </View>
     );
   }

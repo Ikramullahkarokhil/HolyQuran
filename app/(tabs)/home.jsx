@@ -11,11 +11,13 @@ import { IconButton, useTheme } from "react-native-paper";
 import { loadSurahNames } from "../../components/utils";
 import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
 import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 const Home = () => {
   const [surahNames, setSurahNames] = useState([]);
   const [loading, setLoading] = useState(true);
   const theme = useTheme();
+  const { t } = useTranslation();
   const fadeAnim = useState(new Animated.Value(0))[0];
   const router = useRouter();
 
@@ -101,7 +103,7 @@ const Home = () => {
             onPress={() => handleSurahPress(item, currentSurahName)}
           >
             <Text style={[styles.verses, { color: theme.colors.textColor }]}>
-              {versesPerSurah[item.surah] || 0} آيات
+              {versesPerSurah[item.surah] || 0} {t("آيات")}
             </Text>
             <View style={styles.surahContainer}>
               <Text
@@ -112,7 +114,7 @@ const Home = () => {
               <Text
                 style={[styles.surahName, { color: theme.colors.textColor }]}
               >
-                سورة {currentSurahName}
+                {t("سورة")} {currentSurahName}
               </Text>
             </View>
           </TouchableOpacity>
@@ -129,7 +131,7 @@ const Home = () => {
           { backgroundColor: theme?.colors?.background },
         ]}
       >
-        <Text style={styles.loadingText}>جاري التحميل...</Text>
+        <Text style={styles.loadingText}>{t("جاري التحميل...")}</Text>
       </View>
     );
   }
@@ -146,15 +148,8 @@ const Home = () => {
           renderItem={renderItem}
           keyExtractor={(item) => item.surah.toString()}
           initialNumToRender={12} // Increased for smoother initial load
-          maxToRenderPerBatch={6} // Slightly increased for performance
-          windowSize={3} // Reduced to lower memory usage
           contentContainerStyle={styles.list}
           removeClippedSubviews={true}
-          getItemLayout={(data, index) => ({
-            length: 80, // Approximate item height for better scroll performance
-            offset: 80 * index,
-            index,
-          })}
         />
       </Animated.View>
 

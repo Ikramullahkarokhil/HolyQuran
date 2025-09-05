@@ -22,14 +22,16 @@ const AllahNames = () => {
 
   return (
     <View
-      style={[{
-        justifyContent: "center",
-        alignItems: "center",
-        flex: 1,
-        backgroundColor: theme.colors.background
-      }]}
+      style={[
+        {
+          justifyContent: "center",
+          alignItems: "center",
+          flex: 1,
+          backgroundColor: theme.colors.background,
+        },
+      ]}
     >
-      <Text style={{ color: theme.colors.textColor }}>AllahNames</Text>
+      <Text style={{ color: theme.colors.textColor }}>{t("Allah Names")}</Text>
     </View>
   );
 };

@@ -79,12 +79,16 @@ const HadithsScreen = () => {
         );
 
         ToastAndroid.show(
-          t(`Hadith #${item.reference.hadith} added to bookmarks`),
+          t("Hadith #{{number}} added to bookmarks", {
+            number: item.reference.hadith,
+          }),
           ToastAndroid.SHORT
         );
       } else {
         ToastAndroid.show(
-          t(`Hadith #${item.reference.hadith} Already bookmarked`),
+          t("Hadith #{{number}} Already bookmarked", {
+            number: item.reference.hadith,
+          }),
           ToastAndroid.SHORT
         );
       }
@@ -102,7 +106,9 @@ const HadithsScreen = () => {
       {
         options,
         cancelButtonIndex,
-        title: t(`Hadith #${item.reference.hadith} Actions`),
+        title: t("Hadith #{{number}} Actions", {
+          number: item.reference.hadith,
+        }),
       },
       async (selectedIndex) => {
         if (selectedIndex === 0) {
@@ -110,7 +116,9 @@ const HadithsScreen = () => {
           try {
             await Clipboard.setStringAsync(item.text);
             ToastAndroid.show(
-              t(`Hadith #${item.reference.hadith} copied to clipboard`),
+              t("Hadith #{{number}} copied to clipboard", {
+                number: item.reference.hadith,
+              }),
               ToastAndroid.SHORT
             );
           } catch (e) {
