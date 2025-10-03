@@ -18,7 +18,8 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [],
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
@@ -51,6 +52,9 @@
         "image": "./assets/images/icon.png",
         "backgroundColor": "#121212"
       }
+    },
+    "experiments": {
+      "reactCompiler": true
     }
   }
 }
