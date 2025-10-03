@@ -48,11 +48,11 @@ const Home = () => {
     });
   }, []);
 
-  handleBookmarks = () => {
-    router.navigate("/Bookmarks");
+  const handleBookmarks = () => {
+    router.push("/Bookmarks"); // use push instead of navigate in expo-router v6
   };
 
-  handleSurahPress = (item, currentSurahName) => {
+  const handleSurahPress = (item, currentSurahName) => {
     router.navigate({
       pathname: "SurahDetails",
       params: {

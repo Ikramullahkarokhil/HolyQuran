@@ -2,13 +2,11 @@
   "expo": {
     "name": "HolyQuran",
     "slug": "HolyQuran",
-    "version": "1.5.0",
+    "version": "1.5.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "jsEngine": "hermes",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.holyquran.app"
@@ -45,9 +43,6 @@
       "expo-audio",
       "expo-font"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
