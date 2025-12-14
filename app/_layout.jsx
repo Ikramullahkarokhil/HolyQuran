@@ -102,7 +102,7 @@ const RootLayout = () => {
 const AppStack = ({ bookName }) => {
   const { t } = useTranslation();
   const theme = useThemeStore((state) =>
-    state.isDarkTheme ? darkTheme : lightTheme
+    state.isDarkTheme ? darkTheme : lightTheme,
   );
 
   return (

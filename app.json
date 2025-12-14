@@ -42,7 +42,8 @@
       ],
       "expo-localization",
       "expo-audio",
-      "expo-font"
+      "expo-font",
+      "expo-asset"
     ],
     "splash": {
       "image": "./assets/images/icon.png",
