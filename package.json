@@ -51,7 +51,7 @@
     "eslint-config-expo": "~57.0.2",
     "expo-module-scripts": "^56.0.3",
     "patch-package": "^8.0.1",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3"
   },
   "private": true
 }
