@@ -1,4 +1,4 @@
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { useWindowDimensions } from "react-native";
 import React from "react";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import HadithBookmarks from "./HadithBookmarks";
@@ -16,9 +16,9 @@ const getRoutes = (t) => [
   { key: "hadith", title: t("Hadith") },
 ];
 
-const index = () => {
+const BookmarksTabs = () => {
   const layout = useWindowDimensions();
-  const [index, setIndex] = React.useState(0);
+  const [currentIndex, setCurrentIndex] = React.useState(0);
   const theme = useTheme();
   const { t } = useTranslation();
 
@@ -34,15 +34,13 @@ const index = () => {
 
   return (
     <TabView
-      navigationState={{ index, routes: getRoutes(t) }}
+      navigationState={{ index: currentIndex, routes: getRoutes(t) }}
       renderScene={renderScene}
-      onIndexChange={setIndex}
+      onIndexChange={setCurrentIndex}
       initialLayout={{ width: layout.width }}
       renderTabBar={renderTabBar}
     />
   );
 };
 
-export default index;
-
-const styles = StyleSheet.create({});
+export default BookmarksTabs;

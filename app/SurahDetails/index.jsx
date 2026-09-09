@@ -224,7 +224,7 @@ const SurahDetails = () => {
             }
           },
         );
-      } catch (e) {
+      } catch (_error) {
         Alert.alert(t("Error"), t("Failed to save bookmark"));
       }
     },

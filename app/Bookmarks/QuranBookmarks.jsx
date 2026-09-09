@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -20,19 +20,22 @@ const QuranBookmark = () => {
   const theme = useTheme();
   const { t } = useTranslation();
 
-  const loadBookmarks = async () => {
+  const loadBookmarks = useCallback(async () => {
     try {
       const storedBookmarks =
         JSON.parse(await AsyncStorage.getItem("bookmarks")) || [];
       setBookmarks(storedBookmarks);
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(t("Error"), t("Failed to load bookmarks"));
     }
-  };
+  }, [t]);
 
   useEffect(() => {
-    loadBookmarks();
-  }, []);
+    const timer = setTimeout(() => {
+      loadBookmarks();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadBookmarks]);
 
   const deleteBookmark = async (id) => {
     try {
@@ -41,7 +44,7 @@ const QuranBookmark = () => {
       );
       setBookmarks(updatedBookmarks);
       await AsyncStorage.setItem("bookmarks", JSON.stringify(updatedBookmarks));
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(t("Error"), t("Failed to delete bookmark"));
     }
   };

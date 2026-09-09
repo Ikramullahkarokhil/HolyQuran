@@ -1,4 +1,4 @@
-import i18n from "i18next";
+import { createInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 import * as Localization from "expo-localization";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -7,28 +7,28 @@ import pa from "../locales/pa.json";
 import da from "../locales/da.json";
 
 const LANGUAGE_PREFERENCE = "language_preference";
+const i18n = createInstance();
 
 const getDeviceLanguage = () => {
-  // Expo SDK 53: Localization.getLocales() returns an array of locale objects
   try {
     const locales =
       Localization.getLocales && typeof Localization.getLocales === "function"
         ? Localization.getLocales()
         : [];
-    if (
-      Array.isArray(locales) &&
-      locales.length > 0 &&
-      locales[0].languageCode
-    ) {
-      return locales[0].languageCode;
+
+    if (Array.isArray(locales) && locales.length > 0) {
+      const firstLocale = locales[0];
+      if (firstLocale?.languageCode) {
+        return firstLocale.languageCode;
+      }
+      if (firstLocale?.languageTag) {
+        return firstLocale.languageTag.split("-")[0];
+      }
     }
-    // Fallback to old API if available
-    if (Localization.locale) {
-      return Localization.locale.split("-")[0];
-    }
-  } catch (e) {
+  } catch (_error) {
     // ignore
   }
+
   return "en";
 };
 

@@ -1,7 +1,6 @@
 import {
   StyleSheet,
   View,
-  Dimensions,
   Pressable,
   Share,
   Alert,
@@ -9,15 +8,13 @@ import {
 } from "react-native";
 import { LegendList } from "@legendapp/list/react-native";
 import * as Clipboard from "expo-clipboard";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useTheme, Text, ActivityIndicator } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import { useTranslation } from "react-i18next";
 import { useLocalSearchParams } from "expo-router";
 import { useHadithTranslationStore } from "../../components/store/store";
-
-const { width } = Dimensions.get("window");
 
 const HadithsScreen = () => {
   const theme = useTheme();
@@ -29,7 +26,7 @@ const HadithsScreen = () => {
   const [hadithsData, setHadithsData] = useState([]);
 
   // Load hadith data based on selected language
-  const loadHadithData = async () => {
+  const loadHadithData = useCallback(async () => {
     try {
       setLoading(true);
       let data;
@@ -47,7 +44,7 @@ const HadithsScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [hadithLanguage]);
 
   // Filter hadiths for the selected book
   const hadiths = useMemo(() => {
@@ -92,7 +89,7 @@ const HadithsScreen = () => {
           ToastAndroid.SHORT,
         );
       }
-    } catch (e) {
+    } catch (_error) {
       Alert.alert(t("Error"), t("Could not bookmark hadith"));
     }
   };
@@ -121,14 +118,14 @@ const HadithsScreen = () => {
               }),
               ToastAndroid.SHORT,
             );
-          } catch (e) {
+          } catch (_error) {
             Alert.alert(t("Error"), t("Could not copy"));
           }
         } else if (selectedIndex === 1) {
           // Share
           try {
             await Share.share({ message: item.text });
-          } catch (e) {
+          } catch (_error) {
             Alert.alert(t("Error"), t("Could not share"));
           }
         } else if (selectedIndex === 2) {
@@ -176,8 +173,11 @@ const HadithsScreen = () => {
 
   // Load hadith data when language or book changes
   React.useEffect(() => {
-    loadHadithData();
-  }, [hadithLanguage, bookNumber]);
+    const timer = setTimeout(() => {
+      loadHadithData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [bookNumber, loadHadithData]);
 
   if (loading) {
     return (

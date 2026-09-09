@@ -130,6 +130,7 @@ const RadioGroup = memo(
     );
   },
 );
+RadioGroup.displayName = "RadioGroup";
 
 const SectionHeader = memo(({ icon, title, theme, language, isRTLMode }) => (
   <View
@@ -166,6 +167,7 @@ const SectionHeader = memo(({ icon, title, theme, language, isRTLMode }) => (
     </Text>
   </View>
 ));
+SectionHeader.displayName = "SectionHeader";
 
 const SettingCard = memo(
   ({ icon, title, children, theme, language, isRTLMode }) => (
@@ -210,6 +212,7 @@ const SettingCard = memo(
     </View>
   ),
 );
+SettingCard.displayName = "SettingCard";
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 

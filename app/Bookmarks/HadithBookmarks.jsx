@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -22,19 +22,22 @@ const HadithBookmark = () => {
   const { t } = useTranslation();
   const { translationLanguage: hadithLanguage } = useHadithTranslationStore();
 
-  const loadBookmarks = async () => {
+  const loadBookmarks = useCallback(async () => {
     try {
       const storedBookmarks =
         JSON.parse(await AsyncStorage.getItem("hadithBookmarks")) || [];
       setBookmarks(storedBookmarks);
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(t("Error"), t("Failed to load bookmarks"));
     }
-  };
+  }, [t]);
 
   useEffect(() => {
-    loadBookmarks();
-  }, []);
+    const timer = setTimeout(() => {
+      loadBookmarks();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [loadBookmarks]);
 
   const deleteBookmark = async (item) => {
     try {
@@ -49,7 +52,7 @@ const HadithBookmark = () => {
         "hadithBookmarks",
         JSON.stringify(updatedBookmarks),
       );
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(t("Error"), t("Failed to delete bookmark"));
     }
   };

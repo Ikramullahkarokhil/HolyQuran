@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Stack, useGlobalSearchParams } from "expo-router";
 import { initI18n, i18n } from "../components/i18n";
-import { I18nextProvider } from "react-i18next";
+import { I18nextProvider, useTranslation } from "react-i18next";
 import { StatusBar } from "expo-status-bar";
 import { View, useColorScheme, Text } from "react-native";
 import useThemeStore from "../components/store/useThemeStore";
@@ -14,7 +14,6 @@ import {
 } from "../components/store/store";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import * as SplashScreen from "expo-splash-screen";
-import { useTranslation } from "react-i18next";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -23,7 +22,7 @@ const RootLayout = () => {
   const [appIsReady, setAppIsReady] = useState(false);
   const [error, setError] = useState(null);
   const colorScheme = useColorScheme();
-  const { isDarkTheme, themeMode, initializeTheme } = useThemeStore();
+  const { isDarkTheme, initializeTheme } = useThemeStore();
   const { initializeQuranTranslationLanguage } = useQuranTranslationStore();
   const { initializeHadithTranslationLanguage } = useHadithTranslationStore();
   const { initializeAppLanguage } = useAppLanguageStore();
@@ -51,7 +50,13 @@ const RootLayout = () => {
     }
 
     prepare();
-  }, []);
+  }, [
+    colorScheme,
+    initializeAppLanguage,
+    initializeHadithTranslationLanguage,
+    initializeQuranTranslationLanguage,
+    initializeTheme,
+  ]);
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {

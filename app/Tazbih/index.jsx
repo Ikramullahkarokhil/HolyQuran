@@ -134,9 +134,9 @@ const Tazbih = () => {
         useNativeDriver: true,
       }).start();
     }
-  }, [showMaxCountModal]);
+  }, [showMaxCountModal, modalAnim]);
 
-  const handleReset = async () => {
+  const handleReset = useCallback(async () => {
     setCounter(0);
     setMaxCount(100);
     setTempMaxCount(100);
@@ -154,7 +154,7 @@ const Tazbih = () => {
       speed: 12,
       bounciness: 8,
     }).start();
-  };
+  }, [counterAnim]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -181,7 +181,7 @@ const Tazbih = () => {
         </View>
       ),
     });
-  }, [navigation, soundMode, maxCount, theme.colors.textColor]);
+  }, [navigation, soundMode, maxCount, theme.colors.textColor, handleReset]);
 
   const switchSoundMode = () => {
     setSoundMode((prevMode) => {

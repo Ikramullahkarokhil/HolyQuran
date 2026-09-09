@@ -1,10 +1,4 @@
-import {
-  StyleSheet,
-  View,
-  Dimensions,
-  Pressable,
-  TextInput,
-} from "react-native";
+import { StyleSheet, View, Pressable, TextInput } from "react-native";
 import React, { useEffect, useState, useMemo } from "react";
 import { LegendList } from "@legendapp/list/react-native";
 import { useTheme, Text, ActivityIndicator } from "react-native-paper";
@@ -45,7 +39,10 @@ const HadithsScreen = () => {
   }, [booksArray, searchQuery]);
 
   useEffect(() => {
-    setLoading(false);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const renderBookCard = ({ item }) => (

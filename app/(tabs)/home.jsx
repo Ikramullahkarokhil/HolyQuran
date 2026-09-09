@@ -15,12 +15,6 @@ import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 
-// Helper for dynamic opacity on hex colors if needed
-const getAlphaColor = (color = "#000000", opacity = 0.1) => {
-  // Simple fallback for theme colors
-  return color;
-};
-
 // ─── Extracted & Memoized List Item (Huge Performance Boost) ───────────────
 
 const SurahItem = memo(
@@ -78,6 +72,7 @@ const SurahItem = memo(
     );
   },
 );
+SurahItem.displayName = "SurahItem";
 
 // ─── Main Component ────────────────────────────────────────────────────────
 
