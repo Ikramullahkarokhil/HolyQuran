@@ -15,8 +15,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "expo-router";
 import { Button, useTheme, IconButton } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
@@ -63,7 +62,7 @@ const Tazbih = () => {
             AsyncStorage.getItem("counter"),
             AsyncStorage.getItem("maxCount"),
             AsyncStorage.getItem("soundMode"),
-          ]
+          ],
         );
 
         if (counterValue !== null) setCounter(parseInt(counterValue, 10));
@@ -102,7 +101,7 @@ const Tazbih = () => {
         }
       };
       reloadValues();
-    }, [])
+    }, []),
   );
 
   useEffect(() => {
@@ -190,8 +189,8 @@ const Tazbih = () => {
         prevMode === "sound"
           ? "vibrate"
           : prevMode === "vibrate"
-          ? "silent"
-          : "sound";
+            ? "silent"
+            : "sound";
       AsyncStorage.setItem("soundMode", newMode);
       return newMode;
     });
@@ -248,7 +247,7 @@ const Tazbih = () => {
 
   const handlePreviousRecite = () => {
     setReciteIndex((prevIndex) =>
-      prevIndex === 0 ? recitations.length - 1 : prevIndex - 1
+      prevIndex === 0 ? recitations.length - 1 : prevIndex - 1,
     );
   };
 

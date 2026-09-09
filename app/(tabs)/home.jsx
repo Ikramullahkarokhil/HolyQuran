@@ -1,17 +1,85 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   StyleSheet,
   Text,
   View,
-  FlatList,
-  TouchableOpacity,
+  Pressable,
   Animated,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
+import { LegendList } from "@legendapp/list/react-native";
 import { IconButton, useTheme } from "react-native-paper";
 import { loadSurahNames } from "../../components/utils";
 import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
+
+// Helper for dynamic opacity on hex colors if needed
+const getAlphaColor = (color = "#000000", opacity = 0.1) => {
+  // Simple fallback for theme colors
+  return color;
+};
+
+// ─── Extracted & Memoized List Item (Huge Performance Boost) ───────────────
+
+const SurahItem = memo(
+  ({ item, currentSurahName, verseCount, theme, t, onPress }) => {
+    return (
+      <View style={styles.itemShadowContainer}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.card,
+            { backgroundColor: theme.colors.primary },
+            pressed && {
+              opacity: 0.7,
+              backgroundColor: theme.colors.background,
+            },
+          ]}
+          onPress={() => onPress(item, currentSurahName)}
+        >
+          <View style={styles.itemContent}>
+            {/* Left Side: Verse Count */}
+            <Text style={[styles.verses, { color: theme.colors.textColor }]}>
+              {verseCount} {t("آيات")}
+            </Text>
+
+            {/* Right Side: Surah Info */}
+            <View style={styles.surahContainer}>
+              <Text
+                style={[styles.surahName, { color: theme.colors.textColor }]}
+              >
+                {t("سورة")} {currentSurahName}
+              </Text>
+
+              {/* Modern Number Badge */}
+              <View
+                style={[
+                  styles.numberBadge,
+                  { backgroundColor: theme.colors.background }, // Assuming background is a subtle contrast
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.surahNumber,
+                    {
+                      color:
+                        theme.colors.progressColor || theme.colors.textColor,
+                    },
+                  ]}
+                >
+                  {item.surah}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </Pressable>
+      </View>
+    );
+  },
+);
+
+// ─── Main Component ────────────────────────────────────────────────────────
 
 const Home = () => {
   const [surahNames, setSurahNames] = useState([]);
@@ -37,7 +105,7 @@ const Home = () => {
         setLoading(false);
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 300, // Reduced duration for lighter animation
+          duration: 350,
           useNativeDriver: true,
         }).start();
       }
@@ -46,89 +114,89 @@ const Home = () => {
     fetchSurahNames().catch((err) => {
       console.error("Unhandled error in fetchSurahNames:", err);
     });
-  }, []);
+  }, [fadeAnim]);
 
-  const handleBookmarks = () => {
-    router.push("/Bookmarks"); // use push instead of navigate in expo-router v6
-  };
-
-  const handleSurahPress = (item, currentSurahName) => {
-    router.navigate({
-      pathname: "SurahDetails",
-      params: {
-        surahId: item.surah,
-        surahName: currentSurahName,
-      },
-    });
-  };
-
+  // Memoize verses count calculation so it only runs once
   const versesPerSurah = useMemo(() => {
     try {
       if (!ArabicQuran?.quran?.["quran-uthmani-hafs"]) {
-        console.error("Invalid Quran data structure");
         return {};
       }
-
-      const versesPerSurah = {};
+      const counts = {};
       const quranData = ArabicQuran.quran["quran-uthmani-hafs"];
-
       for (const verseId in quranData) {
         const verse = quranData[verseId];
         if (verse && verse.surah) {
-          const surahId = verse.surah;
-          versesPerSurah[surahId] = (versesPerSurah[surahId] || 0) + 1;
+          counts[verse.surah] = (counts[verse.surah] || 0) + 1;
         }
       }
-
-      return versesPerSurah;
+      return counts;
     } catch (error) {
       console.error("Error calculating verses:", error);
       return {};
     }
   }, []);
 
-  const renderItem = ({ item }) => {
-    if (!theme?.colors || !surahNames[item.surah - 1]) {
-      console.error("Theme or surah name not initialized properly");
-      return null;
-    }
+  // Memoize static data list
+  const listData = useMemo(
+    () => Array.from({ length: 114 }, (_, index) => ({ surah: index + 1 })),
+    [],
+  );
 
-    const currentSurahName = surahNames[item.surah - 1];
+  // Callbacks
+  const handleBookmarks = useCallback(() => {
+    router.push("/Bookmarks");
+  }, [router]);
 
-    return (
-      <Animated.View style={[styles.itemContainer, { opacity: fadeAnim }]}>
-        <View style={[styles.card, { backgroundColor: theme.colors.primary }]}>
-          <TouchableOpacity
-            style={styles.item}
-            onPress={() => handleSurahPress(item, currentSurahName)}
-          >
-            <Text style={[styles.verses, { color: theme.colors.textColor }]}>
-              {versesPerSurah[item.surah] || 0} {t("آيات")}
-            </Text>
-            <View style={styles.surahContainer}>
-              <Text
-                style={[styles.surahNumber, { color: theme.colors.textColor }]}
-              >
-                {item.surah}
-              </Text>
-              <Text
-                style={[styles.surahName, { color: theme.colors.textColor }]}
-              >
-                {t("سورة")} {currentSurahName}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-    );
-  };
+  const handleSurahPress = useCallback(
+    (item, currentSurahName) => {
+      router.navigate({
+        pathname: "/SurahDetails",
+        params: {
+          surahId: item.surah,
+          surahName: currentSurahName,
+        },
+      });
+    },
+    [router],
+  );
+
+  const renderItem = useCallback(
+    ({ item }) => {
+      if (!surahNames[item.surah - 1]) return null;
+
+      const currentSurahName = surahNames[item.surah - 1];
+      const verseCount = versesPerSurah[item.surah] || 0;
+
+      return (
+        <SurahItem
+          item={item}
+          currentSurahName={currentSurahName}
+          verseCount={verseCount}
+          theme={theme}
+          t={t}
+          onPress={handleSurahPress}
+        />
+      );
+    },
+    [surahNames, versesPerSurah, theme, t, handleSurahPress],
+  );
 
   if (loading) {
     return (
       <View
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.colors.background },
+        ]}
       >
-        <Text style={styles.loadingText}>{t("جاري التحميل...")}</Text>
+        <ActivityIndicator
+          size="large"
+          color={theme.colors.progressColor || "#888"}
+        />
+        <Text style={[styles.loadingText, { color: theme.colors.textColor }]}>
+          {t("جاري التحميل...")}
+        </Text>
       </View>
     );
   }
@@ -138,32 +206,33 @@ const Home = () => {
       style={[styles.container, { backgroundColor: theme?.colors?.background }]}
     >
       <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
-        <FlatList
-          data={Array.from({ length: 114 }, (_, index) => ({
-            surah: index + 1,
-          }))}
+        <LegendList
+          data={listData}
           renderItem={renderItem}
           keyExtractor={(item) => item.surah.toString()}
-          initialNumToRender={12} // Increased for smoother initial load
-          contentContainerStyle={styles.list}
-          removeClippedSubviews={true}
+          recycleItems={true}
+          estimatedItemSize={80}
+          drawDistance={350}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
         />
       </Animated.View>
 
-      <TouchableOpacity
-        style={[
+      <Pressable
+        style={({ pressed }) => [
           styles.floatingButton,
           { backgroundColor: theme.colors.primary },
+          pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] },
         ]}
         onPress={handleBookmarks}
       >
         <IconButton
           icon="heart"
-          iconColor={theme.colors.error}
-          size={30}
+          iconColor={theme.colors.error || "#ff4757"}
+          size={26}
           style={styles.floatingButtonIcon}
         />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 };
@@ -173,72 +242,109 @@ export default Home;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f6fa",
   },
-  list: {
-    padding: 10,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  itemContainer: {
-    marginBottom: 10,
-    borderRadius: 15,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 }, // Reduced shadow for performance
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 5,
+  loadingText: {
+    fontSize: 16,
+    marginTop: 16,
+    fontWeight: "500",
+    fontFamily: "Amiri-Regular",
+  },
+  listContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 90, // Leave room for FAB
+  },
+  itemShadowContainer: {
+    marginBottom: 12,
+    borderRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   card: {
-    borderRadius: 15,
-    borderWidth: 0.5,
-    borderColor: "#e0e0e0",
-    paddingVertical: 15,
-    paddingHorizontal: 10,
+    borderRadius: 16,
+    overflow: "hidden", // Ensures ripple/press feedback stays inside border radius
   },
-  item: {
+  itemContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    minHeight: 76,
   },
   surahContainer: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
   },
   surahName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "600",
     textAlign: "right",
-    marginRight: 10,
-    fontFamily: "Amiri-Regular", // Ensure you have this font or use a similar Arabic font
+    marginRight: 14,
+    fontFamily: "Amiri-Regular",
+  },
+  numberBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   surahNumber: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#666",
-    marginRight: 10,
+    fontSize: 15,
+    fontWeight: "700",
   },
   verses: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "500",
-    textAlign: "left",
-  },
-  loadingText: {
-    fontSize: 18,
-    textAlign: "center",
-    marginTop: 20,
-    fontFamily: "Amiri-Regular",
+    opacity: 0.7,
   },
   floatingButton: {
     position: "absolute",
-    bottom: 20,
-    right: 20,
+    bottom: 24,
+    right: 24,
+    width: 50,
+    height: 50,
     borderRadius: 30,
-    elevation: 8,
-    borderWidth: 0.5,
-    borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   floatingButtonIcon: {
     margin: 0,

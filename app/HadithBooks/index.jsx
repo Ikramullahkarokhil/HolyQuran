@@ -1,12 +1,12 @@
 import {
   StyleSheet,
   View,
-  FlatList,
   Dimensions,
   Pressable,
   TextInput,
 } from "react-native";
 import React, { useEffect, useState, useMemo } from "react";
+import { LegendList } from "@legendapp/list/react-native";
 import { useTheme, Text, ActivityIndicator } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import bookNames from "../../assets/Hadiths/bukhari_books.json";
@@ -40,7 +40,7 @@ const HadithsScreen = () => {
     return booksArray.filter(
       (book) =>
         book.bookName.toLowerCase().includes(lowercaseQuery) ||
-        book.bookNumber.toString().includes(lowercaseQuery)
+        book.bookNumber.toString().includes(lowercaseQuery),
     );
   }, [booksArray, searchQuery]);
 
@@ -140,10 +140,13 @@ const HadithsScreen = () => {
           />
         </View>
       </View>
-      <FlatList
+      <LegendList
         data={filteredBooks}
         renderItem={renderBookCard}
         keyExtractor={(item) => item.bookNumber.toString()}
+        recycleItems={true}
+        estimatedItemSize={92}
+        drawDistance={260}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={() => (
@@ -156,7 +159,6 @@ const HadithsScreen = () => {
             </Text>
           </View>
         )}
-        initialNumToRender={10}
       />
     </View>
   );

@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   Alert,
   TouchableOpacity,
   Animated,
   Dimensions,
 } from "react-native";
+import { LegendList } from "@legendapp/list/react-native";
 import { useTheme } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -47,7 +47,7 @@ const HadithBookmark = () => {
       setBookmarks(updatedBookmarks);
       await AsyncStorage.setItem(
         "hadithBookmarks",
-        JSON.stringify(updatedBookmarks)
+        JSON.stringify(updatedBookmarks),
       );
     } catch (error) {
       Alert.alert(t("Error"), t("Failed to delete bookmark"));
@@ -162,14 +162,13 @@ const HadithBookmark = () => {
           </Text>
         </View>
       ) : (
-        <FlatList
+        <LegendList
           data={bookmarks}
           renderItem={renderItem}
           keyExtractor={(item, idx) => {
             if (item && item.id !== undefined && item.id !== null) {
               return item.id.toString();
             }
-            // fallback: try hadithnumber, reference.hadith, or index
             if (item?.hadithnumber) return item.hadithnumber.toString();
             if (item?.reference?.hadith)
               return item.reference.hadith.toString();
@@ -177,6 +176,9 @@ const HadithBookmark = () => {
           }}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          recycleItems={true}
+          estimatedItemSize={120}
+          drawDistance={280}
           refreshing={refreshing}
           onRefresh={onRefresh}
           showsVerticalScrollIndicator={false}

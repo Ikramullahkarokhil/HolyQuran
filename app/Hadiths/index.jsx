@@ -1,13 +1,13 @@
 import {
   StyleSheet,
   View,
-  FlatList,
   Dimensions,
   Pressable,
   Share,
   Alert,
   ToastAndroid,
 } from "react-native";
+import { LegendList } from "@legendapp/list/react-native";
 import * as Clipboard from "expo-clipboard";
 import React, { useState, useMemo } from "react";
 import { useTheme, Text, ActivityIndicator } from "react-native-paper";
@@ -52,7 +52,7 @@ const HadithsScreen = () => {
   // Filter hadiths for the selected book
   const hadiths = useMemo(() => {
     return hadithsData.filter(
-      (h) => String(h.reference.book) === String(bookNumber)
+      (h) => String(h.reference.book) === String(bookNumber),
     );
   }, [bookNumber, hadithsData]);
 
@@ -64,7 +64,7 @@ const HadithsScreen = () => {
       // Avoid duplicates
       if (
         !hadithBookmarks.some(
-          (b) => b.reference?.hadith === item.reference?.hadith
+          (b) => b.reference?.hadith === item.reference?.hadith,
         )
       ) {
         const itemWithBookName = {
@@ -75,21 +75,21 @@ const HadithsScreen = () => {
         hadithBookmarks.push(itemWithBookName);
         await AsyncStorage.setItem(
           "hadithBookmarks",
-          JSON.stringify(hadithBookmarks)
+          JSON.stringify(hadithBookmarks),
         );
 
         ToastAndroid.show(
           t("Hadith #{{number}} added to bookmarks", {
             number: item.reference.hadith,
           }),
-          ToastAndroid.SHORT
+          ToastAndroid.SHORT,
         );
       } else {
         ToastAndroid.show(
           t("Hadith #{{number}} Already bookmarked", {
             number: item.reference.hadith,
           }),
-          ToastAndroid.SHORT
+          ToastAndroid.SHORT,
         );
       }
     } catch (e) {
@@ -119,7 +119,7 @@ const HadithsScreen = () => {
               t("Hadith #{{number}} copied to clipboard", {
                 number: item.reference.hadith,
               }),
-              ToastAndroid.SHORT
+              ToastAndroid.SHORT,
             );
           } catch (e) {
             Alert.alert(t("Error"), t("Could not copy"));
@@ -135,11 +135,11 @@ const HadithsScreen = () => {
           // Bookmark
           handleBookmark(item);
         }
-      }
+      },
     );
   };
 
-  // Card renderer for FlatList (using View and Pressable)
+  // Card renderer for LegendList (using View and Pressable)
   function renderHadithCard({ item }) {
     return (
       <Pressable
@@ -219,19 +219,18 @@ const HadithsScreen = () => {
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <FlatList
+      <LegendList
         data={hadiths}
         renderItem={renderHadithCard}
         keyExtractor={(item, idx) =>
           `${item.reference?.hadith || item.hadithnumber}-${idx}`
         }
+        recycleItems={true}
+        estimatedItemSize={150}
+        drawDistance={600}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={ListEmptyComponent}
-        initialNumToRender={20}
-        maxToRenderPerBatch={20}
-        windowSize={10}
-        removeClippedSubviews={true}
       />
     </View>
   );

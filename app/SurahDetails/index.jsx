@@ -1,19 +1,6 @@
-import React, {
-  useMemo,
-  useCallback,
-  useRef,
-  useEffect,
-  useState,
-} from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Alert,
-  Share,
-  FlatList,
-  Pressable,
-} from "react-native";
+import React, { useMemo, useCallback, useRef, useState } from "react";
+import { View, Text, StyleSheet, Alert, Share, Pressable } from "react-native";
+import { LegendList } from "@legendapp/list/react-native";
 import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
 import EnglishQuran from "../../assets/QuranData/EnglishQuran.json";
 import PashtoQuran from "../../assets/QuranData/PashtoQuran.json";
@@ -32,115 +19,188 @@ import {
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuranTranslationStore } from "../../components/store/store";
-import { useNavigation } from "@react-navigation/native";
-import { useGlobalSearchParams, useFocusEffect } from "expo-router";
+import {
+  useLocalSearchParams,
+  useFocusEffect,
+  useNavigation,
+} from "expo-router";
 import { IconButton, useTheme } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 
 const SurahDetails = () => {
-  const { surahName } = useGlobalSearchParams();
+  const { surahName } = useLocalSearchParams();
   const navigation = useNavigation();
   const theme = useTheme();
   const { t } = useTranslation();
   const { translationLanguage } = useQuranTranslationStore();
   const { showActionSheetWithOptions } = useActionSheet();
-  const flatListRef = useRef(null);
+  const listRef = useRef(null);
+  const lastSavedScrollOffset = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const surahNames = useMemo(() => SurahNames, []);
 
-  const currentSurahIndex = useMemo(() => {
-    return surahNames.findIndex((name) => name === surahName);
-  }, [surahName, surahNames]);
+  const resolvedSurahName = useMemo(() => {
+    if (!surahName || typeof surahName !== "string") return null;
+    return decodeURIComponent(surahName);
+  }, [surahName]);
 
-  const getTranslationData = useMemo(() => {
-    return (language) => {
-      switch (language) {
-        case "pashto":
-          return PashtoQuran;
-        case "dari":
-          return DariQuran;
-        case "english":
-          return EnglishQuran;
-        default:
-          return PashtoQuran;
+  const getScrollStorageKey = useCallback(() => {
+    if (!resolvedSurahName) return null;
+    return `surah_details_scroll_${resolvedSurahName}`;
+  }, [resolvedSurahName]);
+
+  const saveScrollOffset = useCallback(
+    async (offsetY) => {
+      if (!resolvedSurahName) return;
+
+      const safeOffset = Math.max(0, Math.round(offsetY || 0));
+      const key = getScrollStorageKey();
+      if (!key) return;
+
+      if (
+        lastSavedScrollOffset.current !== null &&
+        Math.abs(lastSavedScrollOffset.current - safeOffset) < 25
+      ) {
+        return;
       }
-    };
+
+      lastSavedScrollOffset.current = safeOffset;
+      await AsyncStorage.setItem(key, String(safeOffset));
+    },
+    [getScrollStorageKey, resolvedSurahName],
+  );
+
+  const restoreScrollOffset = useCallback(async () => {
+    if (!resolvedSurahName) return;
+
+    const key = getScrollStorageKey();
+    if (!key) return;
+
+    const rawOffset = await AsyncStorage.getItem(key);
+    const savedOffset = Number(rawOffset || 0);
+
+    if (!Number.isFinite(savedOffset) || savedOffset <= 20) {
+      return;
+    }
+
+    setTimeout(() => {
+      try {
+        listRef.current?.scrollToOffset({
+          offset: savedOffset,
+          animated: false,
+        });
+      } catch (e) {
+        console.log("SurahDetails scroll restore failed:", e);
+      }
+    }, 120);
+  }, [getScrollStorageKey, resolvedSurahName]);
+
+  const currentSurahIndex = useMemo(() => {
+    return surahNames.findIndex((name) => name === resolvedSurahName);
+  }, [resolvedSurahName, surahNames]);
+
+  const getTranslationData = useCallback((language) => {
+    switch (language) {
+      case "pashto":
+        return PashtoQuran;
+      case "dari":
+        return DariQuran;
+      case "english":
+        return EnglishQuran;
+      default:
+        return PashtoQuran;
+    }
   }, []);
 
   const translationData = useMemo(
     () => getTranslationData(translationLanguage),
-    [translationLanguage, getTranslationData]
+    [translationLanguage, getTranslationData],
   );
 
+  // ---- VERSES (Arabic) ----
   const verses = useMemo(() => {
-    if (!surahName) return [];
-    const surahId = surahNames.indexOf(surahName) + 1;
-    return Object.values(ArabicQuran.quran["quran-uthmani-hafs"]).filter(
-      (item) => item.surah === surahId
-    );
-  }, [surahName, surahNames]);
+    if (!resolvedSurahName) return [];
 
+    const surahId = surahNames.indexOf(resolvedSurahName) + 1;
+    if (surahId <= 0) return [];
+
+    const allAyahs = Object.values(
+      ArabicQuran?.quran?.["quran-uthmani-hafs"] || {},
+    );
+
+    return allAyahs.filter((item) => item.surah === surahId);
+  }, [resolvedSurahName, surahNames]);
+
+  // ---- TRANSLATION VERSES ----
   const translationVerses = useMemo(() => {
-    if (!surahName || !translationData) return [];
-    const surahId = surahNames.indexOf(surahName) + 1;
-    return Object.values(translationData.quran["quran-uthmani-hafs"]).filter(
-      (item) => item.surah === surahId
-    );
-  }, [surahName, translationData, surahNames]);
+    if (!resolvedSurahName || !translationData) return [];
 
+    const surahId = surahNames.indexOf(resolvedSurahName) + 1;
+    if (surahId <= 0) return [];
+
+    const all = Object.values(
+      translationData?.quran?.["quran-uthmani-hafs"] || {},
+    );
+
+    return all.filter((item) => item.surah === surahId);
+  }, [resolvedSurahName, translationData, surahNames]);
+
+  // ---- Header navigation ----
   useFocusEffect(
     useCallback(() => {
-      if (surahName) {
-        const setNavigationOptions = (direction) => {
-          const targetSurahName =
-            surahNames[currentSurahIndex + direction] || surahName;
-          return (
-            <IconButton
-              icon={`chevron-${direction === -1 ? "left" : "right"}`}
-              iconColor={theme.colors.textColor}
-              size={30}
-              onPress={() =>
-                navigation.setParams({ surahName: targetSurahName })
-              }
-            />
-          );
-        };
+      if (!resolvedSurahName) return;
 
-        navigation.setOptions({
-          title: `${t("سورة")} ${surahName}`,
-          headerShown: true,
-          headerTitleStyle: { color: theme.colors.textColor },
-          headerLeft: () => setNavigationOptions(-1),
-          headerRight: () => setNavigationOptions(1),
-        });
-      }
+      const setNavButton = (direction) => {
+        const targetIndex = currentSurahIndex + direction;
+        const targetName = surahNames[targetIndex] || resolvedSurahName;
+
+        return (
+          <IconButton
+            icon={`chevron-${direction === -1 ? "left" : "right"}`}
+            iconColor={theme.colors.textColor}
+            size={28}
+            onPress={() => navigation.setParams({ surahName: targetName })}
+          />
+        );
+      };
+
+      navigation.setOptions({
+        title: `${t("سورة")} ${resolvedSurahName}`,
+        headerShown: true,
+        headerTitleStyle: { color: theme.colors.textColor },
+        headerLeft: () => setNavButton(-1),
+        headerRight: () => setNavButton(1),
+      });
+
+      restoreScrollOffset();
     }, [
-      surahName,
+      resolvedSurahName,
       currentSurahIndex,
       theme.colors.textColor,
       surahNames,
       navigation,
-    ])
+      t,
+      restoreScrollOffset,
+    ]),
   );
 
+  // ---- Long press actions ----
   const handleLongPress = useCallback(
     async (verse) => {
       const options = [t("Bookmark"), t("Copy"), t("Share"), t("Cancel")];
       const cancelButtonIndex = 3;
-      const { verse: verseText, translationVerse } = verse;
 
       try {
-        const existingBookmarks =
+        const existing =
           JSON.parse(await AsyncStorage.getItem("bookmarks")) || [];
-        const isBookmarked = existingBookmarks.some(
-          (bookmark) => bookmark.id === verse.id
-        );
+
+        const isBookmarked = existing.some((b) => b.id === verse.id);
 
         if (isBookmarked) {
           Alert.alert(
             t("Already Bookmarked"),
-            `${verseText}\n\n${translationVerse}`
+            `${verse.verse}\n\n${verse.translationVerse}`,
           );
           return;
         }
@@ -148,45 +208,33 @@ const SurahDetails = () => {
         showActionSheetWithOptions(
           { options, cancelButtonIndex },
           async (buttonIndex) => {
-            switch (buttonIndex) {
-              case 0:
-                const updatedBookmarks = [...existingBookmarks, verse];
-                await AsyncStorage.setItem(
-                  "bookmarks",
-                  JSON.stringify(updatedBookmarks)
-                );
-                Alert.alert(
-                  t("Bookmarked"),
-                  `${verseText}\n\n${translationVerse}`
-                );
-                break;
-              case 1:
-                Clipboard.setString(`${verseText}\n\n${translationVerse}`);
-                Alert.alert(
-                  t("Copied to Clipboard"),
-                  `${verseText}\n\n${translationVerse}`
-                );
-                break;
-              case 2:
-                Share.share({ message: `${verseText}\n\n${translationVerse}` });
-                break;
-              default:
-                break;
+            if (buttonIndex === 0) {
+              const updated = [...existing, verse];
+              await AsyncStorage.setItem("bookmarks", JSON.stringify(updated));
+              Alert.alert(t("Bookmarked"));
+            } else if (buttonIndex === 1) {
+              await Clipboard.setStringAsync(
+                `${verse.verse}\n\n${verse.translationVerse}`,
+              );
+              Alert.alert(t("Copied to Clipboard"));
+            } else if (buttonIndex === 2) {
+              Share.share({
+                message: `${verse.verse}\n\n${verse.translationVerse}`,
+              });
             }
-          }
+          },
         );
-      } catch (error) {
+      } catch (e) {
         Alert.alert(t("Error"), t("Failed to save bookmark"));
       }
     },
-    [showActionSheetWithOptions]
+    [showActionSheetWithOptions, t],
   );
 
+  // ---- Render Item (FIXED) ----
   const renderItem = useCallback(
     ({ item }) => {
-      const translationItem = translationVerses.find(
-        (verse) => verse.id === item.id
-      );
+      const translationItem = translationVerses.find((v) => v.id === item.id);
       const translationVerse =
         translationItem?.verse || t("Translation not available");
 
@@ -203,27 +251,30 @@ const SurahDetails = () => {
           }}
         >
           <Pressable
-            android_ripple={{ color: theme.colors.riple, borderless: false }}
+            android_ripple={{ color: theme.colors.riple }}
             style={({ pressed }) => [
               styles.item,
               {
                 backgroundColor: pressed
-                  ? theme.colors.inactiveColor + "22"
+                  ? theme.colors.inactiveColor + "18"
                   : theme.colors.surface,
-                borderBottomColor: theme.colors.inactiveColor,
               },
             ]}
           >
+            {/* Arabic + Ayah number */}
             <View style={styles.verseRow}>
               <Text
                 style={[styles.verseText, { color: theme.colors.textColor }]}
               >
-                <View style={styles.ayahBadge}>
-                  <Text style={styles.ayahBadgeText}>{item.ayah}</Text>
-                </View>{" "}
                 {item.verse}
               </Text>
+
+              <View style={styles.ayahBadge}>
+                <Text style={styles.ayahBadgeText}>{item.ayah}</Text>
+              </View>
             </View>
+
+            {/* Translation */}
             <Text
               style={[
                 styles.translationText,
@@ -236,34 +287,31 @@ const SurahDetails = () => {
         </LongPressGestureHandler>
       );
     },
-    [
-      handleLongPress,
-      translationVerses,
-      theme.colors.inactiveColor,
-      theme.colors.textColor,
-      theme.colors.surface,
-      theme.colors.riple,
-    ]
+    [translationVerses, handleLongPress, theme.colors, t],
   );
 
-  const getItemLayout = useCallback(
-    (data, index) => ({
-      length: 72,
-      offset: 72 * index,
-      index,
-    }),
-    []
+  const handleScroll = useCallback(
+    (e) => {
+      const offsetY = e.nativeEvent.contentOffset.y || 0;
+      setShowScrollTop(offsetY > 280);
+      saveScrollOffset(offsetY);
+    },
+    [saveScrollOffset],
   );
 
-  const handleScroll = useCallback((event) => {
-    const y = event.nativeEvent.contentOffset.y;
-    setShowScrollTop(y > 200);
-  }, []);
-
-  if (!surahName) {
+  // ---- Empty / Error states ----
+  if (!resolvedSurahName) {
     return (
-      <View style={styles.container}>
+      <View style={styles.centered}>
         <Text style={styles.errorText}>{t("Invalid Surah Name")}</Text>
+      </View>
+    );
+  }
+
+  if (verses.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>{t("No verses found")}</Text>
       </View>
     );
   }
@@ -272,26 +320,25 @@ const SurahDetails = () => {
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      <FlatList
-        ref={flatListRef}
+      <LegendList
+        ref={listRef}
         data={verses}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        removeClippedSubviews={true}
-        updateCellsBatchingPeriod={50}
+        keyExtractor={(item) => String(item.id)}
+        recycleItems={true}
+        estimatedItemSize={120}
+        drawDistance={600}
         ItemSeparatorComponent={() => <View style={styles.divider} />}
+        showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
-        // getItemLayout={getItemLayout}
+        contentContainerStyle={styles.listContent}
       />
+
       {showScrollTop && (
         <Pressable
           style={styles.scrollTopBtn}
-          android_ripple={{ color: theme.colors.riple }}
           onPress={() =>
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
+            listRef.current?.scrollToOffset({ offset: 0, animated: true })
           }
         >
           <Text style={styles.scrollTopBtnText}>↑</Text>
@@ -313,88 +360,86 @@ export default function App() {
   );
 }
 
+// ====================== STYLES ======================
 const styles = StyleSheet.create({
   container: {
+    flex: 1, // ← CRITICAL: no justifyContent / alignItems here
+  },
+  centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  errorText: {
-    fontSize: 18,
-    color: "red",
+  listContent: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
   },
   item: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: 0,
-    width: "100%",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    marginBottom: 0,
-    elevation: 0,
-    shadowColor: "transparent",
-  },
-  verseRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    marginHorizontal: 8,
     marginBottom: 4,
   },
+  verseRow: {
+    flexDirection: "row-reverse", // Arabic: text on right, number on left
+    alignItems: "flex-start",
+    gap: 12,
+  },
   verseText: {
-    fontSize: 22,
-    fontWeight: "bold",
     flex: 1,
+    fontSize: 23,
+    fontWeight: "600",
     textAlign: "right",
+    lineHeight: 40,
   },
   ayahBadge: {
-    backgroundColor: "#2196f3",
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    marginLeft: 10,
+    backgroundColor: "#2196F3",
+    borderRadius: 14,
+    minWidth: 30,
+    height: 28,
+    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#2196f3",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
+    marginTop: 6,
   },
   ayahBadgeText: {
-    fontSize: 15,
     color: "#fff",
-    fontWeight: "bold",
-    letterSpacing: 0.5,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  translationText: {
+    fontSize: 16,
+    marginTop: 10,
+    textAlign: "right",
+    lineHeight: 26,
+    opacity: 0.9,
   },
   divider: {
     height: 1,
     backgroundColor: "#e0e0e0",
-
-    opacity: 0.7,
-  },
-  translationText: {
-    fontSize: 18,
-    marginTop: 2,
-    textAlign: "right",
-    opacity: 0.92,
+    opacity: 0.5,
+    marginHorizontal: 16,
   },
   scrollTopBtn: {
     position: "absolute",
-    bottom: 32,
-    right: 18,
-    backgroundColor: "#2196f3",
-    borderRadius: 28,
-    width: 56,
-    height: 56,
+    bottom: 28,
+    right: 20,
+    backgroundColor: "#2196F3",
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 7,
-    shadowColor: "#2196f3",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    elevation: 6,
   },
   scrollTopBtnText: {
     color: "#fff",
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: "bold",
-    marginTop: -2,
+  },
+  errorText: {
+    fontSize: 17,
+    color: "#c62828",
   },
 });

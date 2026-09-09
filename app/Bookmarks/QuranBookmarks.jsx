@@ -3,12 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   Alert,
   TouchableOpacity,
   Animated,
   Dimensions,
 } from "react-native";
+import { LegendList } from "@legendapp/list/react-native";
 import { useTheme } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -37,7 +37,7 @@ const QuranBookmark = () => {
   const deleteBookmark = async (id) => {
     try {
       const updatedBookmarks = bookmarks.filter(
-        (bookmark) => bookmark.id !== id
+        (bookmark) => bookmark.id !== id,
       );
       setBookmarks(updatedBookmarks);
       await AsyncStorage.setItem("bookmarks", JSON.stringify(updatedBookmarks));
@@ -152,12 +152,15 @@ const QuranBookmark = () => {
           </Text>
         </View>
       ) : (
-        <FlatList
+        <LegendList
           data={bookmarks}
           renderItem={renderItem}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          recycleItems={true}
+          estimatedItemSize={120}
+          drawDistance={260}
           refreshing={refreshing}
           onRefresh={onRefresh}
           showsVerticalScrollIndicator={false}
