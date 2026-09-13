@@ -7,9 +7,11 @@ const APP_LANGUAGE_PREFERENCE = "app_language_preference";
 
 const useQuranTranslationStore = create((set) => ({
   translationLanguage: "english",
-  setTranslationLanguage: async (language) => {
-    await AsyncStorage.setItem(QURAN_LANGUAGE_PREFERENCE, language);
+  setTranslationLanguage: (language) => {
     set({ translationLanguage: language });
+    AsyncStorage.setItem(QURAN_LANGUAGE_PREFERENCE, language).catch((error) => {
+      console.error("Failed to save Quran translation language:", error);
+    });
   },
   initializeQuranTranslationLanguage: async () => {
     try {
@@ -25,9 +27,11 @@ const useQuranTranslationStore = create((set) => ({
 
 const useHadithTranslationStore = create((set) => ({
   translationLanguage: "english",
-  setTranslationLanguage: async (language) => {
-    await AsyncStorage.setItem(HADITH_LANGUAGE_PREFERENCE, language);
+  setTranslationLanguage: (language) => {
     set({ translationLanguage: language });
+    AsyncStorage.setItem(HADITH_LANGUAGE_PREFERENCE, language).catch((error) => {
+      console.error("Failed to save Hadith translation language:", error);
+    });
   },
   initializeHadithTranslationLanguage: async () => {
     try {

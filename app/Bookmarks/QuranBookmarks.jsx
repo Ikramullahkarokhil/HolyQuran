@@ -3,32 +3,47 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
-  TouchableOpacity,
-  Animated,
-  Dimensions,
 } from "react-native";
 import { LegendList } from "@legendapp/list/react-native";
 import { useTheme } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "expo-router";
+import { useAppAlert } from "../../components/AppAlertProvider";
+import BookmarkCard from "../../components/BookmarkCard";
+import { useQuranTranslationStore } from "../../components/store/store";
+import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
+import SurahNames from "../../assets/QuranData/SurahNames.json";
+
+const versesById = new Map(
+  Object.values(ArabicQuran?.quran?.["quran-uthmani-hafs"] || {}).map(
+    (verse) => [verse.id, verse],
+  ),
+);
 
 const QuranBookmark = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const theme = useTheme();
   const { t } = useTranslation();
+  const { showAlert } = useAppAlert();
+  const { translationLanguage } = useQuranTranslationStore();
+  const router = useRouter();
 
   const loadBookmarks = useCallback(async () => {
     try {
       const storedBookmarks =
         JSON.parse(await AsyncStorage.getItem("bookmarks")) || [];
-      setBookmarks(storedBookmarks);
+      setBookmarks(
+        storedBookmarks.sort(
+          (first, second) => (second.createdAt || 0) - (first.createdAt || 0),
+        ),
+      );
     } catch (_error) {
-      Alert.alert(t("Error"), t("Failed to load bookmarks"));
+      showAlert(t("Error"), t("Failed to load bookmarks"));
     }
-  }, [t]);
+  }, [showAlert, t]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -37,17 +52,17 @@ const QuranBookmark = () => {
     return () => clearTimeout(timer);
   }, [loadBookmarks]);
 
-  const deleteBookmark = async (id) => {
+  const deleteBookmark = useCallback(async (id) => {
     try {
       const updatedBookmarks = bookmarks.filter(
         (bookmark) => bookmark.id !== id,
       );
-      setBookmarks(updatedBookmarks);
       await AsyncStorage.setItem("bookmarks", JSON.stringify(updatedBookmarks));
+      setBookmarks(updatedBookmarks);
     } catch (_error) {
-      Alert.alert(t("Error"), t("Failed to delete bookmark"));
+      showAlert(t("Error"), t("Failed to delete bookmark"));
     }
-  };
+  }, [bookmarks, showAlert, t]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -55,83 +70,51 @@ const QuranBookmark = () => {
     setRefreshing(false);
   };
 
-  // Swipe-to-delete animation
-  const renderItem = ({ item, index }) => {
-    const translateX = new Animated.Value(0);
-    let swiped = false;
+  const handleDelete = useCallback(
+    (item) => {
+      showAlert(t("delete_bookmark"), t("delete_bookmark_confirm"), [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("delete"),
+          style: "destructive",
+          onPress: () => deleteBookmark(item.id),
+        },
+      ]);
+    },
+    [deleteBookmark, showAlert, t],
+  );
 
-    const handleDelete = () => {
-      if (!swiped) {
-        Alert.alert(t("delete_bookmark"), t("delete_bookmark_confirm"), [
-          { text: t("cancel"), style: "cancel" },
-          {
-            text: t("delete"),
-            style: "destructive",
-            onPress: () => {
-              swiped = true;
-              Animated.timing(translateX, {
-                toValue: -Dimensions.get("window").width,
-                duration: 300,
-                useNativeDriver: true,
-              }).start(() => deleteBookmark(item.id));
-            },
-          },
-        ]);
-      }
-    };
+  const handleNavigate = useCallback((item) => {
+    const sourceVerse = versesById.get(item.id);
+    const surahId =
+      item.surahNumber || item.surah || item.surahId || sourceVerse?.surah;
+    const surahName = item.surahName || SurahNames[surahId - 1];
 
-    // Determine translation direction
-    const lang = t("translation_language") || t("language") || "en";
-    const isEnglish = lang.startsWith("en");
-    return (
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            backgroundColor: theme.colors.primary,
+    if (!surahName) return;
 
-            transform: [{ translateX }],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={{ flex: 1 }}
-          onPress={handleDelete}
-        >
-          <View style={styles.textContainer}>
-            <Text
-              style={[
-                styles.verseText,
-                {
-                  color: theme.colors.activeColor,
-                  textAlign: "right",
-                  writingDirection: "rtl",
-                },
-              ]}
-            >
-              {item.verse}{" "}
-              <Text style={[styles.ayahText, { color: theme.colors.error }]}>
-                ({item.id})
-              </Text>
-            </Text>
-            <Text
-              style={[
-                styles.translationText,
-                {
-                  color: theme.colors.textColor,
-                  textAlign: isEnglish ? "left" : "right",
-                  writingDirection: isEnglish ? "ltr" : "rtl",
-                },
-              ]}
-            >
-              {item.translationVerse}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
+    router.push({
+      pathname: "/SurahDetails",
+      params: {
+        surahName,
+        ayahId: String(item.id),
+      },
+    });
+  }, [router]);
+
+  const renderItem = useCallback(
+    ({ item }) => (
+      <BookmarkCard
+        item={item}
+        kind="quran"
+        language={translationLanguage}
+        theme={theme}
+        onNavigate={handleNavigate}
+        onDelete={handleDelete}
+        t={t}
+      />
+    ),
+    [handleDelete, handleNavigate, t, theme, translationLanguage],
+  );
 
   return (
     <View
@@ -160,7 +143,7 @@ const QuranBookmark = () => {
           renderItem={renderItem}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          ItemSeparatorComponent={ItemSeparator}
           recycleItems={true}
           estimatedItemSize={120}
           drawDistance={260}
@@ -175,44 +158,15 @@ const QuranBookmark = () => {
 
 export default QuranBookmark;
 
+const ItemSeparator = () => <View style={styles.separator} />;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 0,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-    minHeight: 90,
+  separator: {
+    height: 12,
   },
-  textContainer: {
-    flex: 1,
-    marginRight: 12,
-  },
-  verseText: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 8,
-    letterSpacing: 0.2,
-    textAlign: "right",
-    writingDirection: "rtl",
-  },
-  ayahText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  translationText: {
-    fontSize: 16,
-    fontWeight: "400",
-    // textAlign and writingDirection set dynamically
-  },
-  deleteButton: {},
   emptyContainer: {
     flex: 1,
     justifyContent: "center",

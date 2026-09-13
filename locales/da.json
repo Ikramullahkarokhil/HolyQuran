@@ -35,13 +35,15 @@
   "Error loading tabs": "خطا در بارگذاری تب‌ها",
   "جاري التحميل...": "در حال بارگذاری...",
   "آيات": "آیات",
-  "سورة": "سوره",
+  "سورة": "سورة",
   "Sahih Bukhari Hadiths": "احادیث صحیح بخاری",
   "Bookmarks": "نشان‌گذاری‌ها",
   "Quran": "قرآن",
-  "Hadith": "حدیث",
+
   "Explore sacred narrations": "کاوش در روایات مقدس",
   "Verse & Hadith of the Day": "آیه و حدیث روز",
+  "Coming soon": "به‌زودی",
+  "Daily verses and hadiths will be available here soon.": "آیات و احادیث روزانه به‌زودی در اینجا در دسترس خواهد بود.",
   "Learn verses and hadiths of the day": "آیات و احادیث روز را بیاموزید",
   "Tasbih": "تسبیح",
   "Practice remembrance": "تمرین ذکر",
@@ -77,5 +79,14 @@
   "Cancel max count": "لغو حداکثر تعداد",
   "Previous recitation": "ذکر قبلی",
   "Next recitation": "ذکر بعدی",
-  "Tap to increment counter": "برای افزایش شمارنده ضربه بزنید"
+  "Tap to increment counter": "برای افزایش شمارنده ضربه بزنید",
+  "Ayah": "آیه",
+  "Surah": "سورة",
+  "Pinned locations": "مکان‌های نشان‌شده",
+  "Pinned location": "مکان نشان‌شده",
+  "Pinned": "نشان‌شده",
+  "Pin this location": "این مکان را نشان کنید",
+  "Remove pin": "نشان را حذف کنید",
+  "No pins yet": "هنوز نشانی وجود ندارد"
+  ,"Open bookmark": "نشان‌گذاری را باز کنید"
 }

@@ -14,6 +14,7 @@ import {
 } from "../components/store/store";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import * as SplashScreen from "expo-splash-screen";
+import { AppAlertProvider } from "../components/AppAlertProvider";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -94,8 +95,10 @@ const RootLayout = () => {
       <ActionSheetProvider>
         <PaperProvider theme={theme}>
           <I18nextProvider i18n={i18n}>
-            <StatusBar style={isDarkTheme ? "light" : "dark"} />
-            <AppStack bookName={bookName} />
+            <AppAlertProvider>
+              <StatusBar style={isDarkTheme ? "light" : "dark"} />
+              <AppStack bookName={bookName} />
+            </AppAlertProvider>
           </I18nextProvider>
         </PaperProvider>
       </ActionSheetProvider>
@@ -124,7 +127,22 @@ const AppStack = ({ bookName }) => {
         headerTintColor: theme.colors.textColor,
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="(tabs)"
+        options={{
+          headerShown: true,
+          headerTitle: t("holyQuran"),
+          headerTitleAlign: "left",
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: theme.colors.surface },
+          headerTitleStyle: {
+            color: theme.colors.onSurface || theme.colors.textColor,
+            fontSize: 20,
+            fontWeight: "700",
+          },
+          headerTintColor: theme.colors.onSurface || theme.colors.textColor,
+        }}
+      />
       <Stack.Screen
         name="HadithBooks/index"
         options={{ headerTitle: t("Sahih Bukhari Hadiths") }}

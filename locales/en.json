@@ -40,13 +40,15 @@
   "Error loading tabs": "Error loading tabs",
   "جاري التحميل...": "Loading...",
   "آيات": "verses",
-  "سورة": "Surah",
+  "سورة": "سورة",
   "Sahih Bukhari Hadiths": "Sahih Bukhari Hadiths",
   "Bookmarks": "Bookmarks",
   "Quran": "Quran",
   "Hadith": "Hadith",
   "Explore sacred narrations": "Explore sacred narrations",
   "Verse & Hadith of the Day": "Verse & Hadith of the Day",
+  "Coming soon": "Coming soon",
+  "Daily verses and hadiths will be available here soon.": "Daily verses and hadiths will be available here soon.",
   "Learn verses and hadiths of the day": "Learn verses and hadiths of the day",
   "Tasbih": "Tasbih",
   "Practice remembrance": "Practice remembrance",
@@ -82,5 +84,14 @@
   "Cancel max count": "Cancel max count",
   "Previous recitation": "Previous recitation",
   "Next recitation": "Next recitation",
-  "Tap to increment counter": "Tap to increment counter"
+  "Tap to increment counter": "Tap to increment counter",
+  "Ayah": "Ayah",
+  "Surah": "سورة",
+  "Pinned locations": "Pinned locations",
+  "Pinned location": "Pinned location",
+  "Pinned": "Pinned",
+  "Pin this location": "Pin this location",
+  "Remove pin": "Remove pin",
+  "No pins yet": "No pins yet"
+  ,"Open bookmark": "Open bookmark"
 }

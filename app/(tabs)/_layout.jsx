@@ -1,78 +1,67 @@
 import React from "react";
-import { Tabs } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "react-native-paper";
-import { View, Text } from "react-native";
+
+const withAlpha = (color, alpha) => {
+  if (typeof color !== "string" || !color.startsWith("#")) return color;
+  const hex = color.slice(1);
+  const rgb = hex.length === 8 ? hex.slice(0, 6) : hex;
+  const alphaHex = Math.round(alpha * 255)
+    .toString(16)
+    .padStart(2, "0");
+  return `#${rgb}${alphaHex}`;
+};
 
 const TabsLayout = () => {
   const { t } = useTranslation();
   const theme = useTheme();
-
-  if (!theme || !t) {
-    console.error("Theme or translation not initialized");
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Loading resources...</Text>
-      </View>
-    );
-  }
+  const colors = theme?.colors || {};
+  const backgroundColor = colors.surface || colors.primary || "#ffffff";
+  const inactiveColor =
+    colors.onSurfaceVariant || colors.inactiveColor || "#666666";
+  const activeColor = colors.progressColor || colors.textColor || "#2587d8";
+  const selectionIndicator = theme.dark
+    ? withAlpha(activeColor, 0.25)
+    : withAlpha(activeColor, 0.1);
 
   return (
-    <Tabs
-      screenOptions={{
-        headerTitleAlign: "center",
-        headerStyle: {
-          backgroundColor: theme?.colors?.primary || "#fff",
-        },
-        headerTitleStyle: {
-          color: theme?.colors?.textColor || "#000",
-          fontSize: 20,
-        },
-        tabBarStyle: {
-          backgroundColor: theme?.colors?.primary,
-        },
-        tabBarActiveTintColor: theme?.colors?.textColor || "#000",
-        tabBarInactiveTintColor: theme?.colors?.disabled || "#666",
+    <NativeTabs
+      backgroundColor={backgroundColor}
+      iconColor={{ default: inactiveColor, selected: activeColor }}
+      indicatorColor={selectionIndicator}
+      labelStyle={{
+        default: { color: inactiveColor, fontSize: 12 },
+        selected: { color: activeColor, fontSize: 12, fontWeight: "700" },
       }}
+      tintColor={activeColor}
+      disableTransparentOnScrollEdge
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: t("home") || "Home",
-          tabBarIcon: ({ focused, color, size }) => {
-            const iconName = focused ? "home" : "home-outline";
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-        }}
-      />
-      <Tabs.Screen
-        name="tools"
-        options={{
-          title: t("tools") || "Tools",
-          tabBarIcon: ({ focused, color, size }) => {
-            const iconName = focused ? "toolbox" : "toolbox-outline";
-            return (
-              <MaterialCommunityIcons
-                name={iconName}
-                size={size}
-                color={color}
-              />
-            );
-          },
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: t("settings") || "Settings",
-          tabBarIcon: ({ focused, color, size }) => {
-            const iconName = focused ? "settings" : "settings-outline";
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-        }}
-      />
-    </Tabs>
+      <NativeTabs.Trigger name="home">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "house", selected: "house.fill" }}
+          md={{ default: "home", selected: "home" }}
+        />
+        <NativeTabs.Trigger.Label>{t("home")}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="tools">
+        <NativeTabs.Trigger.Icon
+          sf={{
+            default: "wrench.and.screwdriver",
+            selected: "wrench.and.screwdriver.fill",
+          }}
+          md={{ default: "build", selected: "build" }}
+        />
+        <NativeTabs.Trigger.Label>{t("tools")}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "gearshape", selected: "gearshape.fill" }}
+          md={{ default: "settings", selected: "settings" }}
+        />
+        <NativeTabs.Trigger.Label>{t("settings")}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 };
 

@@ -9,24 +9,32 @@ import { useTheme } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
+import { useAppAlert } from "../../../components/AppAlertProvider";
+import BookmarkCard from "../../../components/BookmarkCard";
 import { useRouter } from "expo-router";
-import { useHadithTranslationStore } from "../../components/store/store";
-import { useAppAlert } from "../../components/AppAlertProvider";
-import BookmarkCard from "../../components/BookmarkCard";
+import ArabicQuran from "../../../assets/QuranData/ArabicQuran.json";
+import SurahNames from "../../../assets/QuranData/SurahNames.json";
+import { useQuranTranslationStore } from "../../../components/store/store";
 
-const HadithBookmark = () => {
+const versesById = new Map(
+  Object.values(ArabicQuran?.quran?.["quran-uthmani-hafs"] || {}).map(
+    (verse) => [verse.id, verse],
+  ),
+);
+
+const QuranBookmark = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const theme = useTheme();
   const { t } = useTranslation();
   const { showAlert } = useAppAlert();
-  const { translationLanguage: hadithLanguage } = useHadithTranslationStore();
+  const { translationLanguage } = useQuranTranslationStore();
   const router = useRouter();
 
   const loadBookmarks = useCallback(async () => {
     try {
       const storedBookmarks =
-        JSON.parse(await AsyncStorage.getItem("hadithBookmarks")) || [];
+        JSON.parse(await AsyncStorage.getItem("bookmarks")) || [];
       setBookmarks(
         storedBookmarks.sort(
           (first, second) => (second.createdAt || 0) - (first.createdAt || 0),
@@ -44,19 +52,12 @@ const HadithBookmark = () => {
     return () => clearTimeout(timer);
   }, [loadBookmarks]);
 
-  const deleteBookmark = useCallback(async (item) => {
+  const deleteBookmark = useCallback(async (id) => {
     try {
-      const updatedBookmarks = bookmarks.filter((bookmark) => {
-        const bookmarkId = bookmark.hadithnumber || bookmark.reference?.hadith;
-        const itemId = item.hadithnumber || item.reference?.hadith;
-        const bookmarkBook = bookmark.reference?.book;
-        const itemBook = item.reference?.book;
-        return bookmarkId !== itemId || bookmarkBook !== itemBook;
-      });
-      await AsyncStorage.setItem(
-        "hadithBookmarks",
-        JSON.stringify(updatedBookmarks),
+      const updatedBookmarks = bookmarks.filter(
+        (bookmark) => bookmark.id !== id,
       );
+      await AsyncStorage.setItem("bookmarks", JSON.stringify(updatedBookmarks));
       setBookmarks(updatedBookmarks);
     } catch (_error) {
       showAlert(t("Error"), t("Failed to delete bookmark"));
@@ -76,7 +77,7 @@ const HadithBookmark = () => {
         {
           text: t("delete"),
           style: "destructive",
-          onPress: () => deleteBookmark(item),
+          onPress: () => deleteBookmark(item.id),
         },
       ]);
     },
@@ -84,17 +85,15 @@ const HadithBookmark = () => {
   );
 
   const handleNavigate = useCallback((item) => {
-    const bookNumber = item.reference?.book;
-    const hadithNumber = item.reference?.hadith || item.hadithnumber;
-    if (bookNumber === undefined || hadithNumber === undefined) return;
+    const sourceVerse = versesById.get(item.id);
+    const surahId =
+      item.surahNumber || item.surah || item.surahId || sourceVerse?.surah;
+    const surahName = item.surahName || SurahNames[surahId - 1];
+    if (!surahName) return;
 
     router.push({
-      pathname: "/Hadiths",
-      params: {
-        bookNumber: String(bookNumber),
-        bookName: item.bookName || "",
-        hadithNumber: String(hadithNumber),
-      },
+      pathname: "/SurahDetails",
+      params: { surahName, ayahId: String(item.id) },
     });
   }, [router]);
 
@@ -102,15 +101,15 @@ const HadithBookmark = () => {
     ({ item }) => (
       <BookmarkCard
         item={item}
-        kind="hadith"
-        language={item.language || hadithLanguage}
+        kind="quran"
+        language={translationLanguage}
         theme={theme}
         onNavigate={handleNavigate}
         onDelete={handleDelete}
         t={t}
       />
     ),
-    [hadithLanguage, handleDelete, handleNavigate, t, theme],
+    [handleDelete, handleNavigate, t, theme, translationLanguage],
   );
 
   return (
@@ -131,27 +130,19 @@ const HadithBookmark = () => {
           <Text
             style={[styles.emptySubText, { color: theme.colors.inactiveColor }]}
           >
-            {t("add_hadith_bookmarks_hint")}
+            {t("add_bookmarks_hint")}
           </Text>
         </View>
       ) : (
         <LegendList
           data={bookmarks}
           renderItem={renderItem}
-          keyExtractor={(item, idx) => {
-            if (item && item.id !== undefined && item.id !== null) {
-              return item.id.toString();
-            }
-            if (item?.hadithnumber) return item.hadithnumber.toString();
-            if (item?.reference?.hadith)
-              return item.reference.hadith.toString();
-            return idx.toString();
-          }}
+          keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           ItemSeparatorComponent={ItemSeparator}
           recycleItems={true}
           estimatedItemSize={120}
-          drawDistance={280}
+          drawDistance={260}
           refreshing={refreshing}
           onRefresh={onRefresh}
           showsVerticalScrollIndicator={false}
@@ -161,7 +152,7 @@ const HadithBookmark = () => {
   );
 };
 
-export default HadithBookmark;
+export default QuranBookmark;
 
 const ItemSeparator = () => <View style={styles.separator} />;
 

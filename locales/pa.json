@@ -35,13 +35,14 @@
   "Error loading tabs": "د ټیبونو بارولو کې تیروتنه",
   "جاري التحميل...": "بار کول...",
   "آيات": "آیتونه",
-  "سورة": "سوره",
+  "سورة": "سورة",
   "Sahih Bukhari Hadiths": "صحیح بخاري حدیثونه",
   "Bookmarks": "نښې",
   "Quran": "قرآن",
-  "Hadith": "حدیث",
   "Explore sacred narrations": "مقدس روایتونه وپېژنئ",
   "Verse & Hadith of the Day": "د ورځې آیت او حدیث",
+  "Coming soon": "ژر به راشي",
+  "Daily verses and hadiths will be available here soon.": "د ورځې آیتونه او حدیثونه به ژر دلته موجود وي.",
   "Learn verses and hadiths of the day": "د ورځې آیتونه او حدیثونه زده کړئ",
   "Tasbih": "تسبیح",
   "Practice remembrance": "د ذکر تمرین",
@@ -77,5 +78,14 @@
   "Cancel max count": "اعظمي شمېره لغوه کړئ",
   "Previous recitation": "پخوانۍ ذکر",
   "Next recitation": "راتلونکې ذکر",
-  "Tap to increment counter": "د شمېرونکي زیاتولو لپاره ټپ وکړئ"
+  "Tap to increment counter": "د شمېرونکي زیاتولو لپاره ټپ وکړئ",
+  "Ayah": "آیت",
+  "Surah": "سورة",
+  "Pinned locations": "نښه شوي ځایونه",
+  "Pinned location": "نښه شوی ځای",
+  "Pinned": "نښه شوی",
+  "Pin this location": "دا ځای نښه کړئ",
+  "Remove pin": "نښه لرې کړئ",
+  "No pins yet": "تر اوسه نښې نشته"
+  ,"Open bookmark": "نښه پرانیزئ"
 }
