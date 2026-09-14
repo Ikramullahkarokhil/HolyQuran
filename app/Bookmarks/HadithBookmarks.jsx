@@ -14,6 +14,18 @@ import { useHadithTranslationStore } from "../../components/store/store";
 import { useAppAlert } from "../../components/AppAlertProvider";
 import BookmarkCard from "../../components/BookmarkCard";
 
+const getHadithBookmarkKey = (item, index = 0) => {
+  const collection = item?.collection || "hadith";
+  const book = item?.reference?.book || item?.bookName || "book";
+  const hadith =
+    item?.reference?.hadith || item?.hadithnumber || item?.id || "unknown";
+  const createdAt = item?.createdAt || index;
+
+  return [collection, book, hadith, createdAt, index]
+    .map((value) => String(value).replace(/[^a-zA-Z0-9_-]/g, "_"))
+    .join(":");
+};
+
 const HadithBookmark = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,13 +58,11 @@ const HadithBookmark = () => {
 
   const deleteBookmark = useCallback(async (item) => {
     try {
-      const updatedBookmarks = bookmarks.filter((bookmark) => {
-        const bookmarkId = bookmark.hadithnumber || bookmark.reference?.hadith;
-        const itemId = item.hadithnumber || item.reference?.hadith;
-        const bookmarkBook = bookmark.reference?.book;
-        const itemBook = item.reference?.book;
-        return bookmarkId !== itemId || bookmarkBook !== itemBook;
-      });
+      const itemIndex = bookmarks.indexOf(item);
+      const itemKey = getHadithBookmarkKey(item, itemIndex);
+      const updatedBookmarks = bookmarks.filter(
+        (bookmark, index) => getHadithBookmarkKey(bookmark, index) !== itemKey,
+      );
       await AsyncStorage.setItem(
         "hadithBookmarks",
         JSON.stringify(updatedBookmarks),
@@ -84,6 +94,11 @@ const HadithBookmark = () => {
   );
 
   const handleNavigate = useCallback((item) => {
+    if (item.collection === "jawami_al_kalim") {
+      router.push("/JawamiAlKalim");
+      return;
+    }
+
     const bookNumber = item.reference?.book;
     const hadithNumber = item.reference?.hadith || item.hadithnumber;
     if (bookNumber === undefined || hadithNumber === undefined) return;
@@ -138,15 +153,7 @@ const HadithBookmark = () => {
         <LegendList
           data={bookmarks}
           renderItem={renderItem}
-          keyExtractor={(item, idx) => {
-            if (item && item.id !== undefined && item.id !== null) {
-              return item.id.toString();
-            }
-            if (item?.hadithnumber) return item.hadithnumber.toString();
-            if (item?.reference?.hadith)
-              return item.reference.hadith.toString();
-            return idx.toString();
-          }}
+          keyExtractor={(item, idx) => getHadithBookmarkKey(item, idx)}
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           ItemSeparatorComponent={ItemSeparator}
           recycleItems={true}

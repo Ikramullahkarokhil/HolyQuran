@@ -226,7 +226,7 @@ const HadithsScreen = () => {
 
   const createBookPressHandler = useCallback(
     (bookNumber, bookName) => () => {
-      router.replace({
+      router.push({
         pathname: "Hadiths",
         params: { bookNumber, bookName },
       });

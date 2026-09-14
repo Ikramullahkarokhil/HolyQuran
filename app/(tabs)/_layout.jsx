@@ -47,12 +47,12 @@ const TabsLayout = () => {
       <NativeTabs.Trigger name="tools">
         <NativeTabs.Trigger.Icon
           sf={{
-            default: "wrench.and.screwdriver",
-            selected: "wrench.and.screwdriver.fill",
+            default: "graduationcap",
+            selected: "graduationcap.fill",
           }}
-          md={{ default: "build", selected: "build" }}
+          md={{ default: "school", selected: "school" }}
         />
-        <NativeTabs.Trigger.Label>{t("tools")}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>{t("learn")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Icon

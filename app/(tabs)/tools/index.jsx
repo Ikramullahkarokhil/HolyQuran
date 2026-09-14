@@ -30,7 +30,7 @@ const getCardData = (t) => [
     title: t("Hadith"),
     description: t("Explore sacred narrations"),
     icon: "book-open-variant",
-    href: { pathname: "HadithBooks" },
+    href: { pathname: "HadithCollections" },
     accent: "#2563eb",
   },
   {

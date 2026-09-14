@@ -17,6 +17,8 @@ const GeneralModal = ({
   onSelect,
   onClose,
   children,
+  writingDirection = "ltr",
+  textAlign = writingDirection === "rtl" ? "right" : "left",
 }) => {
   const theme = useTheme();
   const colors = theme?.colors || {};
@@ -57,16 +59,29 @@ const GeneralModal = ({
           style={[styles.sheet, { backgroundColor: surfaceColor }]}
           onPress={(event) => event.stopPropagation()}
         >
-          <View style={styles.headerRow}>
-            <View style={styles.titleBlock}>
-              <Text style={[styles.title, { color: textColor }]} variant="titleMedium">
+          <View
+            style={[
+              styles.headerRow,
+              { flexDirection: writingDirection === "rtl" ? "row-reverse" : "row" },
+            ]}
+          >
+            <View
+              style={[
+                styles.titleBlock,
+                writingDirection === "rtl" ? styles.titleBlockRtl : null,
+              ]}
+            >
+              <Text
+                style={[styles.title, { color: textColor, textAlign, writingDirection }]}
+                variant="titleMedium"
+              >
                 {title}
               </Text>
               {description ? (
                 <Text
                   numberOfLines={4}
                   ellipsizeMode="tail"
-                  style={[styles.description, { color: textColor }]}
+                  style={[styles.description, { color: textColor, textAlign, writingDirection }]}
                 >
                   {description}
                 </Text>
@@ -186,6 +201,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 8,
     paddingRight: 8,
+  },
+  titleBlockRtl: {
+    paddingRight: 0,
+    paddingLeft: 8,
   },
   title: {
     fontWeight: "700",

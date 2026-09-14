@@ -1,0 +1,1634 @@
+[
+  {
+    "id": 1,
+    "title": {
+      "english": "Intention",
+      "pashto": "نیت",
+      "dari": "نیت"
+    },
+    "arabic": "إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ، وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى.",
+    "english": "Actions are judged by intentions, and every person will get what they intended.",
+    "pashto": "اعمال د نیتونو له مخې دي، او هر انسان ته هغه څه دي چې نیت يې کړی وي.",
+    "dari": "اعمال بستگی به نیت‌ها دارند، و برای هر شخص همان چیزی است که نیت کرده است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 2,
+    "title": {
+      "english": "The Foundations of Islam",
+      "pashto": "د اسلام بنسټونه",
+      "dari": "بنیادهای اسلام"
+    },
+    "arabic": "بُنِيَ الإِسْلَامُ عَلَى خَمْسٍ: شَهَادَةِ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَأَنَّ مُحَمَّدًا رَسُولُ اللَّهِ، وَإِقَامِ الصَّلَاةِ، وَإِيتَاءِ الزَّكَاةِ، وَالْحَجِّ، وَصَوْمِ رَمَضَانَ.",
+    "english": "Islam is built upon five: the testimony that there is no god but Allah and that Muhammad is the Messenger of Allah, establishing prayer, giving zakat, pilgrimage, and fasting Ramadan.",
+    "pashto": "اسلام پر پنځو شیانو ولاړ دی: د دې ګواهي چې له الله پرته بل معبود نشته او محمد ﷺ د الله رسول دی، لمونځ قائمول، زکات ورکول، حج کول او د رمضان روژه نيول.",
+    "dari": "اسلام بر پنج چیز بنا شده است: شهادت اینکه معبودی جز الله نیست و محمد رسول الله است، برپایی نماز، دادن زکات، حج و روزه رمضان.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 3,
+    "title": {
+      "english": "Religion is Advice",
+      "pashto": "د دين نصيحت دی",
+      "dari": "دین نصیحت است"
+    },
+    "arabic": "الدِّينُ النَّصِيحَةُ.",
+    "english": "Religion is sincere advice.",
+    "pashto": "دين خيرخواهي او نصيحت دی.",
+    "dari": "دین خیرخواهی و نصیحت است.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 4,
+    "title": {
+      "english": "Halal and Haram",
+      "pashto": "حلال او حرام",
+      "dari": "حلال و حرام"
+    },
+    "arabic": "الْحَلَالُ بَيِّنٌ، وَالْحَرَامُ بَيِّنٌ، وَبَيْنَهُمَا مُشْتَبِهَاتٌ...",
+    "english": "The lawful is clear and the unlawful is clear, and between them are doubtful matters...",
+    "pashto": "حلال څرګند دی، حرام څرګند دی، او د دواړو ترمنځ ځينې شبهه ناک شیان دي. څوک چې له شبهاتو ځان وساتي، خپل دين او عزت يې خوندي کړ.",
+    "dari": "حلال روشن است، حرام روشن است، و میان آن دو امور مشتبه وجود دارد. هر کس از شبهات دوری کند، دین و آبروی خود را حفظ کرده است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 5,
+    "title": {
+      "english": "The Good of Religion",
+      "pashto": "د دين خير",
+      "dari": "خیر دین"
+    },
+    "arabic": "مَنْ يُرِدِ اللَّهُ بِهِ خَيْرًا يُفَقِّهْهُ فِي الدِّينِ.",
+    "english": "Whoever Allah wants good for, He gives him understanding of the religion.",
+    "pashto": "الله چې د چا خير وغواړي، هغه ته د دين پوهه ورکوي.",
+    "dari": "هر کس که الله برای او خیر بخواهد، او را در دین فقیه می‌گرداند.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 6,
+    "title": {
+      "english": "The Definition of a Muslim",
+      "pashto": "د مسلمان پېژندنه",
+      "dari": "تعریف مسلمان"
+    },
+    "arabic": "الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ.",
+    "english": "A Muslim is the one from whose tongue and hand the Muslims are safe.",
+    "pashto": "مسلمان هغه دی چې نور مسلمانان يې له ژبې او لاس څخه خوندي وي.",
+    "dari": "مسلمان کسی است که مسلمانان از زبان و دست او در امان باشند.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 7,
+    "title": {
+      "english": "Purity",
+      "pashto": "پاکي",
+      "dari": "پاکی"
+    },
+    "arabic": "الطُّهُورُ شَطْرُ الإِيمَانِ.",
+    "english": "Purity is half of faith.",
+    "pashto": "پاکي د ايمان نيمايي ده.",
+    "dari": "پاکی نیمی از ایمان است.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 8,
+    "title": {
+      "english": "Good Speech",
+      "pashto": "ښه خبرې",
+      "dari": "سخن نیک"
+    },
+    "arabic": "مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ.",
+    "english": "Whoever believes in Allah and the Last Day should speak good or remain silent.",
+    "pashto": "څوک چې پر الله او آخرت ايمان لري، يا دې ښه خبره وکړي او يا دې چوپ پاتې شي.",
+    "dari": "هر کس به الله و روز آخرت ایمان دارد، یا سخن نیک بگوید یا خاموش بماند.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 9,
+    "title": {
+      "english": "The Right of the Neighbor",
+      "pashto": "د ګاونډي حق",
+      "dari": "حق همسایه"
+    },
+    "arabic": "مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلَا يُؤْذِ جَارَهُ.",
+    "english": "Whoever believes in Allah and the Last Day should not harm his neighbor.",
+    "pashto": "څوک چې پر الله او آخرت ايمان لري، خپل ګاونډی دې نه ځوروي.",
+    "dari": "هر کس به الله و روز آخرت ایمان دارد، همسایه‌اش را نیازارد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 10,
+    "title": {
+      "english": "Love for One's Brother",
+      "pashto": "د ورور لپاره مينه",
+      "dari": "محبت به برادر"
+    },
+    "arabic": "لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ.",
+    "english": "None of you truly believes until he loves for his brother what he loves for himself.",
+    "pashto": "له تاسو څخه هېڅوک تر هغه بشپړ مؤمن نه شي کېدای، خو د خپل ورور لپاره هغه څه خوښ نه کړي چې د ځان لپاره يې خوښوي.",
+    "dari": "هیچ یک از شما ایمان نمی‌آورد تا اینکه برای برادرش همان را دوست بدارد که برای خود دوست می‌دارد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 11,
+    "title": {
+      "english": "The Cure for Anger",
+      "pashto": "د غوسې درملنه",
+      "dari": "درمان خشم"
+    },
+    "arabic": "لَا تَغْضَبْ.",
+    "english": "Do not get angry.",
+    "pashto": "غوسه مه کوه.",
+    "dari": "خشمگین نشو.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 12,
+    "title": {
+      "english": "The Definition of a Strong Person",
+      "pashto": "د قوي انسان تعریف",
+      "dari": "تعریف انسان قوی"
+    },
+    "arabic": "لَيْسَ الشَّدِيدُ بِالصُّرَعَةِ، إِنَّمَا الشَّدِيدُ الَّذِي يَمْلِكُ نَفْسَهُ عِنْدَ الْغَضَبِ.",
+    "english": "The strong one is not the one who overpowers others in wrestling, but the one who controls himself when angry.",
+    "pashto": "زورور هغه نه دی چې خلک راوغورځوي؛ بلکې زورور هغه دی چې د غوسې پر مهال خپل ځان کنټرول کړي.",
+    "dari": "قوی کسی نیست که دیگران را به زمین می‌زند، بلکه قوی کسی است که هنگام خشم خود را کنترل کند.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 13,
+    "title": {
+      "english": "The Virtue of Modesty",
+      "pashto": "د حيا فضيلت",
+      "dari": "فضیلت حیا"
+    },
+    "arabic": "الْحَيَاءُ مِنَ الْإِيمَانِ.",
+    "english": "Modesty is part of faith.",
+    "pashto": "حيا د ايمان يوه برخه ده.",
+    "dari": "حیا بخشی از ایمان است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 14,
+    "title": {
+      "english": "Mercy",
+      "pashto": "رحم",
+      "dari": "رحم"
+    },
+    "arabic": "مَنْ لَا يَرْحَمْ لَا يُرْحَمْ.",
+    "english": "Whoever does not show mercy will not be shown mercy.",
+    "pashto": "څوک چې رحم نه کوي، پر هغه رحم نه کېږي.",
+    "dari": "هر کس رحم نکند، به او رحم نشود.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 15,
+    "title": {
+      "english": "Charity",
+      "pashto": "صدقه",
+      "dari": "صدقه"
+    },
+    "arabic": "كُلُّ مَعْرُوفٍ صَدَقَةٌ.",
+    "english": "Every good deed is charity.",
+    "pashto": "هر نېک کار صدقه ده.",
+    "dari": "هر کار نیک صدقه است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 16,
+    "title": {
+      "english": "Smiling",
+      "pashto": "مسکا",
+      "dari": "لبخند"
+    },
+    "arabic": "تَبَسُّمُكَ فِي وَجْهِ أَخِيكَ لَكَ صَدَقَةٌ.",
+    "english": "Your smile in the face of your brother is charity for you.",
+    "pashto": "د خپل مسلمان ورور په مخ کې ستا موسکا کول ستا لپاره صدقه ده.",
+    "dari": "لبخند تو به روی برادرت برای تو صدقه است.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 17,
+    "title": {
+      "english": "Removing Harm from the Path",
+      "pashto": "د لارې څخه ضرر لرې کول",
+      "dari": "دور کردن آزار از راه"
+    },
+    "arabic": "وَتَمْيِيطُ الْأَذَى عَنِ الطَّرِيقِ صَدَقَةٌ.",
+    "english": "Removing a harmful thing from the path is charity.",
+    "pashto": "له لارې څخه د ضرر لرې کول هم صدقه ده.",
+    "dari": "دور کردن آزار از راه نیز صدقه است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 18,
+    "title": {
+      "english": "The Path of Knowledge",
+      "pashto": "د علم لاره",
+      "dari": "راه علم"
+    },
+    "arabic": "مَنْ سَلَكَ طَرِيقًا يَلْتَمِسُ فِيهِ عِلْمًا، سَهَّلَ اللَّهُ لَهُ بِهِ طَرِيقًا إِلَى الْجَنَّةِ.",
+    "english": "Whoever takes a path seeking knowledge, Allah will make easy for him a path to Paradise.",
+    "pashto": "څوک چې د علم د تړاسه کولو لپاره يوه لاره ونيسي، الله تعالی د هغه لپاره د جنت لاره اسانه کوي.",
+    "dari": "هر کس راهی را برای طلب علم بپیماید، الله برای او راهی به سوی بهشت آسان می‌کند.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 19,
+    "title": {
+      "english": "The Reality of This World",
+      "pashto": "د دنيا حقيقت",
+      "dari": "حقیقت دنیا"
+    },
+    "arabic": "كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ أَوْ عَابِرُ سَبِيلٍ.",
+    "english": "Be in this world as if you were a stranger or a traveler.",
+    "pashto": "په دنيا کې داسې اوسه لکه پردی يا مسافر.",
+    "dari": "در دنیا چنان باش که گویی غریب یا رهگذری هستی.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 20,
+    "title": {
+      "english": "This World and the Hereafter",
+      "pashto": "د دنيا او آخرت اړیکه",
+      "dari": "رابطه دنیا و آخرت"
+    },
+    "arabic": "الدُّنْيَا سِجْنُ الْمُؤْمِنِ وَجَنَّةُ الْكَافِرِ.",
+    "english": "This world is a prison for the believer and a paradise for the disbeliever.",
+    "pashto": "دنيا د مؤمن لپاره زندان او د کافر لپاره جنت دی.",
+    "dari": "دنیا زندان مؤمن و بهشت کافر است.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 21,
+    "title": {
+      "english": "Relationship with Allah",
+      "pashto": "د الله تعالی سره اړیکه",
+      "dari": "رابطه با الله تعالی"
+    },
+    "arabic": "احْفَظِ اللَّهَ يَحْفَظْكَ، احْفَظِ اللَّهَ تَجِدْهُ تُجَاهَكَ.",
+    "english": "Protect (the rights of) Allah and He will protect you. Protect (the rights of) Allah and you will find Him before you.",
+    "pashto": "د الله حدود وساته، الله به ستا ساتنه وکړي؛ د الله حقونه وساته، هغه به درسره ومومې.",
+    "dari": "حدود الله را حفظ کن تا الله تو را حفظ کند؛ حقوق الله را رعایت کن تا او را پیش روی خود بیابی.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 22,
+    "title": {
+      "english": "Seeking Help from Allah",
+      "pashto": "له الله څخه مرسته",
+      "dari": "کمک خواستن از الله"
+    },
+    "arabic": "إِذَا سَأَلْتَ فَاسْأَلِ اللَّهَ، وَإِذَا اسْتَعَنْتَ فَاسْتَعِنْ بِاللَّهِ.",
+    "english": "When you ask, ask Allah, and when you seek help, seek help from Allah.",
+    "pashto": "کله چې څه غواړې، له الله څخه يې وغواړه؛ او کله چې مرسته غواړې، له الله څخه مرسته وغواړه.",
+    "dari": "هرگاه چیزی خواستی از الله بخواه، و هرگاه کمک خواستی از الله کمک بخواه.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 23,
+    "title": {
+      "english": "Mindfulness of Allah",
+      "pashto": "د الله تعالی مراقبت",
+      "dari": "مراقبت از الله تعالی"
+    },
+    "arabic": "اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ، وَأَتْبِعِ السَّيِّئَةَ الْحَسَنَةَ تَمْحُهَا، وَخَالِقِ النَّاسَ بِخُلُقٍ حَسَنٍ.",
+    "english": "Fear Allah wherever you are, follow a bad deed with a good one to erase it, and treat people with good character.",
+    "pashto": "هر چېرې چې يې، له الله څخه ووېرېږه؛ له بد کار وروسته نېک کار وکړه، هغه به يې له منځه یوسي؛ او له خلکو سره په ښه اخلاقو چلند وکړه.",
+    "dari": "هر جا که هستی از الله بترس، بدی را با نیکی دنبال کن تا آن را محو کند، و با مردم با اخلاق نیک رفتار کن.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 24,
+    "title": {
+      "english": "Protecting Oneself from What Allah Has Forbidden",
+      "pashto": "د الله تعالی له حرامو څخه ځان ساتل",
+      "dari": "حفظ خود از محرمات الله"
+    },
+    "arabic": "مَا نَهَيْتُكُمْ عَنْهُ فَاجْتَنِبُوهُ، وَمَا أَمَرْتُكُمْ بِهِ فَأْتُوا مِنْهُ مَا اسْتَطَعْتُمْ.",
+    "english": "Whatever I have forbidden you, avoid it; and whatever I have commanded you, do as much of it as you can.",
+    "pashto": "له کوم شي مې چې تاسو منع کړي یاست، له هغه څخه ځان وساتئ؛ او کوم کار مې چې درته امر کړی، د خپل توان تر اندازې يې ترسره کړئ.",
+    "dari": "از آنچه شما را نهی کردم دوری کنید، و از آنچه به شما امر کردم تا جایی که توان دارید انجام دهید.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 25,
+    "title": {
+      "english": "The Value of Intention and Action",
+      "pashto": "د نيت او عمل ارزښت",
+      "dari": "ارزش نیت و عمل"
+    },
+    "arabic": "إِنَّ اللَّهَ لَا يَنْظُرُ إِلَى صُوَرِكُمْ وَأَمْوَالِكُمْ، وَلَكِنْ يَنْظُرُ إِلَى قُلُوبِكُمْ وَأَعْمَالِكُمْ.",
+    "english": "Allah does not look at your appearances or your wealth, but He looks at your hearts and your deeds.",
+    "pashto": "الله ستاسو څېرو او مالونو ته نه ګوري، بلکې ستاسو زړونو او اعمالو ته ګوري.",
+    "dari": "الله به ظاهر و اموال شما نمی‌نگرد، بلکه به دل‌ها و اعمال شما می‌نگرد.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 26,
+    "title": {
+      "english": "The Reform of the Heart",
+      "pashto": "د زړه اصلاح",
+      "dari": "اصلاح دل"
+    },
+    "arabic": "أَلَا وَإِنَّ فِي الْجَسَدِ مُضْغَةً، إِذَا صَلَحَتْ صَلَحَ الْجَسَدُ كُلُّهُ، وَإِذَا فَسَدَتْ فَسَدَ الْجَسَدُ كُلُّهُ، أَلَا وَهِيَ الْقَلْبُ.",
+    "english": "Indeed in the body there is a piece of flesh; if it is sound, the whole body is sound, and if it is corrupt, the whole body is corrupt. Truly it is the heart.",
+    "pashto": "خبر اوسئ! په بدن کې يوه ټوټه غوښه ده؛ که هغه اصلاح شي، ټول بدن اصلاح شي، او که هغه خرابه شي، ټول بدن خرابېږي. خبر اوسئ، هغه زړه دی.",
+    "dari": "آگاه باشید که در بدن تکه‌ای گوشت است؛ اگر آن اصلاح شود، تمام بدن اصلاح می‌شود و اگر فاسد شود، تمام بدن فاسد می‌شود. آگاه باشید که آن قلب است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 27,
+    "title": {
+      "english": "The Criterion of Good and Bad Deeds",
+      "pashto": "د ښه او بد کار معيار",
+      "dari": "معیار کار نیک و بد"
+    },
+    "arabic": "الْبِرُّ حُسْنُ الْخُلُقِ، وَالْإِثْمُ مَا حَاكَ فِي نَفْسِكَ وَكَرِهْتَ أَنْ يَطَّلِعَ عَلَيْهِ النَّاسُ.",
+    "english": "Righteousness is good character, and sin is what wavers in your soul and you dislike people knowing about it.",
+    "pashto": "نېکي ښه اخلاق دي؛ او ګناه هغه ده چې ستا په زړه کې شک پيدا کړي او دا درته بده وي چې خلک پرې خبر شي.",
+    "dari": "نیکی اخلاق نیک است؛ و گناه آن چیزی است که در دلت تردید ایجاد کند و دوست نداشته باشی مردم از آن آگاه شوند.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 28,
+    "title": {
+      "english": "Holding Fast to the Sunnah",
+      "pashto": "د سنتو کلک نيول",
+      "dari": "چنگ زدن به سنت"
+    },
+    "arabic": "فَعَلَيْكُمْ بِسُنَّتِي وَسُنَّةِ الْخُلَفَاءِ الرَّاشِدِينَ الْمَهْدِيِّينَ، عَضُّوا عَلَيْهَا بِالنَّوَاجِذِ.",
+    "english": "Hold fast to my Sunnah and the Sunnah of the rightly guided Caliphs; bite onto it with your molar teeth.",
+    "pashto": "زما سنت او د هدایت موندلو راشدو خلفاوو سنت په کلکه ونيسئ او پرې ټينګ پاتې شئ.",
+    "dari": "به سنت من و سنت خلفای راشدین هدایت‌یافته چنگ بزنید و با دندان‌های آسیا محکم بگیرید.",
+    "source": {
+      "english": "Abu Dawud, Tirmidhi",
+      "pashto": "ابوداود، ترمذي",
+      "dari": "ابوداود، ترمذی"
+    }
+  },
+  {
+    "id": 29,
+    "title": {
+      "english": "Guarding the Tongue",
+      "pashto": "د ژبې ساتنه",
+      "dari": "حفظ زبان"
+    },
+    "arabic": "وَهَلْ يَكُبُّ النَّاسَ فِي النَّارِ عَلَى وُجُوهِهِمْ إِلَّا حَصَائِدُ أَلْسِنَتِهِمْ؟",
+    "english": "Are people thrown into the Fire on their faces except for the harvest of their tongues?",
+    "pashto": "ایا خلک به په خپلو مخونو دوزخ ته بل څه غورځوي، پرته له هغو حاصلونو چې د هغوی ژبې يې راټولوي؟",
+    "dari": "آیا مردم جز با محصول زبان‌هایشان بر صورت‌هایشان به آتش افکنده می‌شوند؟",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 30,
+    "title": {
+      "english": "The Blood, Wealth and Honor of a Muslim",
+      "pashto": "د مسلمان وينه او مال",
+      "dari": "خون و مال مسلمان"
+    },
+    "arabic": "كُلُّ الْمُسْلِمِ عَلَى الْمُسْلِمِ حَرَامٌ: دَمُهُ وَمَالُهُ وَعِرْضُهُ.",
+    "english": "Every Muslim is sacred to another Muslim: his blood, his wealth and his honor.",
+    "pashto": "د مسلمان پر بل مسلمان وينه، مال او عزت حرام دي.",
+    "dari": "خون، مال و آبروی هر مسلمان بر مسلمان دیگر حرام است.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 31,
+    "title": {
+      "english": "Zuhd (Asceticism)",
+      "pashto": "زهد",
+      "dari": "زهد"
+    },
+    "arabic": "ازْهَدْ فِي الدُّنْيَا يُحِبَّكَ اللَّهُ، وَازْهَدْ فِيمَا عِنْدَ النَّاسِ يُحِبَّكَ النَّاسُ.",
+    "english": "Be indifferent to the world and Allah will love you; be indifferent to what people have and people will love you.",
+    "pashto": "له دنيا څخه بې‌پروا اوسه، الله به دې خوښ کړي؛ او د خلکو له مالونو څخه بې‌پروا اوسه، خلک به دې خوښ کړي.",
+    "dari": "از دنیا بی‌رغبت باش تا الله تو را دوست بدارد؛ و از آنچه نزد مردم است بی‌رغبت باش تا مردم تو را دوست بدارند.",
+    "source": {
+      "english": "Ibn Majah",
+      "pashto": "ابن ماجه",
+      "dari": "ابن ماجه"
+    }
+  },
+  {
+    "id": 32,
+    "title": {
+      "english": "No Harm and No Reciprocating Harm",
+      "pashto": "ضرر رسول",
+      "dari": "ضرر نرساندن"
+    },
+    "arabic": "لَا ضَرَرَ وَلَا ضِرَارَ.",
+    "english": "There should be neither harming nor reciprocating harm.",
+    "pashto": "نه ځان ته ضرر رسول شته او نه بل ته د ضرر په بدل کې ضرر رسول.",
+    "dari": "نه ضرر رساندن هست و نه ضرر متقابل.",
+    "source": {
+      "english": "Ibn Majah, Malik",
+      "pashto": "ابن ماجه، مالک",
+      "dari": "ابن ماجه، مالک"
+    }
+  },
+  {
+    "id": 33,
+    "title": {
+      "english": "Ease with Hardship",
+      "pashto": "له سختۍ سره اساني",
+      "dari": "آسانی با سختی"
+    },
+    "arabic": "وَاعْلَمْ أَنَّ النَّصْرَ مَعَ الصَّبْرِ، وَأَنَّ الْفَرَجَ مَعَ الْكَرْبِ، وَأَنَّ مَعَ الْعُسْرِ يُسْرًا.",
+    "english": "Know that victory comes with patience, relief with distress, and with hardship comes ease.",
+    "pashto": "پوه شه چې بریا له صبر سره ده، اساني له سختۍ سره ده، او له تنګۍ سره اساني ده.",
+    "dari": "بدان که پیروزی با صبر است، گشایش با سختی، و با دشواری آسانی است.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 34,
+    "title": {
+      "english": "Changing Evil",
+      "pashto": "د منکر مخنيوی",
+      "dari": "جلوگیری از منکر"
+    },
+    "arabic": "مَنْ رَأَى مِنْكُمْ مُنْكَرًا فَلْيُغَيِّرْهُ بِيَدِهِ، فَإِنْ لَمْ يَسْتَطِعْ فَبِلِسَانِهِ، فَإِنْ لَمْ يَسْتَطِعْ فَبِقَلْبِهِ.",
+    "english": "Whoever among you sees an evil, let him change it with his hand; if he cannot, then with his tongue; if he cannot, then with his heart.",
+    "pashto": "له تاسو چې څوک بد کار وويني، په لاس دې يې بدل کړي؛ که توان يې نه لري، په ژبه دې؛ او که دا هم نه شي کولی، په زړه کې دې هغه بد وګڼي.",
+    "dari": "هر کس از شما منکری دید، با دست آن را تغییر دهد؛ اگر نتوانست با زبان؛ و اگر نتوانست با قلب.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 35,
+    "title": {
+      "english": "Brotherhood Among Muslims",
+      "pashto": "د مسلمانانو ورورولي",
+      "dari": "برادری مسلمانان"
+    },
+    "arabic": "لَا تَحَاسَدُوا، وَلَا تَنَاجَشُوا، وَلَا تَبَاغَضُوا، وَلَا تَدَابَرُوا، وَكُونُوا عِبَادَ اللَّهِ إِخْوَانًا.",
+    "english": "Do not envy one another, do not artificially inflate prices, do not hate one another, do not turn away from one another, and be, O servants of Allah, brothers.",
+    "pashto": "يو د بل حسد مه کوئ، مصنوعي ډول د قیمتونو د لوړولو هڅه مه کوئ، یو له بل سره بغض مه کوئ، یو بل ته شا مه اړوئ؛ او د الله بندګان ورونه شئ.",
+    "dari": "به یکدیگر حسد نورزید، قیمت‌ها را ساختگی بالا نبرید، یکدیگر را دشمن ندارید، از یکدیگر روی برنتابید و بندگان الله برادر باشید.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 36,
+    "title": {
+      "english": "Helping a Believer",
+      "pashto": "د مومن مرسته",
+      "dari": "کمک به مؤمن"
+    },
+    "arabic": "وَاللَّهُ فِي عَوْنِ الْعَبْدِ مَا كَانَ الْعَبْدُ فِي عَوْنِ أَخِيهِ.",
+    "english": "Allah helps the servant as long as the servant helps his brother.",
+    "pashto": "الله د خپل بنده په مرسته کې وي، تر هغه چې بنده د خپل ورور په مرسته کې وي.",
+    "dari": "الله در کمک بنده است تا زمانی که بنده در کمک برادرش باشد.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 37,
+    "title": {
+      "english": "Reward for Good and Bad Intentions",
+      "pashto": "د نېکۍ او بدي اجر",
+      "dari": "پاداش نیکی و بدی"
+    },
+    "arabic": "مَنْ هَمَّ بِحَسَنَةٍ فَلَمْ يَعْمَلْهَا كَتَبَهَا اللَّهُ لَهُ عِنْدَهُ حَسَنَةً كَامِلَةً...",
+    "english": "Whoever intends a good deed but does not do it, Allah records it as a complete good deed for him...",
+    "pashto": "څوک چې د نېک کار نیت وکړي خو ويې نه کړي، الله ورته يوه بشپړه نېکي ليکي؛ او که ويې کړي، لس چنده تر اوو سوو چنده او حتى زيات اجر ورته ليکي.",
+    "dari": "هر کس نیت کار نیک کند و انجام ندهد، الله آن را به عنوان یک نیکی کامل برای او می‌نویسد؛ و اگر انجام دهد، ده تا هفتصد برابر و حتی بیشتر پاداش می‌نویسد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 38,
+    "title": {
+      "english": "The Path of Allah’s Friendship",
+      "pashto": "د الله د دوستۍ لاره",
+      "dari": "راه دوستی الله"
+    },
+    "arabic": "مَنْ عَادَى لِي وَلِيًّا فَقَدْ آذَنْتُهُ بِالْحَرْبِ...",
+    "english": "Whoever shows enmity to a friend of Mine, I have declared war against him...",
+    "pashto": "څوک چې زما له کوم دوست سره دښمني وکړي، ما ورسره د جګړې اعلان کړی دی... او بنده ماته تر ټولو محبوبه وسیله په هغو فرضو ده چې ما پرې فرض کړي دي.",
+    "dari": "هر کس با دوستی از من دشمنی کند، من با او اعلام جنگ کرده‌ام... و محبوب‌ترین وسیله بنده نزد من انجام فرایضی است که بر او واجب کرده‌ام.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 39,
+    "title": {
+      "english": "Forgiveness of Mistakes and Forgetfulness",
+      "pashto": "د تېروتنې او هېرېدو بښنه",
+      "dari": "آمرزش اشتباه و فراموشی"
+    },
+    "arabic": "إِنَّ اللَّهَ تَجَاوَزَ لِي عَنْ أُمَّتِي الْخَطَأَ وَالنِّسْيَانَ وَمَا اسْتُكْرِهُوا عَلَيْهِ.",
+    "english": "Allah has forgiven my Ummah for mistakes, forgetfulness, and what they are forced to do.",
+    "pashto": "الله زما د امت تېروتنه، هېرول، او هغه کارونه چې په زور پرې مجبور کړل شوي وي، معاف کړي دي.",
+    "dari": "الله از امت من اشتباه، فراموشی و آنچه به اجبار انجام دهند درگذشته است.",
+    "source": {
+      "english": "Ibn Majah, Baihaqi",
+      "pashto": "ابن ماجه، بيهقي",
+      "dari": "ابن ماجه، بیهقی"
+    }
+  },
+  {
+    "id": 40,
+    "title": {
+      "english": "Being a Stranger in This World",
+      "pashto": "په دنيا کې د مسافر په څېر",
+      "dari": "مانند مسافر در دنیا"
+    },
+    "arabic": "كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ أَوْ عَابِرُ سَبِيلٍ.",
+    "english": "Be in this world as if you were a stranger or a traveler.",
+    "pashto": "په دنيا کې داسې اوسه لکه پردی يا مسافر.",
+    "dari": "در دنیا چنان باش که گویی غریب یا رهگذری هستی.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 41,
+    "title": {
+      "english": "The Intelligent Person",
+      "pashto": "هوشيار",
+      "dari": "انسان هوشمند"
+    },
+    "arabic": "الْكَيِّسُ مَنْ دَانَ نَفْسَهُ، وَعَمِلَ لِمَا بَعْدَ الْمَوْتِ.",
+    "english": "The intelligent one is he who takes account of himself and works for what comes after death.",
+    "pashto": "هوشيار هغه دی چې خپل نفس محاسبه کړي او د مرګ وروسته ژوند لپاره عمل وکړي.",
+    "dari": "هوشمند کسی است که نفس خود را محاسبه کند و برای پس از مرگ عمل کند.",
+    "source": {
+      "english": "Tirmidhi, Ibn Majah",
+      "pashto": "ترمذي، ابن ماجه",
+      "dari": "ترمذی، ابن ماجه"
+    }
+  },
+  {
+    "id": 42,
+    "title": {
+      "english": "The Joy of Repentance",
+      "pashto": "د توبې دروازه",
+      "dari": "دروازه توبه"
+    },
+    "arabic": "لَلَّهُ أَفْرَحُ بِتَوْبَةِ عَبْدِهِ...",
+    "english": "Allah is more pleased with the repentance of His servant than...",
+    "pashto": "الله تعالی د خپل بنده په توبه تر هغه مسافر هم ډېر خوشحالیږي چې په دښته کې خپل ورک شوی اوښ بېرته پيدا کړي.",
+    "dari": "الله از توبه بنده‌اش بیش از مسافری که شتر گم‌شده‌اش را در بیابان پیدا کند خوشحال می‌شود.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 43,
+    "title": {
+      "english": "The Virtue of Repentance",
+      "pashto": "د توبې فضيلت",
+      "dari": "فضیلت توبه"
+    },
+    "arabic": "التَّائِبُ مِنَ الذَّنْبِ كَمَنْ لَا ذَنْبَ لَهُ.",
+    "english": "The one who repents from sin is like one who has no sin.",
+    "pashto": "له ګناه څخه توبه کوونکی داسې دی لکه هېڅ ګناه يې چې نه وي کړې.",
+    "dari": "توبه‌کننده از گناه مانند کسی است که گناهی ندارد.",
+    "source": {
+      "english": "Ibn Majah",
+      "pashto": "ابن ماجه",
+      "dari": "ابن ماجه"
+    }
+  },
+  {
+    "id": 44,
+    "title": {
+      "english": "Allah’s Mercy",
+      "pashto": "د الله رحمت",
+      "dari": "رحمت الله"
+    },
+    "arabic": "إِنَّ اللَّهَ كَتَبَ الْحَسَنَاتِ وَالسَّيِّئَاتِ...",
+    "english": "Allah has written down the good deeds and the bad deeds...",
+    "pashto": "الله تعالی نېکۍ او بدي وليکلي؛ بیا يې څرګنده کړه چې څوک د نېکۍ نیت وکړي او ترسره يې نه کړي، يوه نېکي ورته ليکل کېږي، او که ويې کړي، خو چنده اجر ورته ورکول کېږي.",
+    "dari": "الله نیکی‌ها و بدی‌ها را نوشته است... هر کس نیت نیکی کند و انجام ندهد، یک نیکی برایش نوشته می‌شود و اگر انجام دهد، چند برابر پاداش می‌گیرد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 45,
+    "title": {
+      "english": "The Broad Meaning of Charity",
+      "pashto": "د صدقې پراخ مفهوم",
+      "dari": "مفهوم گسترده صدقه"
+    },
+    "arabic": "عَلَى كُلِّ سُلَامَى مِنَ النَّاسِ صَدَقَةٌ كُلَّ يَوْمٍ...",
+    "english": "There is a charity due upon every joint of a person every day...",
+    "pashto": "د انسان د بدن د هر بند پر غاړه هره ورځ صدقه ده؛ د دوو کسانو ترمنځ عدل کول صدقه ده، د چا مرسته کول صدقه ده، ښه خبره صدقه ده، او له لارې څخه د ضرر لرې کول صدقه ده.",
+    "dari": "بر هر مفصل بدن انسان هر روز صدقه‌ای است؛ عدالت میان دو نفر صدقه است، کمک به کسی صدقه است، سخن نیک صدقه است و دور کردن آزار از راه صدقه است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 46,
+    "title": {
+      "english": "Learning and Teaching the Quran",
+      "pashto": "د قرآن زده کړه",
+      "dari": "یادگیری قرآن"
+    },
+    "arabic": "خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ.",
+    "english": "The best of you are those who learn the Quran and teach it.",
+    "pashto": "په تاسو کې غوره هغه څوک دی چې قرآن زده کړي او نورو ته يې ور زده کړي.",
+    "dari": "بهترین شما کسی است که قرآن را بیاموزد و آن را بیاموزاند.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 47,
+    "title": {
+      "english": "The Example of a Believer",
+      "pashto": "د مؤمن مثال",
+      "dari": "مثال مؤمن"
+    },
+    "arabic": "مَثَلُ الْمُؤْمِنِ الَّذِي يَقْرَأُ الْقُرْآنَ كَمَثَلِ الْأُتْرُجَّةِ...",
+    "english": "The example of a believer who recites the Quran is like that of a citron...",
+    "pashto": "هغه مؤمن چې قرآن لولي، د داسې خوښبويه او ښه مېوې په څېر دی چې بوی او خوند يې ښه وي.",
+    "dari": "مثال مؤمنی که قرآن می‌خواند مانند ترنجی است که بوی خوش و طعم نیک دارد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 48,
+    "title": {
+      "english": "The Reality of This World",
+      "pashto": "د دنيا حقيقت",
+      "dari": "حقیقت دنیا"
+    },
+    "arabic": "مَا لِي وَلِلدُّنْيَا، إِنَّمَا مَثَلِي وَمَثَلُ الدُّنْيَا كَرَاكِبٍ اسْتَظَلَّ تَحْتَ شَجَرَةٍ ثُمَّ رَاحَ وَتَرَكَهَا.",
+    "english": "What have I to do with this world? The example of me and this world is that of a rider who seeks shade under a tree then moves on and leaves it.",
+    "pashto": "زما او د دنيا څه کار؟ زما او د دنيا مثال د هغه مسافر په څېر دی چې د یوې ونې تر سیوري لاندې لږه شپه کښېني، بیا تېر روان شي او هغه پرېږدي.",
+    "dari": "مرا با دنیا چه کار؟ مثال من و دنیا مانند سواری است که زیر درختی سایه می‌گیرد سپس می‌رود و آن را ترک می‌کند.",
+    "source": {
+      "english": "Tirmidhi, Ibn Majah",
+      "pashto": "ترمذي، ابن ماجه",
+      "dari": "ترمذی، ابن ماجه"
+    }
+  },
+  {
+    "id": 49,
+    "title": {
+      "english": "The Wealth of This World",
+      "pashto": "د دنيا مال",
+      "dari": "مال دنیا"
+    },
+    "arabic": "لَوْ أَنَّ لِابْنِ آدَمَ وَادِيًا مِنْ ذَهَبٍ أَحَبَّ أَنْ يَكُونَ لَهُ وَادِيَانِ...",
+    "english": "If the son of Adam had a valley of gold, he would wish for another...",
+    "pashto": "که د آدم زوی د سرو زرو يوه دره ولري، غواړي چې دوه يې ولري؛ د هغه خوله یوازې خاوره ډکوي، او الله د توبه کوونکي توبه قبلوي.",
+    "dari": "اگر پسر آدم دره‌ای از طلا داشته باشد، دوست دارد دره‌ای دیگر داشته باشد... دهان او را تنها خاک پر می‌کند و الله توبه توبه‌کننده را می‌پذیرد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 50,
+    "title": {
+      "english": "Remembrance of Allah",
+      "pashto": "د الله یاد",
+      "dari": "یاد الله"
+    },
+    "arabic": "مَثَلُ الَّذِي يَذْكُرُ رَبَّهُ وَالَّذِي لَا يَذْكُرُ رَبَّهُ مَثَلُ الْحَيِّ وَالْمَيِّتِ.",
+    "english": "The example of the one who remembers his Lord and the one who does not is like that of the living and the dead.",
+    "pashto": "د هغه چا مثال چې خپل رب یادوي او د هغه چا مثال چې خپل رب نه یادوي، د ژوندي او مړي په څېر دی.",
+    "dari": "مثال کسی که پروردگارش را یاد می‌کند و کسی که یاد نمی‌کند، مانند زنده و مرده است.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 51,
+    "title": {
+      "english": "The Virtue of Dhikr",
+      "pashto": "د ذکر فضيلت",
+      "dari": "فضیلت ذکر"
+    },
+    "arabic": "سَبَقَ الْمُفَرِّدُونَ. قَالُوا: وَمَنِ الْمُفَرِّدُونَ؟ قَالَ: الذَّاكِرُونَ اللَّهَ كَثِيرًا وَالذَّاكِرَاتُ.",
+    "english": "The Mufarridun have gone ahead. They said: Who are the Mufarridun? He said: Those men and women who remember Allah much.",
+    "pashto": "«مفردون» مخکې لاړل. صحابه وو ویوښتل: مفردون څوک دي؟ ویې فرمایل: هغه نارینه او ښځې چې الله ډېر یادوي.",
+    "dari": "مفردون پیشی گرفتند. گفتند: مفردون کیستند؟ فرمود: مردان و زنانی که الله را بسیار یاد می‌کنند.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 52,
+    "title": {
+      "english": "Two Words",
+      "pashto": "دوه کلمې",
+      "dari": "دو کلمه"
+    },
+    "arabic": "كَلِمَتَانِ خَفِيفَتَانِ عَلَى اللِّسَانِ، ثَقِيلَتَانِ فِي الْمِيزَانِ، حَبِيبَتَانِ إِلَى الرَّحْمَنِ: سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ.",
+    "english": "Two words are light on the tongue, heavy on the scale, and beloved to the Most Merciful: Subhanallahi wa bihamdihi, Subhanallahil-Azeem.",
+    "pashto": "دوه کلمې دي چې پر ژبه سپکې، په تله کې درنې او الرحمن ته ډېرې محبوبې دي: سبحان الله وبحمده، سبحان الله العظيم.",
+    "dari": "دو کلمه‌اند که بر زبان سبک، در ترازو سنگین و نزد رحمان محبوب‌اند: سبحان الله و بحمده، سبحان الله العظیم.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 53,
+    "title": {
+      "english": "The Path to Paradise",
+      "pashto": "د جنت لاره",
+      "dari": "راه بهشت"
+    },
+    "arabic": "مَنْ قَالَ سُبْحَانَ اللَّهِ وَبِحَمْدِهِ فِي يَوْمٍ مِائَةَ مَرَّةٍ حُطَّتْ خَطَايَاهُ...",
+    "english": "Whoever says ‘Subhanallahi wa bihamdihi’ one hundred times a day, his sins will be forgiven...",
+    "pashto": "څوک چې په یوه ورځ سل ځله «سبحان الله وبحمده» ووايي، ګناهونه يې له منځه وړل کېږي، که څه هم د سمندر د څک په اندازه وي.",
+    "dari": "هر کس در روز صد بار «سبحان الله و بحمده» بگوید، گناهانش محو می‌شود هرچند به اندازه کف دریا باشد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 54,
+    "title": {
+      "english": "Burden of Proof",
+      "pashto": "د دعوې دليل",
+      "dari": "دلیل ادعا"
+    },
+    "arabic": "لَوْ يُعْطَى النَّاسُ بِدَعْوَاهُمْ، لَادَّعَى رِجَالٌ أَمْوَالَ قَوْمٍ وَدِمَاءَهُمْ، وَلَكِنِ الْبَيِّنَةُ عَلَى الْمُدَّعِي...",
+    "english": "If people were given according to their claims, men would claim the wealth and blood of others; but the burden of proof is on the claimant...",
+    "pashto": "که خلکو ته يوازې د هغوی په دعوو مالونه ورکول کېدل، نو خلک به د نورو مالونه او ويني دعوه کولې؛ خو دليل پر مدعي دی.",
+    "dari": "اگر مردم بر اساس ادعاهایشان داده می‌شدند، مردانی اموال و خون دیگران را ادعا می‌کردند؛ اما بینه بر مدعی است...",
+    "source": {
+      "english": "Bayhaqi (origin in Bukhari, Muslim from Ibn Abbas)",
+      "pashto": "بيهقي؛ اصل يې په بخاري او مسلم کې د ابن عباس له روايت سره راغلی.",
+      "dari": "بیهقی؛ اصل آن در بخاری و مسلم از ابن عباس آمده است."
+    }
+  },
+  {
+    "id": 55,
+    "title": {
+      "english": "Thanking Allah’s Blessings",
+      "pashto": "د الله د نعمت شکر",
+      "dari": "شکر نعمت الله"
+    },
+    "arabic": "مَنْ لَا يَشْكُرِ النَّاسَ لَا يَشْكُرِ اللَّهَ.",
+    "english": "Whoever does not thank people does not thank Allah.",
+    "pashto": "څوک چې د خلکو شکر نه ادا کوي، د الله شکر هم نه ادا کوي.",
+    "dari": "هر کس از مردم سپاسگزاری نکند، از الله نیز سپاسگزاری نکرده است.",
+    "source": {
+      "english": "Tirmidhi, Abu Dawud",
+      "pashto": "ترمذي، ابوداود",
+      "dari": "ترمذی، ابوداود"
+    }
+  },
+  {
+    "id": 56,
+    "title": {
+      "english": "The Condition of a Believer",
+      "pashto": "د مومن حالت",
+      "dari": "حال مؤمن"
+    },
+    "arabic": "عَجَبًا لِأَمْرِ الْمُؤْمِنِ، إِنَّ أَمْرَهُ كُلَّهُ لَهُ خَيْرٌ...",
+    "english": "How wonderful is the affair of the believer! All of his affairs are good...",
+    "pashto": "د مؤمن کار ډېر د تعجب وړ دی؛ د هغه ټول کار خير دی. که خوشحالي ورسيږي، شکر کوي، خير ورته وي؛ او که مصيبت ورسيږي، صبر کوي، هغه هم ورته خير وي.",
+    "dari": "کار مؤمن شگفت‌انگیز است؛ همه کارش برای او خیر است. اگر شادی رسد شکر می‌کند خیر است، و اگر مصیبت رسد صبر می‌کند آن نیز خیر است.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 57,
+    "title": {
+      "english": "The Reward of Patience",
+      "pashto": "د صبر اجر",
+      "dari": "پاداش صبر"
+    },
+    "arabic": "وَمَا أُعْطِيَ أَحَدٌ عَطَاءً خَيْرًا وَأَوْسَعَ مِنَ الصَّبْرِ.",
+    "english": "No one has been given a gift better and more abundant than patience.",
+    "pashto": "هیچا ته له صبر څخه غوره او پراخه ډالی نه ده ورکړل شوې.",
+    "dari": "به هیچ‌کس هدیه‌ای بهتر و وسیع‌تر از صبر داده نشده است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 59,
+    "title": {
+      "english": "The Right of Parents",
+      "pashto": "د مور او پلار حق",
+      "dari": "حق پدر و مادر"
+    },
+    "arabic": "رِضَا الرَّبِّ فِي رِضَا الْوَالِدِ، وَسَخَطُ الرَّبِّ فِي سَخَطِ الْوَالِدِ.",
+    "english": "The pleasure of the Lord is in the pleasure of the parent, and the anger of the Lord is in the anger of the parent.",
+    "pashto": "د رب رضا د مور او پلار په رضا کې ده، او د رب ناراضي د مور او پلار په ناراضي کې ده.",
+    "dari": "رضای پروردگار در رضای پدر و مادر است و خشم پروردگار در خشم پدر و مادر.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 60,
+    "title": {
+      "english": "The Closest Path to Paradise",
+      "pashto": "د جنت تر ټولو نږدې لاره",
+      "dari": "نزدیک‌ترین راه به بهشت"
+    },
+    "arabic": "رَغِمَ أَنْفُهُ، ثُمَّ رَغِمَ أَنْفُهُ، ثُمَّ رَغِمَ أَنْفُهُ. قِيلَ: مَنْ يَا رَسُولَ اللَّهِ؟ قَالَ: مَنْ أَدْرَكَ وَالِدَيْهِ عِنْدَ الْكِبَرِ أَحَدَهُمَا أَوْ كِلَيْهِمَا، ثُمَّ لَمْ يَدْخُلِ الْجَنَّةَ.",
+    "english": "May he be humiliated, may he be humiliated, may he be humiliated. It was said: Who, O Messenger of Allah? He said: The one who finds his parents in old age, one or both of them, and does not enter Paradise.",
+    "pashto": "هغه کس دې خوار شي، بیا خوار شي، بیا خوار شي! پوښتنه وشوه: څوک، یا رسول الله؟ ویې فرمایل: هغه څوک چې خپل مور او پلار یا یو تن، په زړښت کې ومومي، خو بیا هم جنت ته داخل نه شي.",
+    "dari": "بینی‌اش به خاک مالیده شود، بینی‌اش به خاک مالیده شود، بینی‌اش به خاک مالیده شود. گفته شد: چه کسی ای رسول الله؟ فرمود: کسی که والدینش را در پیری یکی یا هر دو را دریابد و به بهشت وارد نشود.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 61,
+    "title": {
+      "english": "The Rights of a Muslim over Another",
+      "pashto": "د مؤمن او مسلمان حقونه",
+      "dari": "حقوق مسلمان بر مسلمان"
+    },
+    "arabic": "حَقُّ الْمُسْلِمِ عَلَى الْمُسْلِمِ خَمْسٌ: رَدُّ السَّلَامِ، وَعِيَادَةُ الْمَرِيضِ، وَاتِّبَاعُ الْجَنَائِزِ، وَإِجَابَةُ الدَّعْوَةِ، وَتَشْمِيتُ الْعَاطِسِ.",
+    "english": "The rights of a Muslim over another Muslim are five: returning the greeting, visiting the sick, following the funeral, accepting invitations, and saying ‘Yarhamukallah’ to the one who sneezes.",
+    "pashto": "پر مسلمان د بل مسلمان پنځه حقونه دي: سلام ته ځواب ورکول، د ناروغ پوښتنه کول، د جنازې بدرګه کول، دعوت منل، او د پرنجي کوونکي لپاره د «یرحمک الله» ویل.",
+    "dari": "حق مسلمان بر مسلمان پنج است: پاسخ سلام، عیادت بیمار، تشییع جنازه، اجابت دعوت و گفتن «یرحمک الله» به عطسه‌کننده.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 62,
+    "title": {
+      "english": "Spreading Salam",
+      "pashto": "سلام خپرول",
+      "dari": "گسترش سلام"
+    },
+    "arabic": "أَفْشُوا السَّلَامَ بَيْنَكُمْ.",
+    "english": "Spread the greeting of peace among yourselves.",
+    "pashto": "په خپلو منځونو کې سلام خپور کړئ.",
+    "dari": "سلام را میان خود بگسترانید.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 63,
+    "title": {
+      "english": "Love for One Another",
+      "pashto": "يو بل ته مينه",
+      "dari": "محبت به یکدیگر"
+    },
+    "arabic": "لَا تَدْخُلُونَ الْجَنَّةَ حَتَّى تُؤْمِنُوا، وَلَا تُؤْمِنُوا حَتَّى تَحَابُّوا، أَوَلَا أَدُلُّكُمْ عَلَى شَيْءٍ إِذَا فَعَلْتُمُوهُ تَحَابَبْتُمْ؟ أَفْشُوا السَّلَامَ بَيْنَكُمْ.",
+    "english": "You will not enter Paradise until you believe, and you will not believe until you love one another. Shall I not tell you of something that if you do it, you will love one another? Spread the greeting of peace among yourselves.",
+    "pashto": "تر هغه به جنت ته داخل نه شئ چې ايمان راوړئ، او تر هغه به بشپړ ايمان ونه لرئ چې یو له بل سره مينه وکړئ. آیا داسې کار در وښیم چې که ويې کړئ، یو له بل سره به مينه وکړئ؟ په خپلو منځونو کې سلام خپور کړئ.",
+    "dari": "به بهشت وارد نمی‌شوید تا ایمان بیاورید و ایمان نمی‌آورید تا یکدیگر را دوست بدارید. آیا شما را به چیزی راهنمایی نکنم که اگر انجام دهید یکدیگر را دوست بدارید؟ سلام را میان خود بگسترانید.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 64,
+    "title": {
+      "english": "Guarding the Tongue and Hand",
+      "pashto": "د ژبې او لاس ساتنه",
+      "dari": "حفظ زبان و دست"
+    },
+    "arabic": "الْمُسْلِمُ مَنْ سَلِمَ الْمُسْلِمُونَ مِنْ لِسَانِهِ وَيَدِهِ.",
+    "english": "A Muslim is the one from whose tongue and hand the Muslims are safe.",
+    "pashto": "مسلمان هغه دی چې نور مسلمانان يې له ژبې او لاس څخه خوندي وي.",
+    "dari": "مسلمان کسی است که مسلمانان از زبان و دست او در امان باشند.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 65,
+    "title": {
+      "english": "The Honor of a Muslim",
+      "pashto": "د مسلمان عزت",
+      "dari": "آبروی مسلمان"
+    },
+    "arabic": "كُلُّ الْمُسْلِمِ عَلَى الْمُسْلِمِ حَرَامٌ: دَمُهُ وَمَالُهُ وَعِرْضُهُ.",
+    "english": "Every Muslim is sacred to another Muslim: his blood, his wealth and his honor.",
+    "pashto": "د مسلمان پر بل مسلمان وينه، مال او عزت حرام دي.",
+    "dari": "خون، مال و آبروی هر مسلمان بر مسلمان دیگر حرام است.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 66,
+    "title": {
+      "english": "Making Things Easy for People",
+      "pashto": "د خلکو سره اساني",
+      "dari": "آسان‌گیری با مردم"
+    },
+    "arabic": "يَسِّرُوا وَلَا تُعَسِّرُوا، وَبَشِّرُوا وَلَا تُنَفِّرُوا.",
+    "english": "Make things easy and do not make them difficult; give glad tidings and do not drive people away.",
+    "pashto": "اساني وکړئ، سختي مه کوئ؛ زېری ورکړئ، خلک مه تښتوئ.",
+    "dari": "آسان بگیرید و سخت نگیرید؛ بشارت دهید و مردم را نرانید.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 67,
+    "title": {
+      "english": "Gentleness",
+      "pashto": "نرمي",
+      "dari": "نرمی"
+    },
+    "arabic": "إِنَّ الرِّفْقَ لَا يَكُونُ فِي شَيْءٍ إِلَّا زَانَهُ، وَلَا يُنْزَعُ مِنْ شَيْءٍ إِلَّا شَانَهُ.",
+    "english": "Gentleness is not found in anything except that it beautifies it, and it is not removed from anything except that it makes it ugly.",
+    "pashto": "نرمي چې په هر کار کې وي، هغه ښکلی کوي؛ او له هر کار څخه چې نرمي واخیستل شي، هغه بدرنګه کوي.",
+    "dari": "نرمی در هیچ چیز نیست مگر آن را زیبا کند، و از هیچ چیز گرفته نمی‌شود مگر آن را زشت کند.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 68,
+    "title": {
+      "english": "Allah Loves Gentleness",
+      "pashto": "الله نرمي خوښوي",
+      "dari": "الله نرمی را دوست دارد"
+    },
+    "arabic": "إِنَّ اللَّهَ رَفِيقٌ يُحِبُّ الرِّفْقَ فِي الْأَمْرِ كُلِّهِ.",
+    "english": "Allah is Gentle and loves gentleness in all matters.",
+    "pashto": "الله نرم دی او په ټولو چارو کې نرمي خوښوي.",
+    "dari": "الله نرم است و نرمی را در همه امور دوست دارد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 69,
+    "title": {
+      "english": "Mercy Towards People",
+      "pashto": "د خلکو سره مهرباني",
+      "dari": "مهربانی با مردم"
+    },
+    "arabic": "مَنْ لَا يَرْحَمِ النَّاسَ لَا يَرْحَمْهُ اللَّهُ.",
+    "english": "Whoever does not show mercy to people, Allah will not show mercy to him.",
+    "pashto": "څوک چې پر خلکو رحم نه کوي، الله به پر هغه رحم ونه کړي.",
+    "dari": "هر کس به مردم رحم نکند، الله به او رحم نمی‌کند.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 70,
+    "title": {
+      "english": "Caring for Orphans",
+      "pashto": "د یتیم پالنه",
+      "dari": "پرورش یتیم"
+    },
+    "arabic": "أَنَا وَكَافِلُ الْيَتِيمِ فِي الْجَنَّةِ هَكَذَا.",
+    "english": "I and the one who sponsors an orphan will be in Paradise like this (and he held his two fingers together).",
+    "pashto": "زه او د یتیم پالونکی به په جنت کې داسې یو—او رسول الله ﷺ د شهادت او منځنۍ ګوتې اشاره وکړه.",
+    "dari": "من و کفیل یتیم در بهشت چنین خواهیم بود (و دو انگشت خود را نزدیک هم کرد).",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 71,
+    "title": {
+      "english": "Helping Widows and the Poor",
+      "pashto": "د کونډې او مسکین مرسته",
+      "dari": "کمک به بیوه و مسکین"
+    },
+    "arabic": "السَّاعِي عَلَى الْأَرْمَلَةِ وَالْمِسْكِينِ كَالْمُجَاهِدِ فِي سَبِيلِ اللَّهِ.",
+    "english": "The one who strives for the widow and the needy is like the one who fights in the cause of Allah.",
+    "pashto": "هغه څوک چې د کونډې او مسکین د اړتیاوو د پوره کولو لپاره هڅه کوي، د الله په لار کې د مجاهد په څېر دی.",
+    "dari": "کسی که برای بیوه و مسکین تلاش می‌کند مانند مجاهد در راه الله است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 72,
+    "title": {
+      "english": "Fulfilling the Needs of a Believer",
+      "pashto": "د مؤمن د اړتیا پوره کول",
+      "dari": "برآوردن نیاز مؤمن"
+    },
+    "arabic": "مَنْ كَانَ فِي حَاجَةِ أَخِيهِ كَانَ اللَّهُ فِي حَاجَتِهِ.",
+    "english": "Whoever is occupied with the need of his brother, Allah will be occupied with his need.",
+    "pashto": "څوک چې د خپل مسلمان ورور د اړتیا په پوره کولو کې وي، الله به د هغه د اړتیا په پوره کولو کې وي.",
+    "dari": "هر کس در نیاز برادرش باشد، الله در نیاز او خواهد بود.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 73,
+    "title": {
+      "english": "Concealing the Faults of Others",
+      "pashto": "د پردې ساتل",
+      "dari": "پوشاندن عیب دیگران"
+    },
+    "arabic": "مَنْ سَتَرَ مُسْلِمًا سَتَرَهُ اللَّهُ فِي الدُّنْيَا وَالْآخِرَةِ.",
+    "english": "Whoever conceals the faults of a Muslim, Allah will conceal his faults in this world and the Hereafter.",
+    "pashto": "څوک چې د یوه مسلمان عیب پټ کړي، الله به يې عیبونه په دنیا او آخرت کې پټ کړي.",
+    "dari": "هر کس عیب مسلمانی را بپوشاند، الله عیب‌های او را در دنیا و آخرت می‌پوشاند.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 74,
+    "title": {
+      "english": "Backbiting",
+      "pashto": "غيبت",
+      "dari": "غیبت"
+    },
+    "arabic": "أَتَدْرُونَ مَا الْغِيبَةُ؟ ... ذِكْرُكَ أَخَاكَ بِمَا يَكْرَهُ.",
+    "english": "Do you know what backbiting is? ... It is to mention your brother in a way that he dislikes.",
+    "pashto": "آیا پوهېږئ غيبت څه دی؟ دا چې د خپل مسلمان ورور په اړه داسې خبره وکړې چې هغه يې نه خوښوي.",
+    "dari": "آیا می‌دانید غیبت چیست؟ ذکر کردن برادرت به چیزی که او را ناخوش آید.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 75,
+    "title": {
+      "english": "Lying",
+      "pashto": "دروغ",
+      "dari": "دروغ"
+    },
+    "arabic": "إِنَّ الصِّدْقَ يَهْدِي إِلَى الْبِرِّ، وَإِنَّ الْبِرَّ يَهْدِي إِلَى الْجَنَّةِ... وَإِنَّ الْكَذِبَ يَهْدِي إِلَى الْفُجُورِ...",
+    "english": "Truthfulness leads to righteousness, and righteousness leads to Paradise... and lying leads to wickedness...",
+    "pashto": "رښتینولي انسان نېکۍ ته بیايي، او نېکي جنت ته؛ او دروغ انسان بدکارۍ ته بیايي، او بدکاري دوزخ ته.",
+    "dari": "راستی به نیکی رهنمون می‌شود و نیکی به بهشت... و دروغ به فجور رهنمون می‌شود...",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 76,
+    "title": {
+      "english": "The Signs of a Hypocrite",
+      "pashto": "منافق درې نښې لري",
+      "dari": "نشانه‌های منافق"
+    },
+    "arabic": "آيَةُ الْمُنَافِقِ ثَلَاثٌ: إِذَا حَدَّثَ كَذَبَ، وَإِذَا وَعَدَ أَخْلَفَ، وَإِذَا اؤْتُمِنَ خَانَ.",
+    "english": "The signs of a hypocrite are three: when he speaks he lies, when he promises he breaks it, and when he is entrusted he betrays.",
+    "pashto": "د منافق درې نښې دي: چې خبرې کوي دروغ وايي، چې وعده وکړي خلاف ورزي کوي، او چې امانت ورکړل شي خیانت کوي.",
+    "dari": "نشانه منافق سه است: چون سخن گوید دروغ گوید، چون وعده دهد خلاف کند و چون امین شود خیانت ورزد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 77,
+    "title": {
+      "english": "Trust (Amanah)",
+      "pashto": "امانت",
+      "dari": "امانت"
+    },
+    "arabic": "أَدِّ الْأَمَانَةَ إِلَى مَنِ ائْتَمَنَكَ، وَلَا تَخُنْ مَنْ خَانَكَ.",
+    "english": "Render the trust to the one who entrusted you, and do not betray the one who betrayed you.",
+    "pashto": "د هغه چا امانت ادا کړه چې پر تا يې باور کړی، او د هغه چا خیانت مه کوه چې سره يې خیانت کړی.",
+    "dari": "امانت را به کسی که به تو اعتماد کرده ادا کن و به کسی که به تو خیانت کرده خیانت مکن.",
+    "source": {
+      "english": "Abu Dawud, Tirmidhi",
+      "pashto": "ابوداود، ترمذي",
+      "dari": "ابوداود، ترمذی"
+    }
+  },
+  {
+    "id": 78,
+    "title": {
+      "english": "Deceiving Others",
+      "pashto": "دوکه کول",
+      "dari": "فریب دادن"
+    },
+    "arabic": "مَنْ غَشَّنَا فَلَيْسَ مِنَّا.",
+    "english": "Whoever deceives us is not one of us.",
+    "pashto": "څوک چې له موږ سره دوکه کوي، له موږ څخه نه دی.",
+    "dari": "هر کس ما را فریب دهد از ما نیست.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 79,
+    "title": {
+      "english": "Good Character in Business",
+      "pashto": "د بازار اخلاق",
+      "dari": "اخلاق در بازار"
+    },
+    "arabic": "رَحِمَ اللَّهُ رَجُلًا سَمْحًا إِذَا بَاعَ، وَإِذَا اشْتَرَى، وَإِذَا اقْتَضَى.",
+    "english": "May Allah have mercy on a man who is lenient when he sells, when he buys, and when he demands payment.",
+    "pashto": "الله دې پر هغه کس رحم وکړي چې د خرڅولو، اخیستلو او خپل حق غوښتلو پر مهال نرمي کوي.",
+    "dari": "الله رحمت کند مردی را که هنگام فروش، خرید و مطالبه طلب آسان‌گیر باشد.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 80,
+    "title": {
+      "english": "Pride (Kibr)",
+      "pashto": "تکبر",
+      "dari": "تکبر"
+    },
+    "arabic": "لَا يَدْخُلُ الْجَنَّةَ مَنْ كَانَ فِي قَلْبِهِ مِثْقَالُ ذَرَّةٍ مِنْ كِبْرٍ.",
+    "english": "No one who has an atom’s weight of pride in his heart will enter Paradise.",
+    "pashto": "هغه څوک جنت ته نه داخلېږي چې په زړه کې يې د ذرې په اندازه تکبر وي.",
+    "dari": "کسی که به اندازه ذره‌ای تکبر در دل داشته باشد وارد بهشت نمی‌شود.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 81,
+    "title": {
+      "english": "Taqwa",
+      "pashto": "تقوا",
+      "dari": "تقوا"
+    },
+    "arabic": "اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ.",
+    "english": "Fear Allah wherever you are.",
+    "pashto": "هر چېرې چې يې، له الله څخه ووېرېږه.",
+    "dari": "هر جا که هستی از الله بترس.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 82,
+    "title": {
+      "english": "Tawakkul (Trust in Allah)",
+      "pashto": "توکل",
+      "dari": "توکل"
+    },
+    "arabic": "لَوْ أَنَّكُمْ تَوَكَّلُونَ عَلَى اللَّهِ حَقَّ تَوَكُّلِهِ، لَرَزَقَكُمْ كَمَا يَرْزُقُ الطَّيْرَ.",
+    "english": "If you were to trust in Allah with true reliance, He would provide for you as He provides for the birds.",
+    "pashto": "که تاسو پر الله داسې رښتینی توکل وکړئ لکه څنګه چې د توکل حق دی، الله به مو روزي درکړي لکه مرغان چې روزي ورکوي؛ سهار وږي وځي او ماښام ماره راګرځي.",
+    "dari": "اگر چنانکه سزاوار است بر الله توکل کنید، او را روزی می‌دهد چنانکه پرندگان را روزی می‌دهد؛ صبح گرسنه بیرون می‌روند و شام سیر بازمی‌گردند.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 83,
+    "title": {
+      "english": "Dua",
+      "pashto": "دعا",
+      "dari": "دعا"
+    },
+    "arabic": "الدُّعَاءُ هُوَ الْعِبَادَةُ.",
+    "english": "Dua is worship.",
+    "pashto": "دعا عبادت دی.",
+    "dari": "دعا عبادت است.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  },
+  {
+    "id": 84,
+    "title": {
+      "english": "Acceptance of Dua",
+      "pashto": "د دعا قبول",
+      "dari": "قبول دعا"
+    },
+    "arabic": "يُسْتَجَابُ لِأَحَدِكُمْ مَا لَمْ يَعْجَلْ، يَقُولُ: دَعَوْتُ فَلَمْ يُسْتَجَبْ لِي.",
+    "english": "The dua of one of you is answered as long as he does not become impatient and say: I made dua but it was not answered.",
+    "pashto": "ستاسو د هر یوه دعا تر هغه قبلېږي چې بېړه ونه کړي او و نه وايي: دعا مې وکړه، خو قبوله نه شوه.",
+    "dari": "دعای یکی از شما مستجاب می‌شود تا زمانی که عجله نکند و نگوید: دعا کردم ولی مستجاب نشد.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 85,
+    "title": {
+      "english": "Closeness to Allah",
+      "pashto": "الله ته نږدېوالی",
+      "dari": "نزدیکی به الله"
+    },
+    "arabic": "أَقْرَبُ مَا يَكُونُ الْعَبْدُ مِنْ رَبِّهِ وَهُوَ سَاجِدٌ، فَأَكْثِرُوا الدُّعَاءَ.",
+    "english": "The closest a servant is to his Lord is when he is in prostration, so increase your dua then.",
+    "pashto": "بنده خپل رب ته تر ټولو نږدې د سجدې په حالت کې وي؛ نو په سجده کې ډېرې دعاګانې کوئ.",
+    "dari": "بنده نزدیک‌ترین حالت به پروردگارش هنگامی است که در سجده باشد، پس در سجده بسیار دعا کنید.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 86,
+    "title": {
+      "english": "Remembrance of Allah",
+      "pashto": "د الله ذکر",
+      "dari": "ذکر الله"
+    },
+    "arabic": "أَلَا أُنَبِّئُكُمْ بِخَيْرِ أَعْمَالِكُمْ... ذِكْرُ اللَّهِ تَعَالَى.",
+    "english": "Shall I not inform you of the best of your deeds... the remembrance of Allah the Most High.",
+    "pashto": "آیا تاسو ته ستاسو د غوره اعمالو خبر درکړم؟ هغه د الله تعالی ذکر دی.",
+    "dari": "آیا شما را از بهترین اعمالتان خبر ندهم؟ ذکر الله تعالی.",
+    "source": {
+      "english": "Tirmidhi, Ibn Majah",
+      "pashto": "ترمذي، ابن ماجه",
+      "dari": "ترمذی، ابن ماجه"
+    }
+  },
+  {
+    "id": 87,
+    "title": {
+      "english": "Istighfar",
+      "pashto": "استغفار",
+      "dari": "استغفار"
+    },
+    "arabic": "وَاللَّهِ إِنِّي لَأَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ فِي الْيَوْمِ أَكْثَرَ مِنْ سَبْعِينَ مَرَّةً.",
+    "english": "By Allah, I seek forgiveness from Allah and repent to Him more than seventy times a day.",
+    "pashto": "په الله قسم، زه په یوه ورځ کې له اويا ځله زیات له الله څخه بښنه غواړم او هغه ته توبه کوم.",
+    "dari": "به الله سوگند که من در روز بیش از هفتاد بار از الله آمرزش می‌طلبم و به سوی او توبه می‌کنم.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 88,
+    "title": {
+      "english": "Allah’s Mercy",
+      "pashto": "د الله رحمت",
+      "dari": "رحمت الله"
+    },
+    "arabic": "إِنَّ رَحْمَتِي سَبَقَتْ غَضَبِي.",
+    "english": "My mercy precedes My anger.",
+    "pashto": "زما رحمت زما پر غضب سبقت کړی دی.",
+    "dari": "رحمت من بر خشم من پیشی گرفته است.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 90,
+    "title": {
+      "english": "Choosing Between This World and the Hereafter",
+      "pashto": "د دنيا او آخرت انتخاب",
+      "dari": "انتخاب دنیا و آخرت"
+    },
+    "arabic": "كُنْ فِي الدُّنْيَا كَأَنَّكَ غَرِيبٌ أَوْ عَابِرُ سَبِيلٍ.",
+    "english": "Be in this world as if you were a stranger or a traveler.",
+    "pashto": "په دنيا کې داسې اوسه لکه پردی يا مسافر.",
+    "dari": "در دنیا چنان باش که گویی غریب یا رهگذری هستی.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 91,
+    "title": {
+      "english": "The Reality of This World",
+      "pashto": "د دنيا حقيقت",
+      "dari": "حقیقت دنیا"
+    },
+    "arabic": "مَا الدُّنْيَا فِي الْآخِرَةِ إِلَّا مِثْلُ مَا يَجْعَلُ أَحَدُكُمْ إِصْبَعَهُ فِي الْيَمِّ، فَلْيَنْظُرْ بِمَ يَرْجِعُ.",
+    "english": "This world compared to the Hereafter is like one of you dipping his finger into the sea; let him see what he brings back.",
+    "pashto": "د آخرت په نسبت د دنيا مثال داسې دی لکه یو کس چې خپله ګوته په سمندر کې دننه کړي؛ بیا دې وګوري چې څومره اوبه ورسره پاتې کېږي.",
+    "dari": "دنیا در برابر آخرت مانند انگشتی است که یکی از شما در دریا فرو می‌برد؛ بنگرد چه مقدار بازمی‌گرداند.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 92,
+    "title": {
+      "english": "Remembrance of Death",
+      "pashto": "د مرګ یاد",
+      "dari": "یاد مرگ"
+    },
+    "arabic": "أَكْثِرُوا ذِكْرَ هَاذِمِ اللَّذَّاتِ: الْمَوْتِ.",
+    "english": "Increase the remembrance of the destroyer of pleasures: death.",
+    "pashto": "د خوندونو له منځه وړونکي، یعنې مرګ، ډېر یادوئ.",
+    "dari": "ذکر از بین برنده لذت‌ها یعنی مرگ را بسیار کنید.",
+    "source": {
+      "english": "Tirmidhi, Nasai, Ibn Majah",
+      "pashto": "ترمذي، نسائي، ابن ماجه",
+      "dari": "ترمذی، نسائی، ابن ماجه"
+    }
+  },
+  {
+    "id": 94,
+    "title": {
+      "english": "Deeds After Death",
+      "pashto": "د قبر عمل",
+      "dari": "عمل قبر"
+    },
+    "arabic": "يَتْبَعُ الْمَيِّتَ ثَلَاثَةٌ: أَهْلُهُ وَمَالُهُ وَعَمَلُهُ، فَيَرْجِعُ اثْنَانِ وَيَبْقَى وَاحِدٌ؛ يَرْجِعُ أَهْلُهُ وَمَالُهُ وَيَبْقَى عَمَلُهُ.",
+    "english": "Three things follow the deceased: his family, his wealth, and his deeds. Two return and one remains; his family and wealth return, and his deeds remain.",
+    "pashto": "مړی درې شیان تر شا پرېږدي: کورنۍ، مال او عمل. دوه بېرته ستنېږي او يو ورسره پاتې کېږي؛ کورنۍ او مال ستنېږي، خو عمل ورسره پاتې کېږي.",
+    "dari": "سه چیز مرده را دنبال می‌کند: خانواده‌اش، مالش و عملش. دو تا برمی‌گردند و یکی می‌ماند؛ خانواده و مال برمی‌گردند و عمل می‌ماند.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 95,
+    "title": {
+      "english": "Ongoing Charity",
+      "pashto": "د صدقې دوام",
+      "dari": "صدقه جاریه"
+    },
+    "arabic": "إِذَا مَاتَ الْإِنْسَانُ انْقَطَعَ عَنْهُ عَمَلُهُ إِلَّا مِنْ ثَلَاثَةٍ: إِلَّا مِنْ صَدَقَةٍ جَارِيَةٍ، أَوْ عِلْمٍ يُنْتَفَعُ بِهِ، أَوْ وَلَدٍ صَالِحٍ يَدْعُو لَهُ.",
+    "english": "When a person dies, his deeds are cut off except for three: ongoing charity, knowledge from which benefit is derived, or a righteous child who prays for him.",
+    "pashto": "کله چې انسان مړ شي، عمل يې پرې کېږي، مګر له درېو شیانو څخه: جاري صدقه، هغه علم چې خلک ترې ګټه اخلي، او نېک اولاد چې ورته دعا کوي.",
+    "dari": "چون انسان بمیرد عملش قطع می‌شود مگر از سه چیز: صدقه جاریه، علمی که از آن سود برند، یا فرزند صالحی که برای او دعا کند.",
+    "source": {
+      "english": "Muslim",
+      "pashto": "مسلم",
+      "dari": "مسلم"
+    }
+  },
+  {
+    "id": 97,
+    "title": {
+      "english": "Entering Paradise by Deeds",
+      "pashto": "د جنت عمل",
+      "dari": "عمل بهشت"
+    },
+    "arabic": "كُلُّ أُمَّتِي يَدْخُلُونَ الْجَنَّةَ إِلَّا مَنْ أَبَى.",
+    "english": "All of my Ummah will enter Paradise except those who refuse.",
+    "pashto": "زما ټول امت به جنت ته داخلېږي، پرته له هغه چا چې انکار وکړي.",
+    "dari": "همه امت من وارد بهشت می‌شوند مگر کسی که امتناع کند.",
+    "source": {
+      "english": "Bukhari",
+      "pashto": "بخاري",
+      "dari": "بخاری"
+    }
+  },
+  {
+    "id": 98,
+    "title": {
+      "english": "Protection from Hellfire",
+      "pashto": "د دوزخ څخه ساتنه",
+      "dari": "حفاظت از آتش"
+    },
+    "arabic": "اتَّقُوا النَّارَ وَلَوْ بِشِقِّ تَمْرَةٍ.",
+    "english": "Protect yourselves from the Fire, even with half a date.",
+    "pashto": "له دوزخه ځان وساتئ، که څه هم د یوې خرما د نيمې برخې په صدقه کولو وي.",
+    "dari": "از آتش بترسید، حتی با نیم دانه خرما.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 99,
+    "title": {
+      "english": "Honoring the Guest",
+      "pashto": "د قیامت نښه",
+      "dari": "اکرام مهمان"
+    },
+    "arabic": "مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلْيُكْرِمْ ضَيْفَهُ.",
+    "english": "Whoever believes in Allah and the Last Day should honor his guest.",
+    "pashto": "څوک چې پر الله او د آخرت پر ورځې ايمان لري، خپل مېلمه دې عزتمن کړي.",
+    "dari": "هر کس به الله و روز آخرت ایمان دارد، مهمان خود را اکرام کند.",
+    "source": {
+      "english": "Bukhari, Muslim",
+      "pashto": "بخاري، مسلم",
+      "dari": "بخاری، مسلم"
+    }
+  },
+  {
+    "id": 100,
+    "title": {
+      "english": "A Comprehensive Advice",
+      "pashto": "وروستۍ جامع وصيت",
+      "dari": "وصیت جامع نهایی"
+    },
+    "arabic": "اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ، وَأَتْبِعِ السَّيِّئَةَ الْحَسَنَةَ تَمْحُهَا، وَخَالِقِ النَّاسَ بِخُلُقٍ حَسَنٍ.",
+    "english": "Fear Allah wherever you are, follow a bad deed with a good one to erase it, and treat people with good character.",
+    "pashto": "له الله څخه ووېرېږه؛ هر چېرې چې يې، له بد کار وروسته نېک کار وکړه، هغه به يې له منځه یوسي؛ او له خلکو سره په ښو اخلاقو چلند وکړه.",
+    "dari": "از الله بترس هر جا که هستی، بدی را با نیکی دنبال کن تا آن را محو کند، و با مردم با اخلاق نیک رفتار کن.",
+    "source": {
+      "english": "Tirmidhi",
+      "pashto": "ترمذي",
+      "dari": "ترمذی"
+    }
+  }
+]

@@ -144,8 +144,16 @@ const AppStack = ({ bookName }) => {
         }}
       />
       <Stack.Screen
+        name="HadithCollections/index"
+        options={{ headerTitle: t("Hadith") }}
+      />
+      <Stack.Screen
         name="HadithBooks/index"
         options={{ headerTitle: t("Sahih Bukhari Hadiths") }}
+      />
+      <Stack.Screen
+        name="JawamiAlKalim/index"
+        options={{ headerTitle: t("Jawami al-Kalim") }}
       />
       <Stack.Screen name="Hadiths/index" options={{ headerTitle: bookName }} />
       <Stack.Screen
