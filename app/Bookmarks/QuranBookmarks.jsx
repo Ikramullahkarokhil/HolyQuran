@@ -13,14 +13,10 @@ import { useRouter } from "expo-router";
 import { useAppAlert } from "../../components/AppAlertProvider";
 import BookmarkCard from "../../components/BookmarkCard";
 import { useQuranTranslationStore } from "../../components/store/store";
-import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
-import SurahNames from "../../assets/QuranData/SurahNames.json";
-
-const versesById = new Map(
-  Object.values(ArabicQuran?.quran?.["quran-uthmani-hafs"] || {}).map(
-    (verse) => [verse.id, verse],
-  ),
-);
+import {
+  getArabicVerseById,
+  getSurahNames,
+} from "../../components/quranData";
 
 const QuranBookmark = () => {
   const [bookmarks, setBookmarks] = useState([]);
@@ -85,10 +81,10 @@ const QuranBookmark = () => {
   );
 
   const handleNavigate = useCallback((item) => {
-    const sourceVerse = versesById.get(item.id);
+    const sourceVerse = getArabicVerseById(item.id);
     const surahId =
       item.surahNumber || item.surah || item.surahId || sourceVerse?.surah;
-    const surahName = item.surahName || SurahNames[surahId - 1];
+    const surahName = item.surahName || getSurahNames()[surahId - 1];
 
     if (!surahName) return;
 

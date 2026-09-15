@@ -21,6 +21,8 @@ import Animated, {
   withSequence,
   Easing,
   runOnJS,
+  FadeIn,
+  FadeOut,
 } from "react-native-reanimated";
 import { LegendList } from "@legendapp/list/react-native";
 import * as Clipboard from "expo-clipboard";
@@ -89,7 +91,8 @@ const HadithItem = memo(
     highlightProgress,
     progressColor,
     onSurface,
-    backgroundColor,
+    onSurfaceVariant,
+    surfaceColor,
     buttonText,
     pinnedLabel,
     onLongPress,
@@ -101,14 +104,18 @@ const HadithItem = memo(
         return { opacity: 0, transform: [{ scale: 1 }] };
       }
       return {
-        opacity: highlightProgress.value,
+        opacity: highlightProgress.value * 0.85,
         transform: [
           {
-            scale: 0.96 + highlightProgress.value * 0.06,
+            scale: 0.97 + highlightProgress.value * 0.03,
           },
         ],
       };
     }, [isHighlighted]);
+
+    const cardBg = isHighlighted
+      ? withAlpha(progressColor, 0.1)
+      : surfaceColor;
 
     return (
       <LongPressGestureHandler
@@ -117,20 +124,23 @@ const HadithItem = memo(
             onLongPress({ ...item, index });
           }
         }}
+        minDurationMs={420}
       >
-        <View
+        <Animated.View
+          entering={FadeIn.duration(220)}
           style={[
             styles.hadithOuter,
             {
-              backgroundColor: isHighlighted
-                ? withAlpha(progressColor, 0.12)
-                : backgroundColor,
+              backgroundColor: cardBg,
+              borderColor: isHighlighted
+                ? withAlpha(progressColor, 0.35)
+                : "transparent",
             },
           ]}
         >
           <Pressable
             android_ripple={{
-              color: withAlpha(progressColor, 0.18),
+              color: withAlpha(progressColor, 0.14),
               borderless: false,
               foreground: true,
             }}
@@ -138,10 +148,10 @@ const HadithItem = memo(
               styles.hadithContainer,
               isHighlighted && {
                 borderLeftColor: progressColor,
-                borderLeftWidth: 3,
+                borderLeftWidth: 3.5,
               },
               pressed && {
-                backgroundColor: withAlpha(progressColor, 0.08),
+                backgroundColor: withAlpha(progressColor, 0.06),
               },
             ]}
           >
@@ -150,13 +160,19 @@ const HadithItem = memo(
                 pointerEvents="none"
                 style={[
                   styles.hadithRipple,
-                  { borderColor: progressColor },
+                  { borderColor: withAlpha(progressColor, 0.55) },
                   rippleStyle,
                 ]}
               />
             ) : null}
 
-            <View style={styles.hadithBadgeRow}>
+            {/* Header row: pin + number badge */}
+            <View
+              style={[
+                styles.hadithBadgeRow,
+                { flexDirection: isArabic ? "row-reverse" : "row" },
+              ]}
+            >
               {isPinned ? (
                 <View
                   style={[
@@ -166,7 +182,7 @@ const HadithItem = memo(
                 >
                   <Icon
                     source="pin"
-                    size={14}
+                    size={13}
                     color={buttonText || "#ffffff"}
                   />
                   <Text style={styles.pinBadgeText}>{pinnedLabel}</Text>
@@ -178,7 +194,7 @@ const HadithItem = memo(
                   styles.hadithNumberBadge,
                   {
                     backgroundColor: withAlpha(progressColor, 0.12),
-                    borderColor: progressColor,
+                    borderColor: withAlpha(progressColor, 0.45),
                   },
                 ]}
               >
@@ -207,7 +223,7 @@ const HadithItem = memo(
               {item.text}
             </Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </LongPressGestureHandler>
     );
   },
@@ -219,12 +235,14 @@ const HadithItem = memo(
     prev.isArabic === next.isArabic &&
     prev.progressColor === next.progressColor &&
     prev.onSurface === next.onSurface &&
-    prev.backgroundColor === next.backgroundColor &&
+    prev.onSurfaceVariant === next.onSurfaceVariant &&
+    prev.surfaceColor === next.surfaceColor &&
     prev.buttonText === next.buttonText &&
     prev.pinnedLabel === next.pinnedLabel &&
     prev.onLongPress === next.onLongPress &&
     prev.index === next.index,
 );
+
 HadithItem.displayName = "HadithItem";
 
 // ─── Main screen ────────────────────────────────────────────────────────────
@@ -233,14 +251,23 @@ const HadithsScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const { showAlert } = useAppAlert();
+  const { showAlert, showToast } = useAppAlert();
   const {
-    bookNumber,
-    bookName,
+    bookNumber: bookNumberParam,
+    bookName: bookNameParam,
     collection: collectionParam,
     hadithNumber,
   } = useLocalSearchParams();
-  const collection = collectionParam === "muslim" ? "muslim" : "bukhari";
+  const bookNumber = Array.isArray(bookNumberParam)
+    ? bookNumberParam[0]
+    : bookNumberParam;
+  const bookName = Array.isArray(bookNameParam)
+    ? bookNameParam[0]
+    : bookNameParam;
+  const collectionValue = Array.isArray(collectionParam)
+    ? collectionParam[0]
+    : collectionParam;
+  const collection = collectionValue === "muslim" ? "muslim" : "bukhari";
   const {
     translationLanguage: hadithLanguage,
     setTranslationLanguage,
@@ -248,6 +275,7 @@ const HadithsScreen = () => {
 
   const listRef = useRef(null);
   const lastSavedScrollOffset = useRef(null);
+  const isMounted = useRef(true);
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -285,15 +313,41 @@ const HadithsScreen = () => {
   }, [bookNumber, collection]);
 
   useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const resetTimer = setTimeout(() => {
+      if (!isMounted.current) return;
+      setActionHadith(null);
+      setActionIsBookmarked(false);
+      setPinsVisible(false);
+      setShowScrollTop(false);
+      setHighlightedHadithId(null);
+    }, 0);
+
+    highlightProgress.value = 0;
+    lastSavedScrollOffset.current = null;
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+
+    return () => clearTimeout(resetTimer);
+  }, [bookNumber, collection, highlightProgress]);
+
+  useEffect(() => {
     lastSavedScrollOffset.current = null;
     let active = true;
     AsyncStorage.getItem(pinsStorageKey)
       .then((value) => {
         const storedPins = JSON.parse(value || "[]");
-        if (active) setPins(Array.isArray(storedPins) ? storedPins : []);
+        if (active && isMounted.current) {
+          setPins(Array.isArray(storedPins) ? storedPins : []);
+        }
       })
       .catch(() => {
-        if (active) setPins([]);
+        if (active && isMounted.current) setPins([]);
       });
     return () => {
       active = false;
@@ -323,7 +377,7 @@ const HadithsScreen = () => {
       const safeOffset = Math.max(0, Math.round(offsetY || 0));
       if (
         lastSavedScrollOffset.current !== null &&
-        Math.abs(lastSavedScrollOffset.current - safeOffset) < 30
+        Math.abs(lastSavedScrollOffset.current - safeOffset) < 40
       ) {
         return;
       }
@@ -331,7 +385,7 @@ const HadithsScreen = () => {
       try {
         await AsyncStorage.setItem(key, String(safeOffset));
       } catch {
-        // ignore
+        // non-critical
       }
     },
     [getScrollStorageKey],
@@ -344,19 +398,22 @@ const HadithsScreen = () => {
     try {
       const rawOffset = await AsyncStorage.getItem(key);
       const savedOffset = Number(rawOffset || 0);
-      if (!Number.isFinite(savedOffset) || savedOffset <= 24) return;
+      if (!Number.isFinite(savedOffset) || savedOffset <= 32) return;
 
       requestAnimationFrame(() => {
-        setTimeout(() => {
-          try {
-            listRef.current?.scrollToOffset({
-              offset: savedOffset,
-              animated: false,
-            });
-          } catch {
-            // non-critical
-          }
-        }, 80);
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (!isMounted.current) return;
+            try {
+              listRef.current?.scrollToOffset({
+                offset: savedOffset,
+                animated: false,
+              });
+            } catch {
+              // non-critical
+            }
+          }, 90);
+        });
       });
     } catch {
       // ignore
@@ -364,35 +421,41 @@ const HadithsScreen = () => {
   }, [getScrollStorageKey, targetHadithNumber]);
 
   const clearHighlight = useCallback(() => {
-    setHighlightedHadithId(null);
+    if (isMounted.current) setHighlightedHadithId(null);
   }, []);
 
   useEffect(() => {
     if (currentHadithIndex < 0) return;
 
     const timer = setTimeout(() => {
-      listRef.current?.scrollToIndex({
-        index: currentHadithIndex,
-        animated: false,
-        viewPosition: 0.5,
-      });
+      if (!isMounted.current) return;
+      try {
+        listRef.current?.scrollToIndex({
+          index: currentHadithIndex,
+          animated: false,
+          viewPosition: 0.42,
+        });
+      } catch {
+        // fallback
+      }
+
       setHighlightedHadithId(targetHadithNumber);
       highlightProgress.value = 0;
       highlightProgress.value = withSequence(
         withTiming(1, {
-          duration: 260,
+          duration: 280,
           easing: Easing.out(Easing.cubic),
         }),
         withTiming(0, {
-          duration: 1500,
+          duration: 1600,
           easing: Easing.inOut(Easing.quad),
         }),
       );
-    }, 120);
+    }, 140);
 
     const clearHighlightTimer = setTimeout(() => {
       runOnJS(clearHighlight)();
-    }, 2600);
+    }, 2800);
 
     return () => {
       clearTimeout(timer);
@@ -415,7 +478,7 @@ const HadithsScreen = () => {
             (b.collection || "bukhari") === collection &&
             String(b.reference?.book) === String(item.reference?.book) &&
             String(b.reference?.hadith) ===
-            String(item.reference?.hadith || item.hadithnumber),
+              String(item.reference?.hadith || item.hadithnumber),
         );
 
         if (already) {
@@ -439,17 +502,19 @@ const HadithsScreen = () => {
           "hadithBookmarks",
           JSON.stringify(hadithBookmarks),
         );
-        showAlert(
-          t("Bookmarked"),
-          t("Hadith #{{number}} added to bookmarks", {
-            number: item.reference?.hadith || item.hadithnumber,
-          }),
-        );
+        setActionHadith(null);
+        showToast?.(t("Bookmarked")) ??
+          showAlert(
+            t("Bookmarked"),
+            t("Hadith #{{number}} added to bookmarks", {
+              number: item.reference?.hadith || item.hadithnumber,
+            }),
+          );
       } catch {
         showAlert(t("Error"), t("Could not bookmark hadith"));
       }
     },
-    [bookName, collection, hadithLanguage, showAlert, t],
+    [bookName, collection, hadithLanguage, showAlert, showToast, t],
   );
 
   const hadithLanguageOptions = useMemo(
@@ -464,24 +529,30 @@ const HadithsScreen = () => {
     setPickerVisible(true);
   }, []);
 
-  const handleLongPress = useCallback(async (item) => {
-    try {
-      const existing =
-        JSON.parse(await AsyncStorage.getItem("hadithBookmarks")) || [];
-      const isBookmarked = existing.some(
-        (b) =>
-          (b.collection || "bukhari") === collection &&
-          String(b.reference?.book) === String(item.reference?.book) &&
-          String(b.reference?.hadith) ===
-          String(item.reference?.hadith || item.hadithnumber),
-      );
-      setActionHadith(item);
-      setActionIsBookmarked(isBookmarked);
-    } catch {
-      setActionHadith(item);
-      setActionIsBookmarked(false);
-    }
-  }, [collection]);
+  const handleLongPress = useCallback(
+    async (item) => {
+      try {
+        const existing =
+          JSON.parse((await AsyncStorage.getItem("hadithBookmarks")) || "[]") ||
+          [];
+        const isBookmarked = existing.some(
+          (b) =>
+            (b.collection || "bukhari") === collection &&
+            String(b.reference?.book) === String(item.reference?.book) &&
+            String(b.reference?.hadith) ===
+              String(item.reference?.hadith || item.hadithnumber),
+        );
+        if (!isMounted.current) return;
+        setActionHadith(item);
+        setActionIsBookmarked(isBookmarked);
+      } catch {
+        if (!isMounted.current) return;
+        setActionHadith(item);
+        setActionIsBookmarked(false);
+      }
+    },
+    [collection],
+  );
 
   const savePins = useCallback(
     (nextPins) => {
@@ -506,7 +577,15 @@ const HadithsScreen = () => {
   );
 
   const goToHadithPin = useCallback((pin) => {
-    listRef.current?.scrollToIndex({ index: pin.index, animated: true });
+    try {
+      listRef.current?.scrollToIndex({
+        index: pin.index,
+        animated: true,
+        viewPosition: 0.35,
+      });
+    } catch {
+      // fallback
+    }
     setPinsVisible(false);
   }, []);
 
@@ -557,7 +636,9 @@ const HadithsScreen = () => {
         onPress: async () => {
           try {
             await Clipboard.setStringAsync(actionHadith.text);
-            showAlert(t("Copied to Clipboard"));
+            setActionHadith(null);
+            showToast?.(t("Copied to Clipboard")) ??
+              showAlert(t("Copied to Clipboard"));
           } catch {
             showAlert(t("Error"), t("Could not copy"));
           }
@@ -569,7 +650,9 @@ const HadithsScreen = () => {
         icon: "share-variant",
         onPress: async () => {
           try {
+            setActionHadith(null);
             await Share.share({ message: actionHadith.text });
+            showToast?.(t("Shared"));
           } catch {
             showAlert(t("Error"), t("Could not share"));
           }
@@ -579,7 +662,12 @@ const HadithsScreen = () => {
         label: isPinned ? t("Remove pin") : t("Pin this location"),
         value: "pin",
         icon: isPinned ? "pin-off-outline" : "pin-outline",
-        onPress: () => toggleHadithPin(actionHadith, actionIndex),
+        onPress: () => {
+          const nextPinned = !pinnedHadithIds.has(pinId);
+          toggleHadithPin(actionHadith, actionIndex);
+          setActionHadith(null);
+          showToast?.(nextPinned ? t("Pinned") : t("Pin removed"));
+        },
       },
     ];
   }, [
@@ -589,6 +677,7 @@ const HadithsScreen = () => {
     hadiths,
     pinnedHadithIds,
     showAlert,
+    showToast,
     t,
     toggleHadithPin,
   ]);
@@ -609,9 +698,10 @@ const HadithsScreen = () => {
           });
         }}
         style={styles.headerIcon}
+        accessibilityLabel={t("Previous Hadith")}
       />
     );
-  }, [currentHadithIndex, hadiths, navigation, onSurface]);
+  }, [currentHadithIndex, hadiths, navigation, onSurface, t]);
 
   const renderHeaderRight = useCallback(() => {
     const canGoNext =
@@ -632,6 +722,7 @@ const HadithsScreen = () => {
           size={22}
           onPress={handleHadithTranslationPicker}
           style={styles.headerIcon}
+          accessibilityLabel={t("Select translation language")}
         />
         <IconButton
           icon="chevron-right"
@@ -646,6 +737,7 @@ const HadithsScreen = () => {
             });
           }}
           style={styles.headerIcon}
+          accessibilityLabel={t("Next Hadith")}
         />
       </View>
     );
@@ -672,9 +764,9 @@ const HadithsScreen = () => {
         headerTitleAlign: "center",
         headerTitleStyle: {
           color: onSurface,
-          fontSize: 18,
+          fontSize: 17.5,
           fontWeight: "600",
-          letterSpacing: 0.3,
+          letterSpacing: 0.25,
         },
         headerStyle: {
           backgroundColor: surfaceColor,
@@ -717,7 +809,8 @@ const HadithsScreen = () => {
           highlightProgress={highlightProgress}
           progressColor={progressColor}
           onSurface={onSurface}
-          backgroundColor={backgroundColor}
+          onSurfaceVariant={onSurfaceVariant}
+          surfaceColor={surfaceColor}
           buttonText={buttonText}
           pinnedLabel={pinnedLabel}
           onLongPress={handleLongPress}
@@ -731,7 +824,8 @@ const HadithsScreen = () => {
       highlightProgress,
       progressColor,
       onSurface,
-      backgroundColor,
+      onSurfaceVariant,
+      surfaceColor,
       buttonText,
       pinnedLabel,
       handleLongPress,
@@ -746,7 +840,7 @@ const HadithsScreen = () => {
   const handleScroll = useCallback(
     (e) => {
       const offsetY = e.nativeEvent.contentOffset.y || 0;
-      setShowScrollTop(offsetY > 320);
+      setShowScrollTop(offsetY > 380);
       saveScrollOffset(offsetY);
     },
     [saveScrollOffset],
@@ -770,12 +864,12 @@ const HadithsScreen = () => {
       <View
         style={[styles.centered, { backgroundColor: backgroundColor }]}
       >
-        <Text style={[styles.errorText, { color: onSurfaceVariant }]}>
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
           {t("No hadiths found for this book")}
         </Text>
       </View>
     ),
-    [backgroundColor, onSurfaceVariant, t],
+    [backgroundColor, theme.colors.error, t],
   );
 
   return (
@@ -795,31 +889,44 @@ const HadithsScreen = () => {
           renderItem={renderItem}
           keyExtractor={keyExtractor}
           recycleItems
-          estimatedItemSize={110}
-          drawDistance={400}
+          estimatedItemSize={118}
+          drawDistance={520}
           ItemSeparatorComponent={ItemSeparator}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
-          scrollEventThrottle={32}
+          scrollEventThrottle={24}
           contentContainerStyle={styles.listContent}
           removeClippedSubviews={Platform.OS === "android"}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+          }}
           ListEmptyComponent={ListEmptyComponent}
         />
 
         {showScrollTop && (
-          <Pressable
-            style={[
-              styles.scrollTopBtn,
-              {
-                backgroundColor: primaryColor,
-                shadowColor: primaryColor,
-              },
-            ]}
-            onPress={scrollToTop}
-            android_ripple={{ color: "#ffffff40", borderless: true }}
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(160)}
+            style={styles.scrollTopWrapper}
           >
-            <Text style={styles.scrollTopBtnText}>↑</Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.scrollTopBtn,
+                {
+                  backgroundColor: primaryColor,
+                  shadowColor: primaryColor,
+                  opacity: pressed ? 0.88 : 1,
+                  transform: [{ scale: pressed ? 0.94 : 1 }],
+                },
+              ]}
+              onPress={scrollToTop}
+              android_ripple={{ color: "#ffffff40", borderless: true }}
+              accessibilityLabel={t("Scroll to top")}
+              accessibilityRole="button"
+            >
+              <Icon source="arrow-up" size={22} color="#ffffff" />
+            </Pressable>
+          </Animated.View>
         )}
 
         <FloatingLanguagePickerModal
@@ -831,6 +938,7 @@ const HadithsScreen = () => {
           onClose={() => setPickerVisible(false)}
           theme={theme}
         />
+
         <GeneralModal
           visible={Boolean(actionHadith)}
           title={
@@ -839,13 +947,16 @@ const HadithsScreen = () => {
               : t("Choose an action")
           }
           description={actionHadith?.text}
+          writingDirection={isArabic ? "rtl" : "ltr"}
           options={hadithActionOptions}
           onClose={() => setActionHadith(null)}
         />
+
         <GeneralModal
           visible={pinsVisible}
           title={t("Pinned locations")}
           description={pins.length === 0 ? t("No pins yet") : undefined}
+          writingDirection={isArabic ? "rtl" : "ltr"}
           options={pinOptions}
           onClose={() => setPinsVisible(false)}
         />
@@ -868,27 +979,40 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 48,
+    paddingHorizontal: 28,
   },
   listContent: {
-    paddingTop: 8,
-    paddingBottom: 40,
+    paddingTop: 12,
+    paddingBottom: 48,
+    paddingHorizontal: 12,
   },
   hadithOuter: {
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
+    marginVertical: 7,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   hadithContainer: {
     position: "relative",
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderRadius: 16,
   },
   hadithRipple: {
     ...StyleSheet.absoluteFillObject,
-    borderWidth: 2,
-    borderRadius: 12,
+    borderWidth: 1.5,
+    borderRadius: 16,
   },
   hadithBadgeRow: {
     flexDirection: "row",
@@ -900,37 +1024,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     lineHeight: 28,
+    opacity: 0.95,
   },
   hadithNumberBadge: {
     minWidth: 32,
-    height: 32,
-    borderRadius: 16,
+    height: 28,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
+    paddingHorizontal: 8,
   },
   hadithNumberText: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "600",
     letterSpacing: 0.2,
   },
   inlinePinBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
     paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
   pinBadgeText: {
     color: "#ffffff",
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "500",
+    letterSpacing: 0.2,
   },
   separator: {
-    height: StyleSheet.hairlineWidth,
-    marginHorizontal: 20,
+    height: 0,
   },
   headerRight: {
     flexDirection: "row",
@@ -939,30 +1064,26 @@ const styles = StyleSheet.create({
   headerIcon: {
     margin: 0,
   },
-  scrollTopBtn: {
+  scrollTopWrapper: {
     position: "absolute",
     bottom: 28,
-    right: 20,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    right: 18,
+  },
+  scrollTopBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 6,
+    elevation: 7,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 5,
-  },
-  scrollTopBtnText: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "700",
-    marginTop: -1,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   errorText: {
     fontSize: 16,
     fontWeight: "500",
     textAlign: "center",
-    opacity: 0.75,
+    lineHeight: 24,
   },
 });

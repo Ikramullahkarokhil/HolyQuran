@@ -15,8 +15,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { LegendList } from "@legendapp/list/react-native";
 import { IconButton } from "react-native-paper";
-import { loadSurahNames } from "../../../components/utils";
-import ArabicQuran from "../../../assets/QuranData/ArabicQuran.json";
+import {
+  getQuranVerses,
+  getSurahNames,
+} from "../../../components/quranData";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import useThemeStore from "../../../components/store/useThemeStore";
@@ -27,11 +29,10 @@ import { darkTheme, lightTheme } from "../../../components/Theme";
 
 const VERSES_PER_SURAH = (() => {
   try {
-    const quranData = ArabicQuran?.quran?.["quran-uthmani-hafs"];
-    if (!quranData) return {};
+    const quranData = getQuranVerses("arabic");
     const counts = {};
-    for (const verseId in quranData) {
-      const surah = quranData[verseId]?.surah;
+    for (const verse of quranData) {
+      const surah = verse?.surah;
       if (surah) counts[surah] = (counts[surah] || 0) + 1;
     }
     return counts;
@@ -175,7 +176,7 @@ const Home = () => {
     const fetchSurahNames = async () => {
       try {
         setLoading(true);
-        const names = await loadSurahNames();
+        const names = getSurahNames();
         if (!cancelled && Array.isArray(names)) {
           setSurahNames(names);
         }

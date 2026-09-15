@@ -1,9 +1,8 @@
-import SurahNames from "../assets/QuranData/SurahNames.json";
+import { getSurahNames } from "./quranData";
 
 export const loadSurahNames = async () => {
   try {
-    // Directly return the Surah names since we are importing the JSON file
-    const names = SurahNames;
+    const names = getSurahNames();
     if (!names || !Array.isArray(names)) {
       throw new Error('Invalid surah names data');
     }

@@ -1,4 +1,4 @@
-# Copilot Instructions for HolyQuran Expo App
+# Copilot Instructions for Zād al-Hudā Expo App
 
 ## Project Overview
 - This is a cross-platform mobile app built with [Expo](https://expo.dev) and React Native, supporting Android and iOS.

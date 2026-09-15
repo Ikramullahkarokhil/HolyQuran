@@ -1,20 +1,20 @@
 {
   "expo": {
-    "name": "HolyQuran",
-    "slug": "HolyQuran",
+    "name": "Zād al-Hudā",
+    "slug": "Zad-al-Huda",
     "version": "1.6.2",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "icon": "./assets/images/zad-al-huda.png",
+    "scheme": "zad-al-huda",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.holyquran.app"
+      "bundleIdentifier": "com.zadalhuda.app"
     },
     "android": {
-      "package": "com.holyquran.app",
+      "package": "com.zadalhuda.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/zad-al-huda.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
@@ -28,7 +28,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/images/zad-al-huda.png"
     },
     "plugins": [
       "expo-router",
@@ -36,9 +36,9 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#232323",
-          "image": "./assets/images/icon.png",
+          "image": "./assets/images/zad-al-huda.png",
           "dark": {
-            "image": "./assets/images/icon.png",
+            "image": "./assets/images/zad-al-huda.png",
             "backgroundColor": "#000000"
           },
           "imageWidth": 200

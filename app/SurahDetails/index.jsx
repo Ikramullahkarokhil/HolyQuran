@@ -14,6 +14,7 @@ import {
   Pressable,
   Platform,
   StatusBar,
+  LayoutAnimation,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -22,13 +23,15 @@ import Animated, {
   withSequence,
   Easing,
   runOnJS,
+  FadeIn,
+  FadeOut,
 } from "react-native-reanimated";
 import { LegendList } from "@legendapp/list/react-native";
-import ArabicQuran from "../../assets/QuranData/ArabicQuran.json";
-import EnglishQuran from "../../assets/QuranData/EnglishQuran.json";
-import PashtoQuran from "../../assets/QuranData/PashtoQuran.json";
-import DariQuran from "../../assets/QuranData/PersianQuran.json";
-import SurahNames from "../../assets/QuranData/SurahNames.json";
+import {
+  getArabicVersesForSurah,
+  getQuranVerses,
+  getSurahNames,
+} from "../../components/quranData";
 import {
   LongPressGestureHandler,
   State,
@@ -47,6 +50,7 @@ import { useTranslation } from "react-i18next";
 import FloatingLanguagePickerModal from "../../components/FloatingLanguagePickerModal";
 import GeneralModal from "../../components/GeneralModal";
 import { useAppAlert } from "../../components/AppAlertProvider";
+import { getPashtoTafseerForSurah } from "../../components/tafseerData";
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
 
@@ -74,37 +78,9 @@ const withAlpha = (color, alpha) => {
   return `rgba(37, 135, 216, ${alpha})`;
 };
 
-const SURAH_NAMES = SurahNames;
+const SURAH_NAMES = getSurahNames();
 
-const getTranslationData = (language) => {
-  switch (language) {
-    case "pashto":
-      return PashtoQuran;
-    case "dari":
-      return DariQuran;
-    case "english":
-    default:
-      return EnglishQuran;
-  }
-};
-
-// Pre-index Arabic ayahs by surah once at module load
-const ARABIC_BY_SURAH = (() => {
-  const map = new Map();
-  try {
-    const all = Object.values(
-      ArabicQuran?.quran?.["quran-uthmani-hafs"] || {},
-    );
-    for (const item of all) {
-      const list = map.get(item.surah);
-      if (list) list.push(item);
-      else map.set(item.surah, [item]);
-    }
-  } catch {
-    // ignore
-  }
-  return map;
-})();
+const getTranslationData = (language) => getQuranVerses(language);
 
 // ─── Memoized verse row ─────────────────────────────────────────────────────
 
@@ -113,6 +89,11 @@ const VerseItem = memo(
     item,
     index,
     translationVerse,
+    tafseerText,
+    isPashtoTranslation,
+    isRtlText,
+    isTafseerExpanded,
+    onToggleTafseer,
     isHighlighted,
     isPinned,
     highlightProgress,
@@ -120,6 +101,7 @@ const VerseItem = memo(
     onSurface,
     onSurfaceVariant,
     backgroundColor,
+    surfaceColor,
     buttonText,
     pinnedLabel,
     onLongPress,
@@ -129,14 +111,18 @@ const VerseItem = memo(
         return { opacity: 0, transform: [{ scale: 1 }] };
       }
       return {
-        opacity: highlightProgress.value,
+        opacity: highlightProgress.value * 0.85,
         transform: [
           {
-            scale: 0.96 + highlightProgress.value * 0.06,
+            scale: 0.97 + highlightProgress.value * 0.03,
           },
         ],
       };
     }, [isHighlighted]);
+
+    const cardBg = isHighlighted
+      ? withAlpha(progressColor, 0.1)
+      : surfaceColor;
 
     return (
       <LongPressGestureHandler
@@ -152,20 +138,23 @@ const VerseItem = memo(
             });
           }
         }}
+        minDurationMs={420}
       >
-        <View
+        <Animated.View
+          entering={FadeIn.duration(220)}
           style={[
             styles.verseOuter,
             {
-              backgroundColor: isHighlighted
-                ? withAlpha(progressColor, 0.12)
-                : backgroundColor,
+              backgroundColor: cardBg,
+              borderColor: isHighlighted
+                ? withAlpha(progressColor, 0.35)
+                : "transparent",
             },
           ]}
         >
           <Pressable
             android_ripple={{
-              color: withAlpha(progressColor, 0.18),
+              color: withAlpha(progressColor, 0.14),
               borderless: false,
               foreground: true,
             }}
@@ -173,10 +162,10 @@ const VerseItem = memo(
               styles.verseContainer,
               isHighlighted && {
                 borderLeftColor: progressColor,
-                borderLeftWidth: 3,
+                borderLeftWidth: 3.5,
               },
               pressed && {
-                backgroundColor: withAlpha(progressColor, 0.08),
+                backgroundColor: withAlpha(progressColor, 0.06),
               },
             ]}
           >
@@ -185,14 +174,15 @@ const VerseItem = memo(
                 pointerEvents="none"
                 style={[
                   styles.ayahRipple,
-                  { borderColor: progressColor },
+                  { borderColor: withAlpha(progressColor, 0.55) },
                   rippleStyle,
                 ]}
               />
             ) : null}
 
-            <View style={styles.badgeRow}>
-              {isPinned ? (
+            {/* Header row: pin + ayah number */}
+            {isPinned ? (
+              <View style={styles.badgeRow}>
                 <View
                   style={[
                     styles.inlinePinBadge,
@@ -201,49 +191,100 @@ const VerseItem = memo(
                 >
                   <Icon
                     source="pin"
-                    size={14}
+                    size={13}
                     color={buttonText || "#ffffff"}
                   />
                   <Text style={styles.pinBadgeText}>{pinnedLabel}</Text>
                 </View>
-              ) : null}
-              <View
-                style={[
-                  styles.ayahNumber,
-                  {
-                    backgroundColor: withAlpha(progressColor, 0.12),
-                    borderColor: progressColor,
-                  },
-                ]}
-              >
-                <Text
-                  style={[styles.ayahNumberText, { color: progressColor }]}
-                >
-                  {item.ayah}
-                </Text>
               </View>
-            </View>
+            ) : null}
 
+            {/* Arabic text */}
             <View style={styles.arabicRow}>
               <Text
                 style={[styles.arabicText, { color: onSurface }]}
                 selectable
               >
+                <Text
+                  style={[styles.ayahNumberInline, { color: progressColor }]}
+                >
+                  {item.ayah}:
+                </Text>{" "}
                 {item.verse}
               </Text>
+         
             </View>
 
+            {/* Translation */}
             <Text
               style={[
                 styles.translationText,
-                { color: onSurfaceVariant || onSurface },
+                {
+                  color: onSurfaceVariant || onSurface,
+                  textAlign: isRtlText ? "right" : "left",
+                  writingDirection: isRtlText ? "rtl" : "ltr",
+                },
               ]}
               selectable
             >
               {translationVerse}
             </Text>
+
+            {/* Tafseer toggle (Pashto only) */}
+            {isPashtoTranslation ? (
+              <Pressable
+                onPress={() => {
+                  LayoutAnimation.configureNext(
+                    LayoutAnimation.Presets.easeInEaseOut,
+                  );
+                  onToggleTafseer(item.id);
+                }}
+                style={({ pressed }) => [
+                  styles.tafseerToggle,
+                  {
+                    opacity: pressed ? 0.7 : 1,
+                    borderTopColor: withAlpha(progressColor, 0.18),
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isTafseerExpanded }}
+                hitSlop={8}
+              >
+                <View style={styles.tafseerToggleLabel}>
+                  <Icon
+                    source={
+                      isTafseerExpanded ? "chevron-up" : "chevron-down"
+                    }
+                    size={18}
+                    color={progressColor}
+                  />
+                  <Text
+                    style={[
+                      styles.tafseerInlineLabel,
+                      { color: progressColor },
+                    ]}
+                  >
+                    تفسیر
+                  </Text>
+                </View>
+
+                {isTafseerExpanded && tafseerText ? (
+                  <Animated.View entering={FadeIn.duration(180)}>
+                    <Text
+                      selectable
+                      style={[
+                        styles.tafseerInlineText,
+                        { color: onSurfaceVariant || onSurface },
+                      ]}
+                    >
+                      {tafseerText}
+                    </Text>
+                  </Animated.View>
+                ) : null}
+              </Pressable>
+            ) : null}
           </Pressable>
-        </View>
+        </Animated.View>
       </LongPressGestureHandler>
     );
   },
@@ -252,17 +293,24 @@ const VerseItem = memo(
     prev.item.verse === next.item.verse &&
     prev.item.ayah === next.item.ayah &&
     prev.translationVerse === next.translationVerse &&
+    prev.tafseerText === next.tafseerText &&
+    prev.isPashtoTranslation === next.isPashtoTranslation &&
+    prev.isRtlText === next.isRtlText &&
+    prev.isTafseerExpanded === next.isTafseerExpanded &&
+    prev.onToggleTafseer === next.onToggleTafseer &&
     prev.isHighlighted === next.isHighlighted &&
     prev.isPinned === next.isPinned &&
     prev.progressColor === next.progressColor &&
     prev.onSurface === next.onSurface &&
     prev.onSurfaceVariant === next.onSurfaceVariant &&
     prev.backgroundColor === next.backgroundColor &&
+    prev.surfaceColor === next.surfaceColor &&
     prev.buttonText === next.buttonText &&
     prev.pinnedLabel === next.pinnedLabel &&
     prev.onLongPress === next.onLongPress &&
     prev.index === next.index,
 );
+
 VerseItem.displayName = "VerseItem";
 
 // ─── Main screen ────────────────────────────────────────────────────────────
@@ -272,12 +320,13 @@ const SurahDetails = () => {
   const navigation = useNavigation();
   const theme = useTheme();
   const { t } = useTranslation();
-  const { showAlert } = useAppAlert();
+  const { showAlert, showToast } = useAppAlert();
   const { translationLanguage, setTranslationLanguage } =
     useQuranTranslationStore();
 
   const listRef = useRef(null);
   const lastSavedScrollOffset = useRef(null);
+  const isMounted = useRef(true);
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -286,6 +335,9 @@ const SurahDetails = () => {
   const [pins, setPins] = useState([]);
   const [pinsVisible, setPinsVisible] = useState(false);
   const [highlightedAyahId, setHighlightedAyahId] = useState(null);
+  const [expandedTafseerIds, setExpandedTafseerIds] = useState(
+    () => new Set(),
+  );
 
   // Reanimated highlight progress (UI thread)
   const highlightProgress = useSharedValue(0);
@@ -304,7 +356,11 @@ const SurahDetails = () => {
 
   const resolvedSurahName = useMemo(() => {
     if (!surahName || typeof surahName !== "string") return null;
-    return decodeURIComponent(surahName);
+    try {
+      return decodeURIComponent(surahName);
+    } catch {
+      return surahName;
+    }
   }, [surahName]);
 
   const targetAyahId = useMemo(() => {
@@ -323,18 +379,28 @@ const SurahDetails = () => {
     return `surah_details_pins_${resolvedSurahName}`;
   }, [resolvedSurahName]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  // Load pins
   useEffect(() => {
     let active = true;
     const loadPins = async () => {
       const key = getPinsStorageKey();
       if (!key) return;
       try {
-        const storedPins = JSON.parse(
-          (await AsyncStorage.getItem(key)) || "[]",
-        );
-        if (active) setPins(Array.isArray(storedPins) ? storedPins : []);
+        const raw = await AsyncStorage.getItem(key);
+        const storedPins = JSON.parse(raw || "[]");
+        if (active && isMounted.current) {
+          setPins(Array.isArray(storedPins) ? storedPins : []);
+        }
       } catch {
-        if (active) setPins([]);
+        if (active && isMounted.current) setPins([]);
       }
     };
     loadPins();
@@ -349,17 +415,20 @@ const SurahDetails = () => {
       const safeOffset = Math.max(0, Math.round(offsetY || 0));
       const key = getScrollStorageKey();
       if (!key) return;
+
+      // Throttle writes
       if (
         lastSavedScrollOffset.current !== null &&
-        Math.abs(lastSavedScrollOffset.current - safeOffset) < 30
+        Math.abs(lastSavedScrollOffset.current - safeOffset) < 40
       ) {
         return;
       }
       lastSavedScrollOffset.current = safeOffset;
+
       try {
         await AsyncStorage.setItem(key, String(safeOffset));
       } catch {
-        // ignore
+        // non-critical
       }
     },
     [getScrollStorageKey, resolvedSurahName],
@@ -369,22 +438,27 @@ const SurahDetails = () => {
     if (!resolvedSurahName || targetAyahId !== null) return;
     const key = getScrollStorageKey();
     if (!key) return;
+
     try {
       const rawOffset = await AsyncStorage.getItem(key);
       const savedOffset = Number(rawOffset || 0);
-      if (!Number.isFinite(savedOffset) || savedOffset <= 24) return;
+      if (!Number.isFinite(savedOffset) || savedOffset <= 32) return;
 
+      // Double rAF + short delay for list to settle
       requestAnimationFrame(() => {
-        setTimeout(() => {
-          try {
-            listRef.current?.scrollToOffset({
-              offset: savedOffset,
-              animated: false,
-            });
-          } catch {
-            // non-critical
-          }
-        }, 80);
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            if (!isMounted.current) return;
+            try {
+              listRef.current?.scrollToOffset({
+                offset: savedOffset,
+                animated: false,
+              });
+            } catch {
+              // non-critical
+            }
+          }, 90);
+        });
       });
     } catch {
       // ignore
@@ -402,10 +476,10 @@ const SurahDetails = () => {
     return idx >= 0 ? idx + 1 : -1;
   }, [resolvedSurahName]);
 
-  // O(1) surah lookup from pre-indexed map
+  // O(1) surah lookup
   const verses = useMemo(() => {
     if (surahId <= 0) return [];
-    return ARABIC_BY_SURAH.get(surahId) || [];
+    return getArabicVersesForSurah(surahId);
   }, [surahId]);
 
   const targetAyahIndex = useMemo(() => {
@@ -414,60 +488,91 @@ const SurahDetails = () => {
   }, [targetAyahId, verses]);
 
   const clearHighlight = useCallback(() => {
-    setHighlightedAyahId(null);
+    if (isMounted.current) setHighlightedAyahId(null);
   }, []);
 
+  // Deep-link / target ayah highlight + scroll
   useEffect(() => {
     if (targetAyahIndex < 0) return;
 
     const timer = setTimeout(() => {
-      listRef.current?.scrollToIndex({
-        index: targetAyahIndex,
-        animated: false,
-        viewPosition: 0.5,
-      });
+      if (!isMounted.current) return;
+      try {
+        listRef.current?.scrollToIndex({
+          index: targetAyahIndex,
+          animated: false,
+          viewPosition: 0.42,
+        });
+      } catch {
+        // fallback
+      }
+
       setHighlightedAyahId(targetAyahId);
       highlightProgress.value = 0;
       highlightProgress.value = withSequence(
         withTiming(1, {
-          duration: 260,
+          duration: 280,
           easing: Easing.out(Easing.cubic),
         }),
         withTiming(0, {
-          duration: 1500,
+          duration: 1600,
           easing: Easing.inOut(Easing.quad),
         }),
       );
-    }, 120);
+    }, 140);
 
     const clearHighlightTimer = setTimeout(() => {
       runOnJS(clearHighlight)();
-    }, 2600);
+    }, 2800);
 
     return () => {
       clearTimeout(timer);
       clearTimeout(clearHighlightTimer);
     };
-  }, [
-    clearHighlight,
-    highlightProgress,
-    targetAyahId,
-    targetAyahIndex,
-  ]);
+  }, [clearHighlight, highlightProgress, targetAyahId, targetAyahIndex]);
 
   // Translation map – rebuild only when language or surah changes
   const translationMap = useMemo(() => {
     const map = new Map();
     if (surahId <= 0) return map;
     const data = getTranslationData(translationLanguage);
-    const all = Object.values(
-      data?.quran?.["quran-uthmani-hafs"] || {},
-    );
-    for (const v of all) {
+    for (const v of data) {
       if (v.surah === surahId) map.set(v.id, v.verse);
     }
     return map;
   }, [surahId, translationLanguage]);
+
+  const isPashtoTranslation =
+    translationLanguage === "pashto" || translationLanguage === "pa";
+  const isRtlTranslationLanguage =
+    translationLanguage === "pashto" ||
+    translationLanguage === "pa" ||
+    translationLanguage === "dari";
+
+  const surahTafseerVerses = useMemo(() => {
+    if (!isPashtoTranslation || surahId <= 0) return [];
+    return getPashtoTafseerForSurah(surahId);
+  }, [isPashtoTranslation, surahId]);
+
+  const tafseerByAyah = useMemo(
+    () =>
+      new Map(
+        (isPashtoTranslation ? surahTafseerVerses || [] : []).map((item) => [
+          item.ayah,
+          item.text,
+        ]),
+      ),
+    [isPashtoTranslation, surahTafseerVerses],
+  );
+
+  const toggleTafseer = useCallback((verseId) => {
+    setExpandedTafseerIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      if (nextIds.has(verseId)) nextIds.delete(verseId);
+      else nextIds.add(verseId);
+      return nextIds;
+    });
+  }, []);
 
   const quranLanguageOptions = useMemo(
     () => [
@@ -499,9 +604,10 @@ const SurahDetails = () => {
           });
         }}
         style={styles.headerIcon}
+        accessibilityLabel={t("Previous Surah")}
       />
     );
-  }, [currentSurahIndex, navigation, onSurface]);
+  }, [currentSurahIndex, navigation, onSurface, t]);
 
   const renderHeaderRight = useCallback(() => {
     const canGoNext = currentSurahIndex < SURAH_NAMES.length - 1;
@@ -521,6 +627,7 @@ const SurahDetails = () => {
           size={22}
           onPress={handleQuranTranslationPicker}
           style={styles.headerIcon}
+          accessibilityLabel={t("Select translation language")}
         />
         <IconButton
           icon="chevron-right"
@@ -536,6 +643,7 @@ const SurahDetails = () => {
             });
           }}
           style={styles.headerIcon}
+          accessibilityLabel={t("Next Surah")}
         />
       </View>
     );
@@ -557,9 +665,9 @@ const SurahDetails = () => {
         headerTitleAlign: "center",
         headerTitleStyle: {
           color: onSurface,
-          fontSize: 18,
+          fontSize: 17.5,
           fontWeight: "600",
-          letterSpacing: 0.3,
+          letterSpacing: 0.25,
         },
         headerStyle: {
           backgroundColor: surfaceColor,
@@ -591,15 +699,17 @@ const SurahDetails = () => {
     async (verse) => {
       try {
         const existing =
-          JSON.parse(await AsyncStorage.getItem("bookmarks")) || [];
+          JSON.parse((await AsyncStorage.getItem("bookmarks")) || "[]") ||
+          [];
         const isBookmarked = existing.some((b) => b.id === verse.id);
+        if (!isMounted.current) return;
         setActionVerse({
           ...verse,
           surahName: resolvedSurahName,
         });
         setActionIsBookmarked(isBookmarked);
       } catch {
-        showAlert(t("Error"), t("Failed to save bookmark"));
+        showAlert(t("Error"), t("Failed to load bookmark status"));
       }
     },
     [resolvedSurahName, showAlert, t],
@@ -635,7 +745,15 @@ const SurahDetails = () => {
   );
 
   const goToVersePin = useCallback((pin) => {
-    listRef.current?.scrollToIndex({ index: pin.index, animated: true });
+    try {
+      listRef.current?.scrollToIndex({
+        index: pin.index,
+        animated: true,
+        viewPosition: 0.35,
+      });
+    } catch {
+      // fallback
+    }
     setPinsVisible(false);
   }, []);
 
@@ -677,20 +795,27 @@ const SurahDetails = () => {
         icon: "bookmark-outline",
         disabled: actionIsBookmarked,
         onPress: async () => {
-          const existing =
-            JSON.parse(await AsyncStorage.getItem("bookmarks")) || [];
-          const bookmark = {
-            ...actionVerse,
-            surahName: actionVerse.surahName || resolvedSurahName,
-            surahNumber: actionVerse.surah || surahId,
-            ayahNumber: actionVerse.ayah,
-            createdAt: Date.now(),
-          };
-          await AsyncStorage.setItem(
-            "bookmarks",
-            JSON.stringify([...existing, bookmark]),
-          );
-          showAlert(t("Bookmarked"));
+          try {
+            const existing =
+              JSON.parse(
+                (await AsyncStorage.getItem("bookmarks")) || "[]",
+              ) || [];
+            const bookmark = {
+              ...actionVerse,
+              surahName: actionVerse.surahName || resolvedSurahName,
+              surahNumber: actionVerse.surah || surahId,
+              ayahNumber: actionVerse.ayah,
+              createdAt: Date.now(),
+            };
+            await AsyncStorage.setItem(
+              "bookmarks",
+              JSON.stringify([...existing, bookmark]),
+            );
+            setActionVerse(null);
+            showToast(t("Bookmarked"));
+          } catch {
+            showAlert(t("Error"), t("Failed to save bookmark"));
+          }
         },
       },
       {
@@ -698,21 +823,35 @@ const SurahDetails = () => {
         value: "copy",
         icon: "content-copy",
         onPress: async () => {
-          await Clipboard.setStringAsync(message);
-          showAlert(t("Copied to Clipboard"));
+          try {
+            await Clipboard.setStringAsync(message);
+            setActionVerse(null);
+            showToast(t("Copied to Clipboard"));
+          } catch {
+            showAlert(t("Error"), t("Failed to copy"));
+          }
         },
       },
       {
         label: t("Share"),
         value: "share",
         icon: "share-variant",
-        onPress: () => Share.share({ message }),
+        onPress: () => {
+          setActionVerse(null);
+          Share.share({ message }).catch(() => {});
+          showToast(t("Shared"));
+        },
       },
       {
         label: isPinned ? t("Remove pin") : t("Pin this location"),
         value: "pin",
         icon: isPinned ? "pin-off-outline" : "pin-outline",
-        onPress: () => toggleVersePin(actionVerse, actionVerse.index),
+        onPress: () => {
+          const nextPinned = !pinnedVerseIds.has(actionVerse.id);
+          toggleVersePin(actionVerse, actionVerse.index);
+          setActionVerse(null);
+          showToast(nextPinned ? t("Pinned") : t("Pin removed"));
+        },
       },
     ];
   }, [
@@ -721,6 +860,7 @@ const SurahDetails = () => {
     pinnedVerseIds,
     resolvedSurahName,
     showAlert,
+    showToast,
     surahId,
     t,
     toggleVersePin,
@@ -736,6 +876,11 @@ const SurahDetails = () => {
           item={item}
           index={index}
           translationVerse={translationVerse}
+          tafseerText={tafseerByAyah.get(item.ayah)}
+          isPashtoTranslation={isPashtoTranslation}
+          isRtlText={isRtlTranslationLanguage}
+          isTafseerExpanded={expandedTafseerIds.has(item.id)}
+          onToggleTafseer={toggleTafseer}
           isHighlighted={highlightedAyahId === item.id}
           isPinned={pinnedVerseIds.has(item.id)}
           highlightProgress={highlightProgress}
@@ -743,6 +888,7 @@ const SurahDetails = () => {
           onSurface={onSurface}
           onSurfaceVariant={onSurfaceVariant}
           backgroundColor={backgroundColor}
+          surfaceColor={surfaceColor}
           buttonText={buttonText}
           pinnedLabel={pinnedLabel}
           onLongPress={handleLongPress}
@@ -759,9 +905,15 @@ const SurahDetails = () => {
       onSurface,
       onSurfaceVariant,
       backgroundColor,
+      surfaceColor,
       buttonText,
       pinnedLabel,
       handleLongPress,
+      tafseerByAyah,
+      isPashtoTranslation,
+      isRtlTranslationLanguage,
+      expandedTafseerIds,
+      toggleTafseer,
     ],
   );
 
@@ -770,7 +922,7 @@ const SurahDetails = () => {
   const handleScroll = useCallback(
     (e) => {
       const offsetY = e.nativeEvent.contentOffset.y || 0;
-      setShowScrollTop(offsetY > 320);
+      setShowScrollTop(offsetY > 380);
       saveScrollOffset(offsetY);
     },
     [saveScrollOffset],
@@ -789,6 +941,7 @@ const SurahDetails = () => {
     [outlineVariant],
   );
 
+  // Empty / error states
   if (!resolvedSurahName) {
     return (
       <View
@@ -822,35 +975,48 @@ const SurahDetails = () => {
 
       <LegendList
         ref={listRef}
-        extraData={`${translationLanguage}|${highlightedAyahId}|${pins.length}`}
+        extraData={`${translationLanguage}|${highlightedAyahId}|${pins.length}|${Array.from(expandedTafseerIds).join(",")}`}
         data={verses}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         recycleItems
-        estimatedItemSize={120}
-        drawDistance={400}
+        estimatedItemSize={118}
+        drawDistance={520}
         ItemSeparatorComponent={ItemSeparator}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
-        scrollEventThrottle={32}
+        scrollEventThrottle={24}
         contentContainerStyle={styles.listContent}
         removeClippedSubviews={Platform.OS === "android"}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+        }}
       />
 
       {showScrollTop && (
-        <Pressable
-          style={[
-            styles.scrollTopBtn,
-            {
-              backgroundColor: primaryColor,
-              shadowColor: primaryColor,
-            },
-          ]}
-          onPress={scrollToTop}
-          android_ripple={{ color: "#ffffff40", borderless: true }}
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(160)}
+          style={styles.scrollTopWrapper}
         >
-          <Text style={styles.scrollTopBtnText}>↑</Text>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.scrollTopBtn,
+              {
+                backgroundColor: primaryColor,
+                shadowColor: primaryColor,
+                opacity: pressed ? 0.88 : 1,
+                transform: [{ scale: pressed ? 0.94 : 1 }],
+              },
+            ]}
+            onPress={scrollToTop}
+            android_ripple={{ color: "#ffffff40", borderless: true }}
+            accessibilityLabel={t("Scroll to top")}
+            accessibilityRole="button"
+          >
+            <Icon source="arrow-up" size={22} color="#ffffff" />
+          </Pressable>
+        </Animated.View>
       )}
 
       <FloatingLanguagePickerModal
@@ -862,6 +1028,7 @@ const SurahDetails = () => {
         onClose={() => setPickerVisible(false)}
         theme={theme}
       />
+
       <GeneralModal
         visible={Boolean(actionVerse)}
         title={
@@ -874,13 +1041,16 @@ const SurahDetails = () => {
             ? `${actionVerse.verse}\n\n${actionVerse.translationVerse}`
             : undefined
         }
+        writingDirection={isRtlTranslationLanguage ? "rtl" : "ltr"}
         options={verseActionOptions}
         onClose={() => setActionVerse(null)}
       />
+
       <GeneralModal
         visible={pinsVisible}
         title={t("Pinned locations")}
         description={pins.length === 0 ? t("No pins yet") : undefined}
+        writingDirection={isRtlTranslationLanguage ? "rtl" : "ltr"}
         options={pinOptions}
         onClose={() => setPinsVisible(false)}
       />
@@ -908,85 +1078,124 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
   },
   listContent: {
-    paddingTop: 8,
-    paddingBottom: 40,
+    paddingTop: 12,
+    paddingBottom: 48,
+    paddingHorizontal: 12,
   },
   verseOuter: {
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
+    marginVertical: 7,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   verseContainer: {
     position: "relative",
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    borderRadius: 16,
   },
   ayahRipple: {
     ...StyleSheet.absoluteFillObject,
-    borderWidth: 2,
-    borderRadius: 12,
+    borderWidth: 1.5,
+    borderRadius: 16,
   },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
+    marginBottom: 4,
   },
   inlinePinBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  arabicRow: {
-    flexDirection: "row-reverse",
-    alignItems: "flex-start",
-    width: "100%",
-  },
-  arabicText: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: "500",
-    textAlign: "right",
-    lineHeight: 42,
-    writingDirection: "rtl",
-  },
-  ayahNumber: {
-    minWidth: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
     gap: 4,
-  },
-  ayahNumberText: {
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 0.2,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
   pinBadgeText: {
     color: "#ffffff",
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "500",
+    letterSpacing: 0.2,
+  },
+  ayahNumber: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ayahNumberText: {
+    fontSize: 11,
+    fontWeight: "500",
+    letterSpacing: 0.3,
+  },
+  arabicRow: {
+    position: "relative",
+    width: "100%",
+    marginBottom: 10,
+  },
+  ayahNumberInline: {
+    fontWeight: "500",
+    fontSize: 20,
+  },
+ 
+  arabicText: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: "500",
+    textAlign: "right",
+    lineHeight: 35,
+    writingDirection: "rtl",
+    letterSpacing: 0.2,
   },
   translationText: {
     fontSize: 15.5,
-    marginTop: 12,
+    lineHeight: 27,
+    opacity: 0.9,
+  },
+  tafseerToggle: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  tafseerToggleLabel: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 4,
+  },
+  tafseerInlineLabel: {
+    fontSize: 13,
+    fontWeight: "700",
     textAlign: "right",
+    writingDirection: "rtl",
+    letterSpacing: 0.3,
+  },
+  tafseerInlineText: {
+    marginTop: 8,
+    fontSize: 14.5,
     lineHeight: 26,
-    opacity: 0.88,
+    textAlign: "right",
     writingDirection: "rtl",
   },
   separator: {
-    height: StyleSheet.hairlineWidth,
-    marginHorizontal: 20,
+    height: 0,
   },
   headerRight: {
     flexDirection: "row",
@@ -995,29 +1204,26 @@ const styles = StyleSheet.create({
   headerIcon: {
     margin: 0,
   },
-  scrollTopBtn: {
+  scrollTopWrapper: {
     position: "absolute",
     bottom: 28,
-    right: 20,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    right: 18,
+  },
+  scrollTopBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 6,
+    elevation: 7,
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 5,
-  },
-  scrollTopBtnText: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "700",
-    marginTop: -1,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   errorText: {
     fontSize: 16,
     fontWeight: "500",
     textAlign: "center",
+    lineHeight: 24,
   },
 });

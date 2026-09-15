@@ -1,1 +1,1 @@
-# Welcome to HolyQuran App
+# Welcome to Zād al-Hudā App

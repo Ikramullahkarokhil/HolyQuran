@@ -5,7 +5,7 @@
   "settings": "Settings",
   "language": "Select app Language",
   "quranTranslation": "Select Quran translation language",
-  "holyQuran": "Holy Quran",
+  "holyQuran": "Zād al-Hudā",
   "bookmarks": "Bookmarked",
   "System": "System",
   "Light": "Light",
@@ -121,6 +121,10 @@
   "Pinned": "Pinned",
   "Pin this location": "Pin this location",
   "Remove pin": "Remove pin",
-  "No pins yet": "No pins yet"
+  "No pins yet": "No pins yet",
+  "Pashto Tafseer": "Pashto Tafseer",
+  "Loading tafseer...": "Loading tafseer...",
+  "explanations": "explanations",
+  "Read the explanation of each ayah": "Read the explanation of each ayah"
   ,"Open bookmark": "Open bookmark"
 }

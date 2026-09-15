@@ -131,6 +131,7 @@ const GeneralModal = ({
                           : surfaceColor,
                         borderColor: isActive ? accentColor : colors.outline || "#00000012",
                         opacity: option.disabled ? 0.45 : pressed ? 0.72 : 1,
+                        flexDirection: writingDirection === "rtl" ? "row-reverse" : "row",
                       },
                     ]}
                   >

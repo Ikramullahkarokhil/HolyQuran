@@ -1,18 +1,20 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, View } from "react-native";
-import { Icon, IconButton, Text, useTheme } from "react-native-paper";
+import { Icon, IconButton, Snackbar, Text, useTheme } from "react-native-paper";
 
 const AppAlertContext = createContext(null);
 
 export const AppAlertProvider = ({ children }) => {
   const theme = useTheme();
   const [alert, setAlert] = useState(null);
+  const [toast, setToast] = useState(null);
   const colors = theme?.colors || {};
   const textColor = colors.onSurface || colors.textColor || "#111111";
   const accentColor = colors.progressColor || "#2587d8";
   const surfaceColor = colors.surface || colors.primary || "#ffffff";
 
   const dismissAlert = useCallback(() => setAlert(null), []);
+  const dismissToast = useCallback(() => setToast(null), []);
 
   const showAlert = useCallback((title, message, buttons = []) => {
     setAlert({
@@ -22,9 +24,13 @@ export const AppAlertProvider = ({ children }) => {
     });
   }, []);
 
+  const showToast = useCallback((message, duration = 2000) => {
+    setToast({ message, duration });
+  }, []);
+
   const contextValue = useMemo(
-    () => ({ showAlert, dismissAlert }),
-    [dismissAlert, showAlert],
+    () => ({ showAlert, showToast, dismissAlert, dismissToast }),
+    [dismissAlert, dismissToast, showAlert, showToast],
   );
 
   const handleButtonPress = useCallback(
@@ -106,6 +112,26 @@ export const AppAlertProvider = ({ children }) => {
           </View>
         </View>
       </Modal>
+
+      <Snackbar
+        visible={Boolean(toast)}
+        onDismiss={dismissToast}
+        duration={toast?.duration ?? 2000}
+        style={[
+          styles.toast,
+          {
+            backgroundColor: surfaceColor,
+            borderColor: colors.outline || "rgba(17,17,17,0.12)",
+            borderWidth: 1,
+          },
+        ]}
+        contentStyle={[
+          styles.toastContent,
+          { color: textColor },
+        ]}
+      >
+        {toast?.message}
+      </Snackbar>
     </AppAlertContext.Provider>
   );
 };
@@ -175,5 +201,18 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 15,
     fontWeight: "700",
+  },
+  toast: {
+    marginBottom: 24,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  toastContent: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

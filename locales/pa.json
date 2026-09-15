@@ -5,7 +5,7 @@
   "settings": "ترتیبات",
   "language": "د اپلیکیشن ژبه انتخاب کړی",
   "quranTranslation": "د قرآن ژباړی ژبه غوره کړی",
-  "holyQuran": "قران کریم",
+  "holyQuran": "Zād al-Hudā",
   "bookmarks": "خوښ شوی",
   "Language Settings": "د ژبې ترتیبات",
   "App Language": "د اپلیکیشن ژبه",
@@ -115,6 +115,10 @@
   "Pinned": "نښه شوی",
   "Pin this location": "دا ځای نښه کړئ",
   "Remove pin": "نښه لرې کړئ",
-  "No pins yet": "تر اوسه نښې نشته"
+  "No pins yet": "تر اوسه نښې نشته",
+  "Pashto Tafseer": "پښتو تفسیر",
+  "Loading tafseer...": "تفسیر بارول...",
+  "explanations": "تشریحات",
+  "Read the explanation of each ayah": "د هر آیت تفسیر ولولئ"
   ,"Open bookmark": "نښه پرانیزئ"
 }
