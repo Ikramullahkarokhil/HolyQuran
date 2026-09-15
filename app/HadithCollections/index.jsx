@@ -10,6 +10,7 @@ import {
   getTextAlignment,
   getWritingDirection,
 } from "../../components/utils/rtlUtils";
+import { getHadithCollectionStats } from "../../components/hadithData";
 
 const colorAlphaCache = new Map();
 
@@ -178,8 +179,20 @@ const HadithCollections = () => {
   const writingDirection = getWritingDirection(language);
   const isRtl = textAlign === "right";
 
-  const handleNavigateBukhari = useCallback(() => router.push("/HadithBooks"), [router]);
+  const handleNavigateCollection = useCallback(
+    (collection) => () =>
+      router.push({ pathname: "/HadithBooks", params: { collection } }),
+    [router],
+  );
   const handleNavigateJawami = useCallback(() => router.push("/JawamiAlKalim"), [router]);
+  const bukhariStats = useMemo(
+    () => getHadithCollectionStats("bukhari"),
+    [],
+  );
+  const muslimStats = useMemo(
+    () => getHadithCollectionStats("muslim"),
+    [],
+  );
   const collections = useMemo(
     () => [
       {
@@ -187,10 +200,20 @@ const HadithCollections = () => {
         title: t("Sahih Bukhari"),
         description: t("Browse the complete Sahih Bukhari collection"),
         icon: "menu-book",
-        hadithCount: 7277,
-        bookCount: 97,
+        hadithCount: bukhariStats.hadithCount,
+        bookCount: bukhariStats.bookCount,
         available: true,
-        onPress: handleNavigateBukhari,
+        onPress: handleNavigateCollection("bukhari"),
+      },
+        {
+        id: "muslim",
+        title: t("Sahih Muslim"),
+        description: t("Browse the complete Sahih Muslim collection"),
+        icon: "library-books",
+        hadithCount: muslimStats.hadithCount,
+        bookCount: muslimStats.bookCount,
+        available: true,
+        onPress: handleNavigateCollection("muslim"),
       },
       {
         id: "jawami-al-kalim",
@@ -201,13 +224,7 @@ const HadithCollections = () => {
         available: true,
         onPress: handleNavigateJawami,
       },
-      {
-        id: "muslim",
-        title: t("Sahih Muslim"),
-        description: t("Browse the complete Sahih Muslim collection"),
-        icon: "library-books",
-        available: false,
-      },
+    
       {
         id: "other",
         title: t("Other Hadith Collections"),
@@ -216,7 +233,7 @@ const HadithCollections = () => {
         available: false,
       },
     ],
-    [handleNavigateBukhari, handleNavigateJawami, t],
+    [bukhariStats, handleNavigateCollection, handleNavigateJawami, muslimStats, t],
   );
 
   return (
@@ -225,20 +242,9 @@ const HadithCollections = () => {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={[styles.header, { flexDirection }]}>
-        <View style={[styles.headerIcon, { backgroundColor: progressColor }]}>
-          <MaterialIcons name="menu-book" size={22} color="#ffffff" />
-        </View>
-        <Text
-          variant="titleLarge"
-          style={[styles.heading, { color: theme.colors.onSurface, textAlign, writingDirection }]}
-        >
-          {t("Hadith Collections")}
-        </Text>
-      </View>
 
       <Surface
-        elevation={0}
+        elevation={1}
         style={[
           styles.introCard,
           { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },

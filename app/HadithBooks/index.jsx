@@ -21,10 +21,10 @@ import Animated, {
 import { LegendList } from "@legendapp/list/react-native";
 import { useTheme, Text, ActivityIndicator } from "react-native-paper";
 import { useTranslation } from "react-i18next";
-import bookNames from "../../assets/Hadiths/bukhari_books.json";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useHadithTranslationStore } from "../../components/store/store";
+import { getHadithBooks } from "../../components/hadithData";
 
 // ─── withAlpha (shared design language) ─────────────────────────────────────
 
@@ -164,6 +164,8 @@ const HadithsScreen = () => {
   const router = useRouter();
   const { translationLanguage: hadithLanguage } =
     useHadithTranslationStore();
+  const { collection: collectionParam } = useLocalSearchParams();
+  const collection = collectionParam === "muslim" ? "muslim" : "bukhari";
 
   const isArabic = hadithLanguage === "arabic";
 
@@ -190,16 +192,8 @@ const HadithsScreen = () => {
 
   // Precompute books once per language
   const booksArray = useMemo(
-    () =>
-      bookNames.map((book) => ({
-        bookNumber: book.Book_Number,
-        bookName:
-          hadithLanguage === "arabic"
-            ? book.Book_Name.arabic
-            : book.Book_Name.english,
-        count: book.Hadith_Count,
-      })),
-    [hadithLanguage],
+    () => getHadithBooks(collection, hadithLanguage),
+    [collection, hadithLanguage],
   );
 
   const filteredBooks = useMemo(() => {
@@ -228,10 +222,10 @@ const HadithsScreen = () => {
     (bookNumber, bookName) => () => {
       router.push({
         pathname: "Hadiths",
-        params: { bookNumber, bookName },
+        params: { collection, bookNumber, bookName },
       });
     },
-    [router],
+    [collection, router],
   );
 
   // Stable handlers per book
@@ -318,7 +312,11 @@ const HadithsScreen = () => {
       {/* Search */}
       <View style={styles.searchContainer}>
         <TextInput
-          placeholder={t("Search sahih bukhari books")}
+          placeholder={
+            collection === "muslim"
+              ? t("Search Sahih Muslim books")
+              : t("Search sahih bukhari books")
+          }
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={[

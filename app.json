@@ -2,7 +2,7 @@
   "expo": {
     "name": "HolyQuran",
     "slug": "HolyQuran",
-    "version": "1.6.0",
+    "version": "1.6.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",

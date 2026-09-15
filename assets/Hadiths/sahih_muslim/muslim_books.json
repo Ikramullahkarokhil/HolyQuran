@@ -1,0 +1,450 @@
+[
+  {
+    "Book_Number": 1,
+    "Book_Name": {
+      "arabic": "كتاب بدء الوحى",
+      "english": "Revelation"
+    },
+    "Hadith_Count": 439
+  },
+  {
+    "Book_Number": 2,
+    "Book_Name": {
+      "arabic": "كتاب الإيمان",
+      "english": "Belief"
+    },
+    "Hadith_Count": 144
+  },
+  {
+    "Book_Number": 3,
+    "Book_Name": {
+      "arabic": "كتاب العلم",
+      "english": "Knowledge"
+    },
+    "Hadith_Count": 157
+  },
+  {
+    "Book_Number": 4,
+    "Book_Name": {
+      "arabic": "باب بَدْءِ الأَذَانِ",
+      "english": "Chapter: The Beginning Of The Adhan"
+    },
+    "Hadith_Count": 322
+  },
+  {
+    "Book_Number": 5,
+    "Book_Name": {
+      "arabic": "باب ابْتِنَاءِ مَسْجِدِ النَّبِيِّ صلى الله عليه وسلم ‏",
+      "english": "Chapter: The construction of the Masjid of the Prophet (saws)"
+    },
+    "Hadith_Count": 402
+  },
+  {
+    "Book_Number": 6,
+    "Book_Name": {
+      "arabic": "باب صَلاَةِ الْمُسَافِرِينَ وَقَصْرِهَا ‏‏",
+      "english": "Chapter: The travelers’ prayer and shortening it"
+    },
+    "Hadith_Count": 378
+  },
+  {
+    "Book_Number": 7,
+    "Book_Name": {
+      "arabic": "باب وُجُوبِ غُسْلِ الْجُمُعَةِ عَلَى كُلِّ بَالِغٍ مِنَ الرِّجَالِ وَبَيَانِ مَا أُمِرُوا بِهِ ‏",
+      "english": "Chapter: Ghusl on Friday is obligatory for all adult men, and clarifying what they were ordered regarding it"
+    },
+    "Hadith_Count": 93
+  },
+  {
+    "Book_Number": 8,
+    "Book_Name": {
+      "arabic": "باب ذِكْرِ إِبَاحَةِ خُرُوجِ النِّسَاءِ فِي الْعِيدَيْنِ إِلَى الْمُصَلَّى وَشُهُودِ الْخُطْبَةِ مُفَارِقَاتٌ لِلرِّجَالِ",
+      "english": "Chapter: It Is Permissible For Women To Go Out To The 'Id Prayer And Attend The Khutbah, Separated From The Men"
+    },
+    "Hadith_Count": 24
+  },
+  {
+    "Book_Number": 9,
+    "Book_Name": {
+      "arabic": "باب رَفْعِ الْيَدَيْنِ بِالدُّعَاءِ فِي الاِسْتِسْقَاءِ ‏",
+      "english": "Chapter: Raising The Hands In Supplication When Praying For Rain"
+    },
+    "Hadith_Count": 19
+  },
+  {
+    "Book_Number": 10,
+    "Book_Name": {
+      "arabic": "باب صَلاَةِ الْكُسُوفِ ‏",
+      "english": "Chapter: The Eclipse Prayer"
+    },
+    "Hadith_Count": 31
+  },
+  {
+    "Book_Number": 11,
+    "Book_Name": {
+      "arabic": "باب تَلْقِينِ الْمَوْتَى لاَ إِلَهَ إِلاَّ اللَّهُ ‏",
+      "english": "Chapter: Prompt the Dying person to say La Ilaha Ill-Allah"
+    },
+    "Hadith_Count": 138
+  },
+  {
+    "Book_Number": 12,
+    "Book_Name": {
+      "arabic": "باب مَا فِيهِ الْعُشْرُ أَوْ نِصْفُ الْعُشْرِ ‏‏",
+      "english": "Chapter: On what one-tenth or half of one-tenth is due"
+    },
+    "Hadith_Count": 231
+  },
+  {
+    "Book_Number": 13,
+    "Book_Name": {
+      "arabic": "باب فَضْلِ شَهْرِ رَمَضَانَ ‏‏",
+      "english": "Chapter: The Virtues of the month of Ramadan"
+    },
+    "Hadith_Count": 285
+  },
+  {
+    "Book_Number": 14,
+    "Book_Name": {
+      "arabic": "باب اعْتِكَافِ الْعَشْرِ الأَوَاخِرِ مِنْ رَمَضَانَ ‏",
+      "english": "Chapter: I'tikaf during the last ten days of Ramadan"
+    },
+    "Hadith_Count": 11
+  },
+  {
+    "Book_Number": 15,
+    "Book_Name": {
+      "arabic": "باب مَا يُبَاحُ لِلْمُحْرِمِ بِحَجٍّ أَوْ عُمْرَةٍ وَمَا لاَ يُبَاحُ وَبَيَانِ تَحْرِيمِ الطِّيبِ عَلَيْهِ",
+      "english": "Chapter: What one who has entered Ihram for Hajj or Umrah is permitted to wear, and what is not permissible, and perfume is forbidden for him"
+    },
+    "Hadith_Count": 601
+  },
+  {
+    "Book_Number": 16,
+    "Book_Name": {
+      "arabic": "باب اسْتِحْبَابِ النِّكَاحِ لِمَنْ تَاقَتْ نَفْسُهُ إِلَيْهِ وَوَجَدَ مُؤْنَةً وَاشْتِغَالِ مَنْ عَجَزَ عَنِ الْمُؤَنِ بِالصَّوْمِ",
+      "english": "Chapter: Marriage is recommended for the one who desires it and can afford it, and the one who cannot afford it should distract himself by fasting"
+    },
+    "Hadith_Count": 169
+  },
+  {
+    "Book_Number": 17,
+    "Book_Name": {
+      "arabic": "باب يَحْرُمُ مِنَ الرَّضَاعَةِ مَا يَحْرُمُ مِنَ الْوِلاَدَةِ ‏",
+      "english": "Chapter: \"Breastfeeding Makes Unlawful What Birth Makes Unlawful.\""
+    },
+    "Hadith_Count": 84
+  },
+  {
+    "Book_Number": 18,
+    "Book_Name": {
+      "arabic": "باب تَحْرِيمِ طَلاَقِ الْحَائِضِ بِغَيْرِ رِضَاهَا وَأَنَّهُ لَوْ خَالَفَ وَقَعَ الطَّلاَقُ وَيُؤْمَرُ بِجْعَتِهَا",
+      "english": "Chapter: The prohibition of divorcing a menstruating woman without her consent; If a man breaks this rule, it still counts as a divorce, and he should be ordered to take her back"
+    },
+    "Hadith_Count": 87
+  },
+  {
+    "Book_Number": 19,
+    "Book_Name": {
+      "arabic": "باب ‏",
+      "english": "Book 19"
+    },
+    "Hadith_Count": 27
+  },
+  {
+    "Book_Number": 20,
+    "Book_Name": {
+      "arabic": "باب مَنْ أَعْتَقَ شِرْكًا لَهُ فِي عَبْدٍ ‏‏",
+      "english": "Chapter: One who frees his share of a slave"
+    },
+    "Hadith_Count": 30
+  },
+  {
+    "Book_Number": 21,
+    "Book_Name": {
+      "arabic": "باب إِبْطَالِ بَيْعِ الْمُلاَمَسَةِ وَالْمُنَابَذَةِ",
+      "english": "Chapter: The invalidity of Mulamasah and Munabadhah transactions"
+    },
+    "Hadith_Count": 160
+  },
+  {
+    "Book_Number": 22,
+    "Book_Name": {
+      "arabic": "باب الْمُسَاقَاةِ وَالْمُعَامَلَةِ بِجُزْءٍ مِنَ الثَّمَرِ وَالزَّرْعِ",
+      "english": "Chapter: Musaqah And Mu'amalah in return for a share of the fruit and crops"
+    },
+    "Hadith_Count": 178
+  },
+  {
+    "Book_Number": 23,
+    "Book_Name": {
+      "arabic": "باب أَلْحِقُوا الْفَرَائِضَ بِأَهْلِهَا فَمَا بَقِيَ فَلأَوْلَى رَجُلٍ ذَكَرٍ ‏‏",
+      "english": "Chapter: Give The Shares Of Inheritance To Those Who Are Entitled To Them, And Whatever Is Left Goes To The Closest Male Relative"
+    },
+    "Hadith_Count": 23
+  },
+  {
+    "Book_Number": 24,
+    "Book_Name": {
+      "arabic": "باب كَرَاهَةِ شِرَاءِ الإِنْسَانِ مَا تَصَدَّقَ بِهِ مِمَّنْ تَصَدَّقَ عَلَيْهِ ‏‏",
+      "english": "Chapter: It Is Disliked For A Man To Buy What He Gave In Charity From The One To Whom He Gave It"
+    },
+    "Hadith_Count": 41
+  },
+  {
+    "Book_Number": 25,
+    "Book_Name": {
+      "arabic": "باب الْوَصِيَّةِ بِالثُّلُثِ ‏‏",
+      "english": "Chapter: Bequeathing One-Third"
+    },
+    "Hadith_Count": 31
+  },
+  {
+    "Book_Number": 26,
+    "Book_Name": {
+      "arabic": "باب الأَمْرِ بِقَضَاءِ النَّذْرِ ‏‏",
+      "english": "Chapter: The Command To Fulfill Vows"
+    },
+    "Hadith_Count": 18
+  },
+  {
+    "Book_Number": 27,
+    "Book_Name": {
+      "arabic": "باب النَّهْىِ عَنِ الْحَلِفِ بِغَيْرِ اللَّهِ تَعَالَى ‏‏",
+      "english": "Chapter: The prohibition of swearing by something other than Allah"
+    },
+    "Hadith_Count": 88
+  },
+  {
+    "Book_Number": 28,
+    "Book_Name": {
+      "arabic": "باب الْقَسَامَةِ",
+      "english": "Chapter: Qasamah (Oaths)"
+    },
+    "Hadith_Count": 56
+  },
+  {
+    "Book_Number": 29,
+    "Book_Name": {
+      "arabic": "باب حَدِّ السَّرِقَةِ وَنِصَابِهَا ‏‏",
+      "english": "Chapter: The Hadd for stealing and the minimum threshold"
+    },
+    "Hadith_Count": 72
+  },
+  {
+    "Book_Number": 30,
+    "Book_Name": {
+      "arabic": "باب الْيَمِينُ عَلَى الْمُدَّعَى عَلَيْهِ ‏‏",
+      "english": "Chapter: Oath should be sworn by the defendant"
+    },
+    "Hadith_Count": 28
+  },
+  {
+    "Book_Number": 31,
+    "Book_Name": {
+      "arabic": "باب",
+      "english": "Chapter: Picking up property lost by a pilgrim"
+    },
+    "Hadith_Count": 20
+  },
+  {
+    "Book_Number": 32,
+    "Book_Name": {
+      "arabic": "باب جَوَازِ الإِغَارَةِ عَلَى الْكُفَّارِ الَّذِينَ بَلَغَتْهُمْ دَعْوَةُ الإِسْلاَمِ  مِنْ غَيْرِ تَقَدُّمِ الإِعْلاَمِ بِالإِغَارَةِ",
+      "english": "Chapter: Permissibility of raiding the Kuffar, who have been reached with the call of Islam, without giving prior warning"
+    },
+    "Hadith_Count": 182
+  },
+  {
+    "Book_Number": 33,
+    "Book_Name": {
+      "arabic": "باب النَّاسُ تَبَعٌ لِقُرَيْشٍ وَالْخِلاَفَةُ فِي قُرَيْشٍ ‏‏",
+      "english": "Chapter: The people follow the Quraish and the Caliphate belongs to the Quraish"
+    },
+    "Hadith_Count": 266
+  },
+  {
+    "Book_Number": 34,
+    "Book_Name": {
+      "arabic": "باب الصَّيْدِ بِالْكِلاَبِ الْمُعَلَّمَةِ ‏‏",
+      "english": "Chapter: Hunting with trained dogs and arrows"
+    },
+    "Hadith_Count": 92
+  },
+  {
+    "Book_Number": 35,
+    "Book_Name": {
+      "arabic": "باب وَقْتِهَا ‏‏",
+      "english": "Chapter: The time for sacrifice"
+    },
+    "Hadith_Count": 62
+  },
+  {
+    "Book_Number": 36,
+    "Book_Name": {
+      "arabic": "باب تَحْرِيمِ الْخَمْرِ وَبَيَانِ أَنَّهَا تَكُونُ مِنْ عَصِيرِ الْعِنَبِ وَمِنَ التَّمْرِ وَالْبُسْرِ وَالزَّبِيبِ وَغَيْرِهَا مِمَّا يُسْكِرُ",
+      "english": "Chapter: The prohibition of Khamr, which may be made from the juice of grapes, dried dates, unripe dates, raisins and other things that intoxicate"
+    },
+    "Hadith_Count": 257
+  },
+  {
+    "Book_Number": 37,
+    "Book_Name": {
+      "arabic": "باب تَحْرِيمِ أَوَانِي الذَّهَبِ وَالْفِضَّةِ فِي الشُّرْبِ وَغَيْرِهِ عَلَى الرِّجَالِ وَالنِّسَاءِ ‏‏",
+      "english": "Chapter: The Prohibition Of Using Vessels Of Gold And Silver For Drinking Etc., For Men And Women"
+    },
+    "Hadith_Count": 193
+  },
+  {
+    "Book_Number": 38,
+    "Book_Name": {
+      "arabic": "باب النَّهْىِ عَنِ التَّكَنِّي، بِأَبِي الْقَاسِمِ وَبَيَانِ مَا يُسْتَحَبُّ مِنَ الأَسْمَاءِ ‏.‏",
+      "english": "Chapter: The Prohibition Of Taking The Kunyah Abul-Qasim, And The Names Which Are Recommended"
+    },
+    "Hadith_Count": 60
+  },
+  {
+    "Book_Number": 39,
+    "Book_Name": {
+      "arabic": "باب يُسَلِّمُ الرَّاكِبُ عَلَى الْمَاشِي وَالْقَلِيلُ عَلَى الْكَثِيرِ ‏‏",
+      "english": "Chapter: The One Who Is Riding Should Greet The One Who Is Walking, And The Smaller Group Should Greet The Larger Group"
+    },
+    "Hadith_Count": 212
+  },
+  {
+    "Book_Number": 40,
+    "Book_Name": {
+      "arabic": "باب النَّهْىِ عَنْ سَبِّ الدَّهْرِ، ‏‏",
+      "english": "Chapter: The Prohibition Of Cursing Time"
+    },
+    "Hadith_Count": 23
+  },
+  {
+    "Book_Number": 41,
+    "Book_Name": {
+      "arabic": "باب ‏‏",
+      "english": "Chapter:"
+    },
+    "Hadith_Count": 11
+  },
+  {
+    "Book_Number": 42,
+    "Book_Name": {
+      "arabic": "باب قَوْلِ النَّبِيِّ صلى الله عليه وسلم ‏\"‏ مَنْ رَآنِي فِي الْمَنَامِ فَقَدْ رَآنِي ‏\"‏ ‏‏",
+      "english": "Chapter: The Words Of The Prophet (SAW): \"Whoever Sees Me In A Dream Has Indeed Seen Me.\""
+    },
+    "Hadith_Count": 41
+  },
+  {
+    "Book_Number": 43,
+    "Book_Name": {
+      "arabic": "باب فَضْلِ نَسَبِ النَّبِيِّ صلى الله عليه وسلم وَتَسْلِيمِ الْحَجَرِ عَلَيْهِ قَبْلَ النُّبُوَّةِ ‏‏",
+      "english": "Chapter: The Superiority Of The Prophet's Lineage, And The Stone That Greeted Him Before His Prophethood"
+    },
+    "Hadith_Count": 226
+  },
+  {
+    "Book_Number": 44,
+    "Book_Name": {
+      "arabic": "باب مِنْ فَضَائِلِ أَبِي بَكْرٍ الصِّدِّيقِ رضى الله عنه ‏‏",
+      "english": "Chapter: The Virtues Of Abu Bakr As-Siddiq (RA)"
+    },
+    "Hadith_Count": 328
+  },
+  {
+    "Book_Number": 45,
+    "Book_Name": {
+      "arabic": "باب بِرِّ الْوَالِدَيْنِ وَأَنَّهُمَا أَحَقُّ بِهِ ‏‏",
+      "english": "Chapter: Being Dutiful To One's Parents, And Which Of Them Is More Entitled To It"
+    },
+    "Hadith_Count": 217
+  },
+  {
+    "Book_Number": 46,
+    "Book_Name": {
+      "arabic": "بَاب كَيْفِيَّةِ خَلْقِ الْآدَمِيِّ فِي بَطْنِ أُمِّهِ وَكِتَابَةِ رِزْقِهِ وَأَجَلِهِ وَعَمَلِهِ وَشَقَاوَتِهِ وَسَعَادَتِهِ",
+      "english": "Chapter: How The Human Being Is Created, In His Mother's Womb, And His Provision, Lifespan And Deeds Are Written Down, And His Misery and Happiness"
+    },
+    "Hadith_Count": 52
+  },
+  {
+    "Book_Number": 47,
+    "Book_Name": {
+      "arabic": "بَاب النَّهْيِ عَنْ اتِّبَاعِ مُتَشَابِهِ الْقُرْآنِ وَالتَّحْذِيرِ مِنْ مُتَّبِعِيهِ وَالنَّهْيِ عَنْ الِاخْتِلَافِ فِي الْقُرْآنِ",
+      "english": "Chapter: The Prohibition Of, And Warning Against Seeking Out Verses Of The Quran Whose Meanings Are Not Decisive; The Prohibition Of Arguing About The Qur'an"
+    },
+    "Hadith_Count": 30
+  },
+  {
+    "Book_Number": 48,
+    "Book_Name": {
+      "arabic": "باب الْحَثِّ عَلَى ذِكْرِ اللَّهِ تَعَالَى",
+      "english": "Chapter: Encouragement To Remember Allah, Exalted is He"
+    },
+    "Hadith_Count": 127
+  },
+  {
+    "Book_Number": 49,
+    "Book_Name": {
+      "arabic": "بَاب أَكْثَرُ أَهْلِ الْجَنَّةِ الْفُقَرَاءُ وَأَكْثَرُ أَهْلِ النَّارِ النِّسَاءُ وَبَيَانِ الْفِتْنَةِ بِالنِّسَاءِ",
+      "english": "Chapter: \"Most Of The People Of Paradise Are Poor, And Most Of The Inhabitants Of The Fire Are Women, And The Fitnah Of Women\""
+    },
+    "Hadith_Count": 15
+  },
+  {
+    "Book_Number": 50,
+    "Book_Name": {
+      "arabic": "باب فِي الْحَضِّ عَلَى التَّوْبَةِ وَالْفَرَحِ بِهَا ‏‏",
+      "english": "Chapter: Exhortation To Repent And Rejoicing Therein"
+    },
+    "Hadith_Count": 68
+  },
+  {
+    "Book_Number": 51,
+    "Book_Name": {
+      "arabic": "كتاب 51",
+      "english": "Book 51"
+    },
+    "Hadith_Count": 21
+  },
+  {
+    "Book_Number": 52,
+    "Book_Name": {
+      "arabic": "باب ابْتِدَاءِ الْخَلْقِ وَخَلْقِ آدَمَ عَلَيْهِ السَّلاَمُ ‏‏",
+      "english": "Chapter: The Beginning Of Creation And The Creation Of Adam, (Peace Be Upon Him)"
+    },
+    "Hadith_Count": 82
+  },
+  {
+    "Book_Number": 53,
+    "Book_Name": {
+      "arabic": "باب إِنَّ فِي الْجَنَّةِ شَجَرَةً يَسِيرُ الرَّاكِبُ فِي ظِلِّهَا مِائَةَ عَامٍ لاَ يَقْطَعُهَا ‏‏",
+      "english": "Chapter: In Paradise There Is A Tree In Whose Shade A Rider Could Travel For One Hundred Years And Still Not Cross It"
+    },
+    "Hadith_Count": 103
+  },
+  {
+    "Book_Number": 54,
+    "Book_Name": {
+      "arabic": "باب اقْتِرَابِ الْفِتَنِ وَفَتْحِ رَدْمِ يَأْجُوجَ وَمَأْجُوجَ",
+      "english": "Chapter: The Approach Of Tribulations And The Opening Of The Barrier Of Ya'juj And Ma'juj"
+    },
+    "Hadith_Count": 177
+  },
+  {
+    "Book_Number": 55,
+    "Book_Name": {
+      "arabic": "باب لاَ تَدْخُلُوا مَسَاكِنَ الَّذِينَ ظَلَمُوا أَنْفُسَهُمْ إِلاَّ أَنْ تَكُونُوا بَاكِينَ ‏.‏",
+      "english": "Chapter: The Prohibition Of Entering Upon The People Of Al-Hijr (The Rocky Tract) Unless One Enters Weeping"
+    },
+    "Hadith_Count": 96
+  },
+  {
+    "Book_Number": 56,
+    "Book_Name": {
+      "arabic": "باب فِي قَوْلِهِ تَعَالَى ‏{‏ أَلَمْ يَأْنِ لِلَّذِينَ آمَنُوا أَنْ تَخْشَعَ قُلُوبُهُمْ لِذِكْرِ اللَّهِ}",
+      "english": "Chapter: Allah's Saying: \"Has Not The Time Come For The Hearts Of Those Who Believe To Be Affected By Allah's Reminder\""
+    },
+    "Hadith_Count": 40
+  }
+]

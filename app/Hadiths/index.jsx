@@ -46,6 +46,10 @@ import { useHadithTranslationStore } from "../../components/store/store";
 import FloatingLanguagePickerModal from "../../components/FloatingLanguagePickerModal";
 import GeneralModal from "../../components/GeneralModal";
 import { useAppAlert } from "../../components/AppAlertProvider";
+import {
+  getHadithId,
+  getHadithsByBook,
+} from "../../components/hadithData";
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
 
@@ -72,26 +76,6 @@ const withAlpha = (color, alpha) => {
   }
   return `rgba(37, 135, 216, ${alpha})`;
 };
-
-// Cache JSON loads so language switches don’t re-parse from disk every time
-let _arabicCache = null;
-let _englishCache = null;
-
-const getHadithsData = (language) => {
-  if (language === "arabic") {
-    if (!_arabicCache) {
-      _arabicCache = require("../../assets/Hadiths/sahih_bukhari_arabic.json");
-    }
-    return _arabicCache;
-  }
-  if (!_englishCache) {
-    _englishCache = require("../../assets/Hadiths/sahih_bukhari_english.json");
-  }
-  return _englishCache;
-};
-
-const getHadithId = (item) =>
-  String(item?.reference?.hadith || item?.hadithnumber || "");
 
 // ─── Memoized row ───────────────────────────────────────────────────────────
 
@@ -250,7 +234,13 @@ const HadithsScreen = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
   const { showAlert } = useAppAlert();
-  const { bookNumber, bookName, hadithNumber } = useLocalSearchParams();
+  const {
+    bookNumber,
+    bookName,
+    collection: collectionParam,
+    hadithNumber,
+  } = useLocalSearchParams();
+  const collection = collectionParam === "muslim" ? "muslim" : "bukhari";
   const {
     translationLanguage: hadithLanguage,
     setTranslationLanguage,
@@ -285,16 +275,17 @@ const HadithsScreen = () => {
   const pinnedLabel = t("Pinned");
 
   const pinsStorageKey = useMemo(
-    () => `hadith_details_pins_${bookNumber}`,
-    [bookNumber],
+    () => `hadith_details_pins_${collection}_${bookNumber}`,
+    [bookNumber, collection],
   );
 
   const getScrollStorageKey = useCallback(() => {
     if (!bookNumber) return null;
-    return `hadith_details_scroll_${bookNumber}`;
-  }, [bookNumber]);
+    return `hadith_details_scroll_${collection}_${bookNumber}`;
+  }, [bookNumber, collection]);
 
   useEffect(() => {
+    lastSavedScrollOffset.current = null;
     let active = true;
     AsyncStorage.getItem(pinsStorageKey)
       .then((value) => {
@@ -310,10 +301,8 @@ const HadithsScreen = () => {
   }, [pinsStorageKey]);
 
   const hadiths = useMemo(() => {
-    const data = getHadithsData(hadithLanguage);
-    const book = String(bookNumber);
-    return data.filter((h) => String(h.reference?.book) === book);
-  }, [bookNumber, hadithLanguage]);
+    return getHadithsByBook(collection, hadithLanguage, bookNumber);
+  }, [bookNumber, collection, hadithLanguage]);
 
   const targetHadithNumber = useMemo(() => {
     const value = Array.isArray(hadithNumber) ? hadithNumber[0] : hadithNumber;
@@ -423,6 +412,8 @@ const HadithsScreen = () => {
         const hadithBookmarks = existing ? JSON.parse(existing) : [];
         const already = hadithBookmarks.some(
           (b) =>
+            (b.collection || "bukhari") === collection &&
+            String(b.reference?.book) === String(item.reference?.book) &&
             String(b.reference?.hadith) ===
             String(item.reference?.hadith || item.hadithnumber),
         );
@@ -439,6 +430,7 @@ const HadithsScreen = () => {
 
         hadithBookmarks.push({
           ...item,
+          collection,
           bookName,
           language: hadithLanguage,
           createdAt: Date.now(),
@@ -457,7 +449,7 @@ const HadithsScreen = () => {
         showAlert(t("Error"), t("Could not bookmark hadith"));
       }
     },
-    [bookName, hadithLanguage, showAlert, t],
+    [bookName, collection, hadithLanguage, showAlert, t],
   );
 
   const hadithLanguageOptions = useMemo(
@@ -478,6 +470,8 @@ const HadithsScreen = () => {
         JSON.parse(await AsyncStorage.getItem("hadithBookmarks")) || [];
       const isBookmarked = existing.some(
         (b) =>
+          (b.collection || "bukhari") === collection &&
+          String(b.reference?.book) === String(item.reference?.book) &&
           String(b.reference?.hadith) ===
           String(item.reference?.hadith || item.hadithnumber),
       );
@@ -487,7 +481,7 @@ const HadithsScreen = () => {
       setActionHadith(item);
       setActionIsBookmarked(false);
     }
-  }, []);
+  }, [collection]);
 
   const savePins = useCallback(
     (nextPins) => {

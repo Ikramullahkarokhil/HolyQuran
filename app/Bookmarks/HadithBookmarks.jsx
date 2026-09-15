@@ -106,6 +106,7 @@ const HadithBookmark = () => {
     router.push({
       pathname: "/Hadiths",
       params: {
+        collection: item.collection || "bukhari",
         bookNumber: String(bookNumber),
         bookName: item.bookName || "",
         hadithNumber: String(hadithNumber),
