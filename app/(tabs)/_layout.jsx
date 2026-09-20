@@ -44,6 +44,13 @@ const TabsLayout = () => {
         />
         <NativeTabs.Trigger.Label>{t("home")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="search">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "search", selected: "search.fill" }}
+          md={{ default: "search", selected: "search" }}
+        />
+        <NativeTabs.Trigger.Label>{t("Search")}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tools">
         <NativeTabs.Trigger.Icon
           sf={{

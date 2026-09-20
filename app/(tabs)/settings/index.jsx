@@ -16,13 +16,16 @@ import {
   useAppLanguageStore,
 } from "../../../components/store/store";
 import useThemeStore from "../../../components/store/useThemeStore";
+import { useReciterStore } from "../../../components/store/useReciterStore";
+import { getReciterById } from "../../../components/reciters.js";
 import {
   getTextAlignment,
   getWritingDirection,
   getFlexDirection,
 } from "../../../components/utils/rtlUtils";
+import { useRouter } from "expo-router";
 
-// ─── Shared alpha helper (aligned with rest of app) ─────────────────────────
+// ─── Shared alpha helper ────────────────────────────────────────────────────
 
 const withAlpha = (color, alpha) => {
   if (!color || typeof color !== "string") {
@@ -108,9 +111,7 @@ const RadioGroup = memo(
                   source={opt.icon}
                   size={18}
                   color={
-                    isSelected
-                      ? progressColor
-                      : withAlpha(textColor, 0.55)
+                    isSelected ? progressColor : withAlpha(textColor, 0.55)
                   }
                 />
               ) : null}
@@ -250,6 +251,8 @@ const Settings = () => {
   const theme = useTheme();
   const { t, i18n } = useTranslation();
 
+  const router = useRouter();
+
   const { translationLanguage, setTranslationLanguage } =
     useQuranTranslationStore();
   const {
@@ -258,9 +261,11 @@ const Settings = () => {
   } = useHadithTranslationStore();
   const { themeMode, setThemeMode } = useThemeStore();
   const { language, setLanguage } = useAppLanguageStore();
+  const { reciterId } = useReciterStore();
+
+  const currentReciter = useMemo(() => getReciterById(reciterId), [reciterId]);
 
   const colorScheme = useColorScheme();
-  // Primitives – avoid passing full theme objects into memoized children
   const progressColor = theme.colors.progressColor;
   const textColor = theme.colors.textColor || theme.colors.onSurface;
   const primaryColor = theme.colors.primary;
@@ -388,6 +393,72 @@ const Settings = () => {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
+      {/* Audio Settings */}
+      <View style={styles.section}>
+        <SectionHeader
+          icon="account-voice"
+          title={t("Audio Settings")}
+          progressColor={progressColor}
+          flexDir={flexDir}
+          textAlign={textAlign}
+          writingDir={writingDir}
+        />
+
+        <SettingCard
+          icon="account-music"
+          title={t("Default Reciter")}
+          {...sharedCardProps}
+        >
+          {/* <Link href={"/ReciterSelect"} asChild accessibilityRole="button"> */}
+          <Pressable
+            onPress={() => router.navigate("/ReciterSelect")}
+            style={({ pressed }) => [
+              styles.navRow,
+              {
+                flexDirection: flexDir,
+                backgroundColor: withAlpha(outlineColor || "#000", 0.06),
+              },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            <View style={styles.navRowContent}>
+              <Text
+                style={[
+                  styles.navRowTitle,
+                  {
+                    color: textColor,
+                    textAlign,
+                    writingDirection: writingDir,
+                  },
+                ]}
+              >
+                {currentReciter?.name || "Alafasy"}
+              </Text>
+              <Text
+                style={[
+                  styles.navRowSubtitle,
+                  {
+                    color: withAlpha(textColor, 0.6),
+                    textAlign,
+                    writingDirection: writingDir,
+                  },
+                ]}
+              >
+                {currentReciter?.bitrate || "128kbps"}
+              </Text>
+            </View>
+            <Icon
+              source={
+                flexDir === "row-reverse" ? "chevron-left" : "chevron-right"
+              }
+              size={22}
+              color={withAlpha(textColor, 0.5)}
+            />
+          </Pressable>
+          {/* </Link> */}
+        </SettingCard>
+      </View>
+
       {/* Language */}
       <View style={styles.section}>
         <SectionHeader
@@ -468,8 +539,6 @@ const Settings = () => {
 };
 
 export default Settings;
-
-// ─── Styles (aligned with Home / Surah cards) ───────────────────────────────
 
 const styles = StyleSheet.create({
   root: {
@@ -558,5 +627,23 @@ const styles = StyleSheet.create({
   chipLabel: {
     fontSize: 13.5,
     letterSpacing: 0.15,
+  },
+  navRow: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  navRowContent: {
+    flex: 1,
+    gap: 2,
+  },
+  navRowTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  navRowSubtitle: {
+    fontSize: 12,
   },
 });

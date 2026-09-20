@@ -171,6 +171,13 @@ const AppStack = ({ bookName }) => {
           headerTitleStyle: { color: theme.colors.textColor },
         }}
       />
+      <Stack.Screen
+        name="ReciterSelect/index"
+        options={{
+          headerTitle: "Reciter Selection",
+          headerTitleStyle: { color: theme.colors.textColor },
+        }}
+      />
     </Stack>
   );
 };

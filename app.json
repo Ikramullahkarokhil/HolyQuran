@@ -2,9 +2,9 @@
   "expo": {
     "name": "Zād al-Hudā",
     "slug": "Zad-al-Huda",
-    "version": "1.6.2",
+    "version": "1.7.0",
     "orientation": "portrait",
-    "icon": "./assets/images/zad-al-huda.png",
+    "icon": "./assets/images/app-icon.png",
     "scheme": "zad-al-huda",
     "userInterfaceStyle": "automatic",
     "ios": {

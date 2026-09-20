@@ -1,0 +1,800 @@
+[
+  {
+    "index": 1,
+    "ayas": 7,
+    "name": "الفاتحة",
+    "tname": "Al-Faatiha",
+    "type": "Meccan"
+  },
+  {
+    "index": 2,
+    "ayas": 286,
+    "name": "البقرة",
+    "tname": "Al-Baqara",
+    "type": "Medinan"
+  },
+  {
+    "index": 3,
+    "ayas": 200,
+    "name": "آل عمران",
+    "tname": "Aal-i-Imraan",
+    "type": "Medinan"
+  },
+  {
+    "index": 4,
+    "ayas": 176,
+    "name": "النساء",
+    "tname": "An-Nisaa",
+    "type": "Medinan"
+  },
+  {
+    "index": 5,
+    "ayas": 120,
+    "name": "المائدة",
+    "tname": "Al-Maaida",
+    "type": "Medinan"
+  },
+  {
+    "index": 6,
+    "ayas": 165,
+    "name": "الأنعام",
+    "tname": "Al-An'aam",
+    "type": "Meccan"
+  },
+  {
+    "index": 7,
+    "ayas": 206,
+    "name": "الأعراف",
+    "tname": "Al-A'raaf",
+    "type": "Meccan"
+  },
+  {
+    "index": 8,
+    "ayas": 75,
+    "name": "الأنفال",
+    "tname": "Al-Anfaal",
+    "type": "Medinan"
+  },
+  {
+    "index": 9,
+    "ayas": 129,
+    "name": "التوبة",
+    "tname": "At-Tawba",
+    "type": "Medinan"
+  },
+  {
+    "index": 10,
+    "ayas": 109,
+    "name": "يونس",
+    "tname": "Yunus",
+    "type": "Meccan"
+  },
+  {
+    "index": 11,
+    "ayas": 123,
+    "name": "هود",
+    "tname": "Hud",
+    "type": "Meccan"
+  },
+  {
+    "index": 12,
+    "ayas": 111,
+    "name": "يوسف",
+    "tname": "Yusuf",
+    "type": "Meccan"
+  },
+  {
+    "index": 13,
+    "ayas": 43,
+    "name": "الرعد",
+    "tname": "Ar-Ra'd",
+    "type": "Medinan"
+  },
+  {
+    "index": 14,
+    "ayas": 52,
+    "name": "ابراهيم",
+    "tname": "Ibrahim",
+    "type": "Meccan"
+  },
+  {
+    "index": 15,
+    "ayas": 99,
+    "name": "الحجر",
+    "tname": "Al-Hijr",
+    "type": "Meccan"
+  },
+  {
+    "index": 16,
+    "ayas": 128,
+    "name": "النحل",
+    "tname": "An-Nahl",
+    "type": "Meccan"
+  },
+  {
+    "index": 17,
+    "ayas": 111,
+    "name": "الإسراء",
+    "tname": "Al-Israa",
+    "type": "Meccan"
+  },
+  {
+    "index": 18,
+    "ayas": 110,
+    "name": "الكهف",
+    "tname": "Al-Kahf",
+    "type": "Meccan"
+  },
+  {
+    "index": 19,
+    "ayas": 98,
+    "name": "مريم",
+    "tname": "Maryam",
+    "type": "Meccan"
+  },
+  {
+    "index": 20,
+    "ayas": 135,
+    "name": "طه",
+    "tname": "Taa-Haa",
+    "type": "Meccan"
+  },
+  {
+    "index": 21,
+    "ayas": 112,
+    "name": "الأنبياء",
+    "tname": "Al-Anbiyaa",
+    "type": "Meccan"
+  },
+  {
+    "index": 22,
+    "ayas": 78,
+    "name": "الحج",
+    "tname": "Al-Hajj",
+    "type": "Medinan"
+  },
+  {
+    "index": 23,
+    "ayas": 118,
+    "name": "المؤمنون",
+    "tname": "Al-Muminoon",
+    "type": "Meccan"
+  },
+  {
+    "index": 24,
+    "ayas": 64,
+    "name": "النور",
+    "tname": "An-Noor",
+    "type": "Medinan"
+  },
+  {
+    "index": 25,
+    "ayas": 77,
+    "name": "الفرقان",
+    "tname": "Al-Furqaan",
+    "type": "Meccan"
+  },
+  {
+    "index": 26,
+    "ayas": 227,
+    "name": "الشعراء",
+    "tname": "Ash-Shu'araa",
+    "type": "Meccan"
+  },
+  {
+    "index": 27,
+    "ayas": 93,
+    "name": "النمل",
+    "tname": "An-Naml",
+    "type": "Meccan"
+  },
+  {
+    "index": 28,
+    "ayas": 88,
+    "name": "القصص",
+    "tname": "Al-Qasas",
+    "type": "Meccan"
+  },
+  {
+    "index": 29,
+    "ayas": 69,
+    "name": "العنكبوت",
+    "tname": "Al-Ankaboot",
+    "type": "Meccan"
+  },
+  {
+    "index": 30,
+    "ayas": 60,
+    "name": "الروم",
+    "tname": "Ar-Room",
+    "type": "Meccan"
+  },
+  {
+    "index": 31,
+    "ayas": 34,
+    "name": "لقمان",
+    "tname": "Luqman",
+    "type": "Meccan"
+  },
+  {
+    "index": 32,
+    "ayas": 30,
+    "name": "السجدة",
+    "tname": "As-Sajda",
+    "type": "Meccan"
+  },
+  {
+    "index": 33,
+    "ayas": 73,
+    "name": "الأحزاب",
+    "tname": "Al-Ahzaab",
+    "type": "Medinan"
+  },
+  {
+    "index": 34,
+    "ayas": 54,
+    "name": "سبإ",
+    "tname": "Saba",
+    "type": "Meccan"
+  },
+  {
+    "index": 35,
+    "ayas": 45,
+    "name": "فاطر",
+    "tname": "Faatir",
+    "type": "Meccan"
+  },
+  {
+    "index": 36,
+    "ayas": 83,
+    "name": "يس",
+    "tname": "Yaseen",
+    "type": "Meccan"
+  },
+  {
+    "index": 37,
+    "ayas": 182,
+    "name": "الصافات",
+    "tname": "As-Saaffaat",
+    "type": "Meccan"
+  },
+  {
+    "index": 38,
+    "ayas": 88,
+    "name": "ص",
+    "tname": "Saad",
+    "type": "Meccan"
+  },
+  {
+    "index": 39,
+    "ayas": 75,
+    "name": "الزمر",
+    "tname": "Az-Zumar",
+    "type": "Meccan"
+  },
+  {
+    "index": 40,
+    "ayas": 85,
+    "name": "غافر",
+    "tname": "Al-Ghaafir",
+    "type": "Meccan"
+  },
+  {
+    "index": 41,
+    "ayas": 54,
+    "name": "فصلت",
+    "tname": "Fussilat",
+    "type": "Meccan"
+  },
+  {
+    "index": 42,
+    "ayas": 53,
+    "name": "الشورى",
+    "tname": "Ash-Shura",
+    "type": "Meccan"
+  },
+  {
+    "index": 43,
+    "ayas": 89,
+    "name": "الزخرف",
+    "tname": "Az-Zukhruf",
+    "type": "Meccan"
+  },
+  {
+    "index": 44,
+    "ayas": 59,
+    "name": "الدخان",
+    "tname": "Ad-Dukhaan",
+    "type": "Meccan"
+  },
+  {
+    "index": 45,
+    "ayas": 37,
+    "name": "الجاثية",
+    "tname": "Al-Jaathiya",
+    "type": "Meccan"
+  },
+  {
+    "index": 46,
+    "ayas": 35,
+    "name": "الأحقاف",
+    "tname": "Al-Ahqaf",
+    "type": "Meccan"
+  },
+  {
+    "index": 47,
+    "ayas": 38,
+    "name": "محمد",
+    "tname": "Muhammad",
+    "type": "Medinan"
+  },
+  {
+    "index": 48,
+    "ayas": 29,
+    "name": "الفتح",
+    "tname": "Al-Fath",
+    "type": "Medinan"
+  },
+  {
+    "index": 49,
+    "ayas": 18,
+    "name": "الحجرات",
+    "tname": "Al-Hujuraat",
+    "type": "Medinan"
+  },
+  {
+    "index": 50,
+    "ayas": 45,
+    "name": "ق",
+    "tname": "Qaaf",
+    "type": "Meccan"
+  },
+  {
+    "index": 51,
+    "ayas": 60,
+    "name": "الذاريات",
+    "tname": "Adh-Dhaariyat",
+    "type": "Meccan"
+  },
+  {
+    "index": 52,
+    "ayas": 49,
+    "name": "الطور",
+    "tname": "At-Tur",
+    "type": "Meccan"
+  },
+  {
+    "index": 53,
+    "ayas": 62,
+    "name": "النجم",
+    "tname": "An-Najm",
+    "type": "Meccan"
+  },
+  {
+    "index": 54,
+    "ayas": 55,
+    "name": "القمر",
+    "tname": "Al-Qamar",
+    "type": "Meccan"
+  },
+  {
+    "index": 55,
+    "ayas": 78,
+    "name": "الرحمن",
+    "tname": "Ar-Rahmaan",
+    "type": "Medinan"
+  },
+  {
+    "index": 56,
+    "ayas": 96,
+    "name": "الواقعة",
+    "tname": "Al-Waaqia",
+    "type": "Meccan"
+  },
+  {
+    "index": 57,
+    "ayas": 29,
+    "name": "الحديد",
+    "tname": "Al-Hadid",
+    "type": "Medinan"
+  },
+  {
+    "index": 58,
+    "ayas": 22,
+    "name": "المجادلة",
+    "tname": "Al-Mujaadila",
+    "type": "Medinan"
+  },
+  {
+    "index": 59,
+    "ayas": 24,
+    "name": "الحشر",
+    "tname": "Al-Hashr",
+    "type": "Medinan"
+  },
+  {
+    "index": 60,
+    "ayas": 13,
+    "name": "الممتحنة",
+    "tname": "Al-Mumtahana",
+    "type": "Medinan"
+  },
+  {
+    "index": 61,
+    "ayas": 14,
+    "name": "الصف",
+    "tname": "As-Saff",
+    "type": "Medinan"
+  },
+  {
+    "index": 62,
+    "ayas": 11,
+    "name": "الجمعة",
+    "tname": "Al-Jumu'a",
+    "type": "Medinan"
+  },
+  {
+    "index": 63,
+    "ayas": 11,
+    "name": "المنافقون",
+    "tname": "Al-Munaafiqoon",
+    "type": "Medinan"
+  },
+  {
+    "index": 64,
+    "ayas": 18,
+    "name": "التغابن",
+    "tname": "At-Taghaabun",
+    "type": "Medinan"
+  },
+  {
+    "index": 65,
+    "ayas": 12,
+    "name": "الطلاق",
+    "tname": "At-Talaaq",
+    "type": "Medinan"
+  },
+  {
+    "index": 66,
+    "ayas": 12,
+    "name": "التحريم",
+    "tname": "At-Tahrim",
+    "type": "Medinan"
+  },
+  {
+    "index": 67,
+    "ayas": 30,
+    "name": "الملك",
+    "tname": "Al-Mulk",
+    "type": "Meccan"
+  },
+  {
+    "index": 68,
+    "ayas": 52,
+    "name": "القلم",
+    "tname": "Al-Qalam",
+    "type": "Meccan"
+  },
+  {
+    "index": 69,
+    "ayas": 52,
+    "name": "الحاقة",
+    "tname": "Al-Haaqqa",
+    "type": "Meccan"
+  },
+  {
+    "index": 70,
+    "ayas": 44,
+    "name": "المعارج",
+    "tname": "Al-Ma'aarij",
+    "type": "Meccan"
+  },
+  {
+    "index": 71,
+    "ayas": 28,
+    "name": "نوح",
+    "tname": "Nooh",
+    "type": "Meccan"
+  },
+  {
+    "index": 72,
+    "ayas": 28,
+    "name": "الجن",
+    "tname": "Al-Jinn",
+    "type": "Meccan"
+  },
+  {
+    "index": 73,
+    "ayas": 20,
+    "name": "المزمل",
+    "tname": "Al-Muzzammil",
+    "type": "Meccan"
+  },
+  {
+    "index": 74,
+    "ayas": 56,
+    "name": "المدثر",
+    "tname": "Al-Muddaththir",
+    "type": "Meccan"
+  },
+  {
+    "index": 75,
+    "ayas": 40,
+    "name": "القيامة",
+    "tname": "Al-Qiyaama",
+    "type": "Meccan"
+  },
+  {
+    "index": 76,
+    "ayas": 31,
+    "name": "الانسان",
+    "tname": "Al-Insaan",
+    "type": "Medinan"
+  },
+  {
+    "index": 77,
+    "ayas": 50,
+    "name": "المرسلات",
+    "tname": "Al-Mursalaat",
+    "type": "Meccan"
+  },
+  {
+    "index": 78,
+    "ayas": 40,
+    "name": "النبإ",
+    "tname": "An-Naba",
+    "type": "Meccan"
+  },
+  {
+    "index": 79,
+    "ayas": 46,
+    "name": "النازعات",
+    "tname": "An-Naazi'aat",
+    "type": "Meccan"
+  },
+  {
+    "index": 80,
+    "ayas": 42,
+    "name": "عبس",
+    "tname": "Abasa",
+    "type": "Meccan"
+  },
+  {
+    "index": 81,
+    "ayas": 29,
+    "name": "التكوير",
+    "tname": "At-Takwir",
+    "type": "Meccan"
+  },
+  {
+    "index": 82,
+    "ayas": 19,
+    "name": "الإنفطار",
+    "tname": "Al-Infitaar",
+    "type": "Meccan"
+  },
+  {
+    "index": 83,
+    "ayas": 36,
+    "name": "المطففين",
+    "tname": "Al-Mutaffifin",
+    "type": "Meccan"
+  },
+  {
+    "index": 84,
+    "ayas": 25,
+    "name": "الإنشقاق",
+    "tname": "Al-Inshiqaaq",
+    "type": "Meccan"
+  },
+  {
+    "index": 85,
+    "ayas": 22,
+    "name": "البروج",
+    "tname": "Al-Burooj",
+    "type": "Meccan"
+  },
+  {
+    "index": 86,
+    "ayas": 17,
+    "name": "الطارق",
+    "tname": "At-Taariq",
+    "type": "Meccan"
+  },
+  {
+    "index": 87,
+    "ayas": 19,
+    "name": "الأعلى",
+    "tname": "Al-A'laa",
+    "type": "Meccan"
+  },
+  {
+    "index": 88,
+    "ayas": 26,
+    "name": "الغاشية",
+    "tname": "Al-Ghaashiya",
+    "type": "Meccan"
+  },
+  {
+    "index": 89,
+    "ayas": 30,
+    "name": "الفجر",
+    "tname": "Al-Fajr",
+    "type": "Meccan"
+  },
+  {
+    "index": 90,
+    "ayas": 20,
+    "name": "البلد",
+    "tname": "Al-Balad",
+    "type": "Meccan"
+  },
+  {
+    "index": 91,
+    "ayas": 15,
+    "name": "الشمس",
+    "tname": "Ash-Shams",
+    "type": "Meccan"
+  },
+  {
+    "index": 92,
+    "ayas": 21,
+    "name": "الليل",
+    "tname": "Al-Lail",
+    "type": "Meccan"
+  },
+  {
+    "index": 93,
+    "ayas": 11,
+    "name": "الضحى",
+    "tname": "Ad-Dhuhaa",
+    "type": "Meccan"
+  },
+  {
+    "index": 94,
+    "ayas": 8,
+    "name": "الشرح",
+    "tname": "Ash-Sharh",
+    "type": "Meccan"
+  },
+  {
+    "index": 95,
+    "ayas": 8,
+    "name": "التين",
+    "tname": "At-Tin",
+    "type": "Meccan"
+  },
+  {
+    "index": 96,
+    "ayas": 19,
+    "name": "العلق",
+    "tname": "Al-Alaq",
+    "type": "Meccan"
+  },
+  {
+    "index": 97,
+    "ayas": 5,
+    "name": "القدر",
+    "tname": "Al-Qadr",
+    "type": "Meccan"
+  },
+  {
+    "index": 98,
+    "ayas": 8,
+    "name": "البينة",
+    "tname": "Al-Bayyina",
+    "type": "Medinan"
+  },
+  {
+    "index": 99,
+    "ayas": 8,
+    "name": "الزلزلة",
+    "tname": "Az-Zalzala",
+    "type": "Medinan"
+  },
+  {
+    "index": 100,
+    "ayas": 11,
+    "name": "العاديات",
+    "tname": "Al-Aadiyaat",
+    "type": "Meccan"
+  },
+  {
+    "index": 101,
+    "ayas": 11,
+    "name": "القارعة",
+    "tname": "Al-Qaari'a",
+    "type": "Meccan"
+  },
+  {
+    "index": 102,
+    "ayas": 8,
+    "name": "التكاثر",
+    "tname": "At-Takaathur",
+    "type": "Meccan"
+  },
+  {
+    "index": 103,
+    "ayas": 3,
+    "name": "العصر",
+    "tname": "Al-Asr",
+    "type": "Meccan"
+  },
+  {
+    "index": 104,
+    "ayas": 9,
+    "name": "الهمزة",
+    "tname": "Al-Humaza",
+    "type": "Meccan"
+  },
+  {
+    "index": 105,
+    "ayas": 5,
+    "name": "الفيل",
+    "tname": "Al-Fil",
+    "type": "Meccan"
+  },
+  {
+    "index": 106,
+    "ayas": 4,
+    "name": "قريش",
+    "tname": "Quraish",
+    "type": "Meccan"
+  },
+  {
+    "index": 107,
+    "ayas": 7,
+    "name": "الماعون",
+    "tname": "Al-Maa'un",
+    "type": "Meccan"
+  },
+  {
+    "index": 108,
+    "ayas": 3,
+    "name": "الكوثر",
+    "tname": "Al-Kawthar",
+    "type": "Meccan"
+  },
+  {
+    "index": 109,
+    "ayas": 6,
+    "name": "الكافرون",
+    "tname": "Al-Kaafiroon",
+    "type": "Meccan"
+  },
+  {
+    "index": 110,
+    "ayas": 3,
+    "name": "النصر",
+    "tname": "An-Nasr",
+    "type": "Medinan"
+  },
+  {
+    "index": 111,
+    "ayas": 5,
+    "name": "المسد",
+    "tname": "Al-Masad",
+    "type": "Meccan"
+  },
+  {
+    "index": 112,
+    "ayas": 4,
+    "name": "الإخلاص",
+    "tname": "Al-Ikhlaas",
+    "type": "Meccan"
+  },
+  {
+    "index": 113,
+    "ayas": 5,
+    "name": "الفلق",
+    "tname": "Al-Falaq",
+    "type": "Meccan"
+  },
+  {
+    "index": 114,
+    "ayas": 6,
+    "name": "الناس",
+    "tname": "An-Naas",
+    "type": "Meccan"
+  }
+]
