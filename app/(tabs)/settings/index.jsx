@@ -278,28 +278,28 @@ const Settings = () => {
 
   const appLanguages = useMemo(
     () => [
-      { label: "English", value: "en", icon: "translate" },
-      { label: "پښتو", value: "pa", icon: "web" },
-      { label: "دری", value: "da", icon: "script-text" },
+      { label: t("English"), value: "en", icon: "translate" },
+      { label: t("Pashto"), value: "pa", icon: "web" },
+      { label: t("Dari"), value: "da", icon: "script-text" },
     ],
-    [],
+    [t],
   );
 
   const quranLanguages = useMemo(
     () => [
-      { label: "English", value: "english", icon: "book-open-page-variant" },
-      { label: "پښتو", value: "pashto", icon: "web" },
-      { label: "دری", value: "dari", icon: "translate" },
+      { label: t("English"), value: "english", icon: "book-open-page-variant" },
+      { label: t("Pashto"), value: "pashto", icon: "web" },
+      { label: t("Dari"), value: "dari", icon: "translate" },
     ],
-    [],
+    [t],
   );
 
   const hadithLanguages = useMemo(
     () => [
-      { label: "English", value: "english", icon: "book-open-variant" },
-      { label: "العربية", value: "arabic", icon: "script-text" },
+      { label: t("English"), value: "english", icon: "book-open-variant" },
+      { label: t("Arabic"), value: "arabic", icon: "script-text" },
     ],
-    [],
+    [t],
   );
 
   const themeOptions = useMemo(

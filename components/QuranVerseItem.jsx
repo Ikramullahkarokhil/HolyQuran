@@ -13,23 +13,10 @@ import {
   Pressable,
   Platform,
   ActivityIndicator,
+  AppState,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  FadeIn,
-  FadeOut,
-  runOnJS,
-  cancelAnimation,
-} from "react-native-reanimated";
-import {
-  LongPressGestureHandler,
-  State,
-  Gesture,
-  GestureDetector,
-} from "react-native-gesture-handler";
+import Animated, { useAnimatedStyle, FadeIn } from "react-native-reanimated";
+import { LongPressGestureHandler, State } from "react-native-gesture-handler";
 import { Icon } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -38,10 +25,11 @@ import { File, Directory, Paths } from "expo-file-system";
 import {
   getAyahAudioUrl,
   getAyahFileName,
-  DEFAULT_RECITER_ID,
   getReciterById,
 } from "../components/reciters";
+import { getSurahByIndex } from "./quranData";
 import { useReciterStore } from "./store/useReciterStore";
+import { requestAudioNotificationPermission } from "./requestAudioNotificationPermission";
 // Adjust path if your helpers live elsewhere:
 // e.g. "../../components/quranAudio/reciters"
 
@@ -78,9 +66,6 @@ const safeHaptic = (fn) => {
   }
 };
 
-const PRESS_SPRING_IN = { damping: 18, stiffness: 420, mass: 0.45 };
-const PRESS_SPRING_OUT = { damping: 16, stiffness: 300, mass: 0.5 };
-
 const padFolder = (n) => String(n).padStart(3, "0");
 
 /** Root: document/quran-audio */
@@ -93,10 +78,6 @@ const ayahDirFor = (reciterId, surahId) =>
 /** File for a single ayah */
 const ayahFileFor = (reciterId, surahId, ayah) =>
   new File(ayahDirFor(reciterId, surahId), getAyahFileName(surahId, ayah));
-
-/** URI string for createAudioPlayer / storage */
-const localUriFor = (reciterId, surahId, ayah) =>
-  ayahFileFor(reciterId, surahId, ayah).uri;
 
 function ensureDir(dir) {
   if (!dir.exists) {
@@ -140,201 +121,6 @@ async function fetchRemoteSize(url) {
   }
 }
 
-// ─── Seek bar (smooth shared-value driven) ──────────────────────────────────
-const SeekBar = memo(({ progress, onSeek, colors, disabled }) => {
-  const trackWidth = useSharedValue(1);
-  const fill = useSharedValue(progress);
-
-  useEffect(() => {
-    // Short timing keeps the bar fluid without fighting user drags
-    fill.value = withTiming(Math.min(1, Math.max(0, progress)), {
-      duration: 90,
-    });
-  }, [progress, fill]);
-
-  const fillStyle = useAnimatedStyle(() => ({
-    width: `${fill.value * 100}%`,
-  }));
-
-  const thumbStyle = useAnimatedStyle(() => ({
-    left: `${fill.value * 100}%`,
-  }));
-
-  const pan = Gesture.Pan()
-    .enabled(!disabled)
-    .onUpdate((e) => {
-      const w = trackWidth.value || 1;
-      fill.value = Math.min(1, Math.max(0, e.x / w));
-    })
-    .onEnd((e) => {
-      const w = trackWidth.value || 1;
-      const p = Math.min(1, Math.max(0, e.x / w));
-      runOnJS(onSeek)?.(p);
-    });
-
-  const tap = Gesture.Tap()
-    .enabled(!disabled)
-    .onEnd((e) => {
-      const w = trackWidth.value || 1;
-      const p = Math.min(1, Math.max(0, e.x / w));
-      fill.value = p;
-      runOnJS(onSeek)?.(p);
-    });
-
-  return (
-    <GestureDetector gesture={Gesture.Race(pan, tap)}>
-      <View
-        style={styles.seekTrack}
-        onLayout={(e) => {
-          trackWidth.value = e.nativeEvent.layout.width || 1;
-        }}
-      >
-        <View
-          style={[
-            styles.seekTrackBg,
-            { backgroundColor: withAlpha(colors.accent, 0.16) },
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.seekFill,
-            { backgroundColor: colors.accent },
-            fillStyle,
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.seekThumb,
-            {
-              backgroundColor: colors.accent,
-              borderColor: colors.surface,
-            },
-            thumbStyle,
-          ]}
-        />
-      </View>
-    </GestureDetector>
-  );
-});
-SeekBar.displayName = "SeekBar";
-
-// ─── Compact mini player (no speed control) ─────────────────────────────────
-const VerseMiniPlayer = memo(
-  ({
-    colors,
-    isPlaying,
-    positionSec,
-    durationSec,
-    downloadProgress,
-    onPlay,
-    onPause,
-    onSeek,
-    onSkip,
-    onClose,
-  }) => {
-    const progress =
-      durationSec > 0 ? Math.min(1, positionSec / durationSec) : 0;
-
-    return (
-      <Animated.View
-        entering={FadeIn.duration(140)}
-        exiting={FadeOut.duration(100)}
-        style={[
-          styles.miniPlayer,
-          {
-            backgroundColor: withAlpha(colors.accent, 0.07),
-            borderColor: withAlpha(colors.accent, 0.2),
-          },
-        ]}
-      >
-        <View style={styles.miniTopRow}>
-          <Text style={[styles.timeText, { color: colors.secondary }]}>
-            {formatTime(positionSec)}
-            <Text style={{ opacity: 0.5 }}> / {formatTime(durationSec)}</Text>
-          </Text>
-          <Pressable
-            onPress={onClose}
-            hitSlop={12}
-            style={styles.miniClose}
-            accessibilityRole="button"
-            accessibilityLabel="Collapse player"
-          >
-            <Icon source="chevron-up" size={18} color={colors.secondary} />
-          </Pressable>
-        </View>
-
-        {downloadProgress != null && downloadProgress < 1 ? (
-          <View style={styles.dlBarWrap}>
-            <View
-              style={[
-                styles.dlBarBg,
-                { backgroundColor: withAlpha(colors.accent, 0.14) },
-              ]}
-            >
-              <View
-                style={[
-                  styles.dlBarFill,
-                  {
-                    backgroundColor: colors.accent,
-                    width: `${Math.round(downloadProgress * 100)}%`,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.dlPct, { color: colors.accent }]}>
-              {Math.round(downloadProgress * 100)}%
-            </Text>
-          </View>
-        ) : (
-          <SeekBar
-            progress={progress}
-            onSeek={onSeek}
-            colors={colors}
-            disabled={durationSec <= 0}
-          />
-        )}
-
-        <View style={styles.transportRow}>
-          <Pressable
-            onPress={() => onSkip(-5)}
-            hitSlop={10}
-            style={styles.transportBtn}
-            accessibilityLabel="Rewind 5 seconds"
-          >
-            <Icon source="rewind-5" size={20} color={colors.text} />
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              safeHaptic(() =>
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-              );
-              isPlaying ? onPause?.() : onPlay?.();
-            }}
-            style={[styles.playPauseBtn, { backgroundColor: colors.accent }]}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? "Pause" : "Play"}
-          >
-            <Icon
-              source={isPlaying ? "pause" : "play"}
-              size={20}
-              color="#fff"
-            />
-          </Pressable>
-          <Pressable
-            onPress={() => onSkip(5)}
-            hitSlop={10}
-            style={styles.transportBtn}
-            accessibilityLabel="Forward 5 seconds"
-          >
-            <Icon source="fast-forward-5" size={20} color={colors.text} />
-          </Pressable>
-        </View>
-      </Animated.View>
-    );
-  },
-);
-VerseMiniPlayer.displayName = "VerseMiniPlayer";
-
 // ─── Compact chip ───────────────────────────────────────────────────────────
 export const VerseAudioButton = memo(
   ({
@@ -349,24 +135,16 @@ export const VerseAudioButton = memo(
     onPressDownload,
     onPressPlay,
     onPressPause,
-    onExpand,
   }) => {
-    const scale = useSharedValue(1);
-    const pressStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }));
-
     const handlePress = useCallback(() => {
       safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
       if (isDownloading) return;
       if (isPlaying) {
         onPressPause?.();
-        onExpand?.();
         return;
       }
       if (isDownloaded) {
         onPressPlay?.();
-        onExpand?.();
         return;
       }
       onPressDownload?.();
@@ -377,7 +155,6 @@ export const VerseAudioButton = memo(
       onPressDownload,
       onPressPlay,
       onPressPause,
-      onExpand,
     ]);
 
     let icon = "download-outline";
@@ -400,49 +177,35 @@ export const VerseAudioButton = memo(
 
     return (
       <View style={styles.audioChipCol}>
-        <Animated.View style={pressStyle}>
-          <Pressable
-            onPress={handlePress}
-            onPressIn={() => {
-              cancelAnimation(scale);
-              scale.value = withSpring(0.88, PRESS_SPRING_IN);
-            }}
-            onPressOut={() => {
-              cancelAnimation(scale);
-              scale.value = withSpring(1, PRESS_SPRING_OUT);
-            }}
-            disabled={isDownloading}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.audioBtn,
-              {
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                backgroundColor: bg,
-                borderColor: border,
-                opacity: pressed && !isDownloading ? 0.85 : 1,
-              },
-            ]}
-          >
-            {isDownloading ? (
-              <View style={styles.chipProgress}>
-                <ActivityIndicator size="small" color={colors.accent} />
-                {progress > 0 && progress < 1 ? (
-                  <Text style={[styles.chipPct, { color: colors.accent }]}>
-                    {Math.round(progress * 100)}
-                  </Text>
-                ) : null}
-              </View>
-            ) : (
-              <Icon
-                source={icon}
-                size={size >= 36 ? 18 : 16}
-                color={iconColor}
-              />
-            )}
-          </Pressable>
-        </Animated.View>
+        <Pressable
+          onPress={handlePress}
+          disabled={isDownloading}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.audioBtn,
+            {
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              backgroundColor: bg,
+              borderColor: border,
+              opacity: pressed && !isDownloading ? 0.85 : 1,
+            },
+          ]}
+        >
+          {isDownloading ? (
+            <View style={styles.chipProgress}>
+              <ActivityIndicator size="small" color={colors.accent} />
+              {progress > 0 && progress < 1 ? (
+                <Text style={[styles.chipPct, { color: colors.accent }]}>
+                  {Math.round(progress * 100)}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <Icon source={icon} size={size >= 36 ? 18 : 16} color={iconColor} />
+          )}
+        </Pressable>
         {isDownloaded && durationSec > 0 ? (
           <Text style={[styles.durationUnder, { color: colors.secondary }]}>
             {formatTime(durationSec)}
@@ -584,6 +347,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const [errorMsg, setErrorMsg] = useState(null);
 
   const playerRef = useRef(null);
+  const playerListenerRef = useRef(null);
   const statusIntervalRef = useRef(null);
   const bulkCancelRef = useRef(false);
   const downloadAbortRef = useRef(null);
@@ -592,6 +356,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const isMounted = useRef(true);
   const userPausedRef = useRef(false);
   const autoAdvanceRef = useRef(true);
+  const wasPlayingBeforeBackgroundRef = useRef(false);
   const playingAyahRef = useRef(null);
   const ayahListRef = useRef(ayahList);
   const downloadedSetRef = useRef(downloadedSet);
@@ -630,8 +395,48 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       interruptionMode: "doNotMix",
     }).catch(() => {});
 
+    const appStateSubscription = AppState.addEventListener(
+      "change",
+      (nextState) => {
+        if (nextState === "background" || nextState === "inactive") {
+          wasPlayingBeforeBackgroundRef.current =
+            !!playingAyahRef.current && !userPausedRef.current;
+          return;
+        }
+        if (nextState !== "active") return;
+
+        const resumeAfterForeground = async () => {
+          try {
+            await setAudioModeAsync({
+              playsInSilentMode: true,
+              shouldPlayInBackground: true,
+              shouldRouteThroughEarpiece: false,
+              interruptionMode: "doNotMix",
+            });
+          } catch {}
+
+          const player = playerRef.current;
+          const ayah = playingAyahRef.current;
+          if (
+            player &&
+            ayah != null &&
+            wasPlayingBeforeBackgroundRef.current &&
+            !userPausedRef.current &&
+            !player.playing
+          ) {
+            try {
+              player.play();
+              setPlayingId(ayah);
+            } catch {}
+          }
+        };
+        resumeAfterForeground();
+      },
+    );
+
     return () => {
       isMounted.current = false;
+      appStateSubscription.remove();
       bulkCancelRef.current = true;
       autoAdvanceRef.current = false;
       try {
@@ -641,7 +446,14 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         clearInterval(statusIntervalRef.current);
         statusIntervalRef.current = null;
       }
+      try {
+        playerListenerRef.current?.remove?.();
+      } catch {}
+      playerListenerRef.current = null;
       if (playerRef.current) {
+        try {
+          playerRef.current.clearLockScreenControls?.();
+        } catch {}
         try {
           playerRef.current.pause();
         } catch {}
@@ -703,7 +515,14 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       clearInterval(statusIntervalRef.current);
       statusIntervalRef.current = null;
     }
+    try {
+      playerListenerRef.current?.remove?.();
+    } catch {}
+    playerListenerRef.current = null;
     if (playerRef.current) {
+      try {
+        playerRef.current.clearLockScreenControls?.();
+      } catch {}
       try {
         playerRef.current.pause();
       } catch {}
@@ -713,6 +532,33 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       playerRef.current = null;
     }
   }, []);
+
+  const refreshLockScreenControls = useCallback(() => {
+    const player = playerRef.current;
+    const ayah = playingAyahRef.current;
+    if (!player || ayah == null) return false;
+
+    const surahName = getSurahByIndex(surahId)?.name || `Surah ${surahId}`;
+    const metadata = {
+      title: `${surahName} - Ayah ${ayah}`,
+      artist: getReciterById(reciterId)?.name || "Quran Audio",
+      albumTitle: "Quran Audio",
+    };
+
+    try {
+      if (player.setActiveForLockScreen) {
+        player.setActiveForLockScreen(true, metadata, {
+          showSeekBackward: true,
+          showSeekForward: true,
+        });
+      } else if (player.updateLockScreenMetadata) {
+        player.updateLockScreenMetadata(metadata);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }, [reciterId, surahId]);
 
   const markDownloaded = useCallback(
     async (ayah, durationSec, byteSize) => {
@@ -916,53 +762,47 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     }
   }, []);
 
-  const startStatusPolling = useCallback(
-    (player, ayah) => {
+  const startStatusPolling = useCallback((player, ayah) => {
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current);
+    }
+    // ~10fps UI updates for a smooth progress line
+    statusIntervalRef.current = setInterval(() => {
+      if (!playerRef.current || !isMounted.current) return;
+      try {
+        const current = player.currentTime ?? 0;
+        const dur = player.duration ?? 0;
+        positionRef.current = current;
+        if (dur > 0) durationRef.current = dur;
+
+        setPositionSec(current);
+
+        if (dur > 0) {
+          setDurationMap((prev) => {
+            if (prev.get(ayah) === dur) return prev;
+            const n = new Map(prev);
+            n.set(ayah, dur);
+            return n;
+          });
+        }
+      } catch {}
+    }, 100);
+  }, []);
+
+  const handlePlaybackFinished = useCallback(
+    (ayah) => {
       if (statusIntervalRef.current) {
         clearInterval(statusIntervalRef.current);
+        statusIntervalRef.current = null;
       }
-      // ~10fps UI updates for a smooth progress line
-      statusIntervalRef.current = setInterval(() => {
-        if (!playerRef.current || !isMounted.current) return;
-        try {
-          const current = player.currentTime ?? 0;
-          const dur = player.duration ?? 0;
-          positionRef.current = current;
-          if (dur > 0) durationRef.current = dur;
+      setPlayingId(null);
+      playingAyahRef.current = null;
+      positionRef.current = 0;
+      setPositionSec(0);
 
-          setPositionSec(current);
-
-          if (dur > 0) {
-            setDurationMap((prev) => {
-              if (prev.get(ayah) === dur) return prev;
-              const n = new Map(prev);
-              n.set(ayah, dur);
-              return n;
-            });
-          }
-
-          const ended =
-            dur > 0 &&
-            current >= dur - 0.12 &&
-            (player.playing === false || current >= dur - 0.02);
-
-          if (ended) {
-            if (statusIntervalRef.current) {
-              clearInterval(statusIntervalRef.current);
-              statusIntervalRef.current = null;
-            }
-            setPlayingId(null);
-            playingAyahRef.current = null;
-            positionRef.current = 0;
-            setPositionSec(0);
-
-            // Auto-advance unless user paused
-            if (!userPausedRef.current && autoAdvanceRef.current) {
-              advanceToNext(ayah);
-            }
-          }
-        } catch {}
-      }, 100);
+      if (!userPausedRef.current && autoAdvanceRef.current) {
+        advanceToNext(ayah);
+      }
     },
     [advanceToNext],
   );
@@ -1014,6 +854,13 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       autoAdvanceRef.current = true;
 
       try {
+        const notificationsAllowed = await requestAudioNotificationPermission();
+        if (!notificationsAllowed && Platform.OS === "android") {
+          throw new Error(
+            "Notification permission is required for playback controls",
+          );
+        }
+
         const file = ayahFileFor(reciterId, surahId, ayah);
         let uri = file.uri;
         if (!file.exists || (file.size ?? 0) < 512) {
@@ -1022,12 +869,47 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
           if (!fromAuto && isMounted.current) setDownloadingId(null);
         }
 
-        unloadPlayer();
+        if (statusIntervalRef.current) {
+          clearInterval(statusIntervalRef.current);
+          statusIntervalRef.current = null;
+        }
 
-        // 100ms status updates from native player when supported
-        const player = createAudioPlayer({ uri }, 100);
-        playerRef.current = player;
+        // Keep one native player/media session alive so the notification is updated in place.
+        let player = playerRef.current;
+        if (player) {
+          try {
+            player.replace({ uri });
+          } catch {
+            unloadPlayer();
+            player = null;
+          }
+        }
+
+        if (!player) {
+          player = createAudioPlayer(
+            { uri },
+            { updateInterval: 100, preferredForwardBufferDuration: 30 },
+          );
+          playerRef.current = player;
+          playerListenerRef.current = player.addListener?.(
+            "playbackStatusUpdate",
+            (status) => {
+              const currentPlayer = playerRef.current;
+              const currentAyah = playingAyahRef.current;
+              if (currentPlayer !== player || currentAyah == null) return;
+              if (status?.isLoaded && status.playing) {
+                setPlayingId(currentAyah);
+              }
+              if (status?.didJustFinish) {
+                handlePlaybackFinished(currentAyah);
+              }
+            },
+          );
+        }
+
         playingAyahRef.current = ayah;
+
+        refreshLockScreenControls();
 
         player.play();
 
@@ -1091,9 +973,11 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       downloadOne,
       unloadPlayer,
       startStatusPolling,
+      handlePlaybackFinished,
       durationMap,
       sizeMap,
       prefetchNext,
+      refreshLockScreenControls,
     ],
   );
 
@@ -1246,6 +1130,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     collapsePlayer,
     downloadAll,
     cancelDownloadAll,
+    refreshLockScreenControls,
   };
 }
 
@@ -1271,18 +1156,12 @@ export const VerseItem = memo(
     isAudioDownloaded,
     isAudioPlaying,
     isAudioDownloading,
-    isPlayerExpanded,
     audioDurationSec,
-    audioPositionSec,
     audioSizeLabel,
     audioDownloadProgress,
     onAudioDownload,
     onAudioPlay,
     onAudioPause,
-    onAudioSeek,
-    onAudioSkip,
-    onAudioExpand,
-    onAudioCollapse,
   }) => {
     const rippleStyle = useAnimatedStyle(() => {
       if (!isHighlighted) return { opacity: 0, transform: [{ scale: 1 }] };
@@ -1375,7 +1254,6 @@ export const VerseItem = memo(
 
               <VerseAudioButton
                 colors={colors}
-                size={34}
                 isDownloaded={isAudioDownloaded}
                 isPlaying={isAudioPlaying}
                 isDownloading={isAudioDownloading}
@@ -1385,7 +1263,6 @@ export const VerseItem = memo(
                 onPressDownload={() => onAudioDownload?.(item.ayah)}
                 onPressPlay={() => onAudioPlay?.(item.ayah)}
                 onPressPause={onAudioPause}
-                onExpand={() => onAudioExpand?.(item.ayah)}
               />
             </View>
 
@@ -1417,23 +1294,6 @@ export const VerseItem = memo(
             >
               {translationVerse}
             </Text>
-
-            {isPlayerExpanded && isAudioDownloaded ? (
-              <VerseMiniPlayer
-                colors={colors}
-                isPlaying={isAudioPlaying}
-                positionSec={audioPositionSec}
-                durationSec={audioDurationSec}
-                downloadProgress={
-                  isAudioDownloading ? audioDownloadProgress : null
-                }
-                onPlay={() => onAudioPlay?.(item.ayah)}
-                onPause={onAudioPause}
-                onSeek={onAudioSeek}
-                onSkip={onAudioSkip}
-                onClose={onAudioCollapse}
-              />
-            ) : null}
 
             {isPashtoTranslation ? (
               <Pressable
@@ -1504,9 +1364,7 @@ export const VerseItem = memo(
     prev.isAudioDownloaded === next.isAudioDownloaded &&
     prev.isAudioPlaying === next.isAudioPlaying &&
     prev.isAudioDownloading === next.isAudioDownloading &&
-    prev.isPlayerExpanded === next.isPlayerExpanded &&
     prev.audioDurationSec === next.audioDurationSec &&
-    prev.audioPositionSec === next.audioPositionSec &&
     prev.audioSizeLabel === next.audioSizeLabel &&
     prev.audioDownloadProgress === next.audioDownloadProgress &&
     prev.surahId === next.surahId,
@@ -1533,78 +1391,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 3,
     letterSpacing: 0.2,
-  },
-  miniPlayer: {
-    marginTop: 10,
-    paddingTop: 10,
-    paddingBottom: 6,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  miniTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  miniClose: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    fontVariant: ["tabular-nums"],
-  },
-  dlBarWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 6,
-  },
-  dlBarBg: { flex: 1, height: 3.5, borderRadius: 2, overflow: "hidden" },
-  dlBarFill: { height: 3.5, borderRadius: 2 },
-  dlPct: { fontSize: 11, fontWeight: "700", minWidth: 34, textAlign: "right" },
-  seekTrack: { height: 26, justifyContent: "center", marginBottom: 2 },
-  seekTrackBg: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 3.5,
-    borderRadius: 2,
-  },
-  seekFill: { position: "absolute", left: 0, height: 3.5, borderRadius: 2 },
-  seekThumb: {
-    position: "absolute",
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginLeft: -6,
-    borderWidth: 2,
-    top: 7,
-  },
-  transportRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 20,
-    marginTop: 2,
-  },
-  transportBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  playPauseBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
   },
   surahAudioBar: {
     flexDirection: "row",

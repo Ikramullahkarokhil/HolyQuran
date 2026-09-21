@@ -100,6 +100,7 @@ const getArabicVersesForSurah = (surahNumber) =>
 
 export {
   getArabicVerseById,
+  getArabicVersesById,
   getArabicVersesForSurah,
   getQuranData,
   getQuranVerses,

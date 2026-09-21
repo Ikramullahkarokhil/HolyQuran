@@ -14,6 +14,7 @@ import {
   Pressable,
   Platform,
   StatusBar,
+  AppState,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -27,6 +28,7 @@ import Animated, {
   FadeOut,
   FadeInDown,
   FadeOutDown,
+  FadeOutUp,
   interpolate,
   Extrapolation,
   useAnimatedReaction,
@@ -44,6 +46,8 @@ import {
   FlingGestureHandler,
   State,
   GestureHandlerRootView,
+  Gesture,
+  GestureDetector,
 } from "react-native-gesture-handler";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
@@ -66,11 +70,8 @@ import GeneralModal from "../../components/GeneralModal";
 import { useAppAlert } from "../../components/AppAlertProvider";
 import { getPashtoTafseerForSurah } from "../../components/tafseerData";
 import { isRTL } from "../../components/utils/rtlUtils";
-import {
-  VerseItem,
-  SurahAudioToolbar,
-  useSurahAudioRegistry,
-} from "../../components/QuranVerseItem";
+import { VerseItem, SurahAudioToolbar } from "../../components/QuranVerseItem";
+import { useAudioPlayer } from "../../components/AudioPlayerProvider";
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,13 @@ const safeHaptic = (fn) => {
   }
 };
 
+const formatTime = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const s = Math.floor(seconds % 60);
+  const m = Math.floor(seconds / 60);
+  return `${m}:${s < 10 ? "0" : ""}${s}`;
+};
+
 const formatBytes = (bytes) => {
   if (!Number.isFinite(bytes) || bytes <= 0) return null;
   if (bytes < 1024) return `${bytes} B`;
@@ -117,6 +125,7 @@ const SURAH_LIST = getSurahNames();
 const getTranslationData = (language) => getQuranVerses(language);
 
 const HEADER_EXPANDED = 56;
+const AUDIO_FOCUS_VIEW_POSITION = 0.55;
 
 const ENTER_SPRING = { damping: 22, stiffness: 180, mass: 0.9 };
 const COMPACT_SPRING = { damping: 26, stiffness: 240, mass: 0.75 };
@@ -146,11 +155,13 @@ const MiniPill = memo(
 
     const handlePressIn = useCallback(() => {
       cancelAnimation(scale);
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = withSpring(0.88, PRESS_SPRING_IN);
     }, [scale]);
 
     const handlePressOut = useCallback(() => {
       cancelAnimation(scale);
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = withSpring(1, PRESS_SPRING_OUT);
     }, [scale]);
 
@@ -202,6 +213,249 @@ const MiniPill = memo(
   },
 );
 MiniPill.displayName = "MiniPill";
+
+// ─── Interactive Seek bar ──────────────────────────────────────────────────
+
+const SeekBar = memo(({ progress, onSeek, colors, disabled }) => {
+  const trackWidth = useSharedValue(1);
+  const fill = useSharedValue(progress);
+
+  useEffect(() => {
+    fill.value = withTiming(Math.min(1, Math.max(0, progress)), {
+      duration: 90,
+    });
+  }, [fill, progress]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${fill.value * 100}%`,
+  }));
+
+  const thumbStyle = useAnimatedStyle(() => ({
+    left: `${fill.value * 100}%`,
+  }));
+
+  const pan = Gesture.Pan()
+    .enabled(!disabled)
+    .onUpdate((e) => {
+      const w = trackWidth.value || 1;
+      // eslint-disable-next-line react-hooks/immutability
+      fill.value = Math.min(1, Math.max(0, e.x / w));
+    })
+    .onEnd((e) => {
+      const w = trackWidth.value || 1;
+      const p = Math.min(1, Math.max(0, e.x / w));
+      runOnJS(onSeek)?.(p);
+    });
+
+  const tap = Gesture.Tap()
+    .enabled(!disabled)
+    .onEnd((e) => {
+      const w = trackWidth.value || 1;
+      const p = Math.min(1, Math.max(0, e.x / w));
+      // eslint-disable-next-line react-hooks/immutability
+      fill.value = p;
+      runOnJS(onSeek)?.(p);
+    });
+
+  return (
+    <GestureDetector gesture={Gesture.Race(pan, tap)}>
+      <View
+        style={styles.seekTrack}
+        onLayout={(e) => {
+          trackWidth.value = e.nativeEvent.layout.width || 1;
+        }}
+      >
+        <View
+          style={[
+            styles.seekTrackBg,
+            { backgroundColor: withAlpha(colors.accent, 0.16) },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.seekFill,
+            { backgroundColor: colors.accent },
+            fillStyle,
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.seekThumb,
+            {
+              backgroundColor: colors.accent,
+              borderColor: colors.surface,
+            },
+            thumbStyle,
+          ]}
+        />
+      </View>
+    </GestureDetector>
+  );
+});
+SeekBar.displayName = "SeekBar";
+
+// ─── Global Page-Level Floating Audio Player ────────────────────────────────
+
+const GlobalAudioPlayer = memo(
+  ({
+    activeAyah,
+    isPlaying,
+    isDownloading,
+    downloadProgress = 0,
+    positionSec = 0,
+    durationSec = 0,
+    reciter,
+    colors,
+    labels,
+    onPlay,
+    onPause,
+    onSeek,
+    onSkip,
+    onJumpToVerse,
+    topOffset,
+  }) => {
+    const progress =
+      durationSec > 0 ? Math.min(1, Math.max(0, positionSec / durationSec)) : 0;
+    const reciterName =
+      reciter?.name ||
+      reciter?.englishName ||
+      labels.quranAudio ||
+      "Quran Audio";
+
+    return (
+      <Animated.View
+        entering={FadeInDown.duration(220).easing(Easing.out(Easing.cubic))}
+        exiting={FadeOutUp.duration(160).easing(Easing.in(Easing.quad))}
+        style={[
+          styles.globalPlayerContainer,
+          {
+            top: topOffset,
+            backgroundColor: colors.surface,
+            borderColor: withAlpha(colors.accent, 0.28),
+            shadowColor: colors.shadow,
+          },
+        ]}
+      >
+        {/* Top Info Bar */}
+        <View style={styles.globalPlayerTopRow}>
+          <Pressable
+            onPress={onJumpToVerse}
+            style={({ pressed }) => [
+              styles.globalPlayerAyahTag,
+              { backgroundColor: withAlpha(colors.accent, 0.12) },
+              pressed && { opacity: 0.8 },
+            ]}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Jump to Ayah ${activeAyah}`}
+          >
+            <Icon source="volume-high" size={14} color={colors.accent} />
+            <Text
+              style={[styles.globalPlayerAyahText, { color: colors.accent }]}
+            >
+              {labels.ayah || "Ayah"} {activeAyah}
+            </Text>
+            <Icon source="target" size={12} color={colors.accent} />
+          </Pressable>
+
+          <Text
+            style={[styles.globalPlayerReciter, { color: colors.secondary }]}
+            numberOfLines={1}
+          >
+            {reciterName}
+          </Text>
+
+          <View style={styles.globalPlayerTopRight}>
+            <Text
+              style={[styles.globalPlayerTime, { color: colors.secondary }]}
+            >
+              {formatTime(positionSec)} / {formatTime(durationSec)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Seek track or Download status */}
+        {isDownloading ? (
+          <View style={styles.globalPlayerDlRow}>
+            <View
+              style={[
+                styles.globalPlayerTrackBg,
+                { backgroundColor: withAlpha(colors.accent, 0.16) },
+              ]}
+            >
+              <View
+                style={[
+                  styles.globalPlayerDlFill,
+                  {
+                    backgroundColor: colors.accent,
+                    width: `${Math.round((downloadProgress || 0) * 100)}%`,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[styles.globalPlayerDlPct, { color: colors.accent }]}>
+              {Math.round((downloadProgress || 0) * 100)}%
+            </Text>
+          </View>
+        ) : (
+          <SeekBar
+            progress={progress}
+            onSeek={onSeek}
+            colors={colors}
+            disabled={durationSec <= 0}
+          />
+        )}
+
+        {/* Transport Controls */}
+        <View style={styles.globalPlayerControlsRow}>
+          <Pressable
+            onPress={() => onSkip(-5)}
+            hitSlop={10}
+            style={styles.globalPlayerControlBtn}
+            accessibilityLabel="Rewind 5 seconds"
+          >
+            <Icon source="rewind-5" size={20} color={colors.text} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              safeHaptic(() =>
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+              );
+              if (isPlaying) {
+                onPause?.();
+              } else {
+                onPlay?.();
+              }
+            }}
+            style={[
+              styles.globalPlayerPlayBtn,
+              { backgroundColor: colors.accent },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? "Pause" : "Play"}
+          >
+            <Icon
+              source={isPlaying ? "pause" : "play"}
+              size={20}
+              color="#fff"
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={() => onSkip(5)}
+            hitSlop={10}
+            style={styles.globalPlayerControlBtn}
+            accessibilityLabel="Forward 5 seconds"
+          >
+            <Icon source="fast-forward-5" size={20} color={colors.text} />
+          </Pressable>
+        </View>
+      </Animated.View>
+    );
+  },
+);
+GlobalAudioPlayer.displayName = "GlobalAudioPlayer";
 
 // ─── Collapsible floating header ────────────────────────────────────────────
 
@@ -266,6 +520,7 @@ const FloatingPillHeader = memo(
         lastChangeTime.value = now;
 
         if (direction > 0) {
+          // eslint-disable-next-line react-hooks/immutability
           compactProgress.value = withSpring(1, COMPACT_SPRING);
         } else {
           compactProgress.value = withSpring(0, COMPACT_SPRING);
@@ -428,8 +683,6 @@ const SurahDetails = () => {
   const { showAlert, showToast } = useAppAlert();
   const { translationLanguage, setTranslationLanguage } =
     useQuranTranslationStore();
-  const { language: appLanguage } = useAppLanguageStore();
-  const rtl = isRTL(appLanguage);
 
   const listRef = useRef(null);
   const isMounted = useRef(true);
@@ -527,6 +780,8 @@ const SurahDetails = () => {
       done: t("Done") || "Done",
       cancel: t("Cancel") || "Cancel",
       ayahs: t("ayahs") || "ayahs",
+      ayah: t("Ayah") || "Ayah",
+      quranAudio: t("Quran Audio") || "Quran Audio",
     }),
     [t],
   );
@@ -551,6 +806,7 @@ const SurahDetails = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHighlightedAyahId(null);
     setExpandedTafseerIds(new Set());
     setShowScrollTop(false);
@@ -619,9 +875,8 @@ const SurahDetails = () => {
     return getArabicVersesForSurah(surahId);
   }, [surahId]);
 
-  const ayahNumberList = useMemo(() => verses.map((v) => v.ayah), [verses]);
-
-  // ─── Audio registry (EveryAyah download + play) ───────────────────────────
+  // ─── Audio registry ───────────────────────────────────────────────────────
+  const audioPlayer = useAudioPlayer();
   const {
     downloadedSet,
     durationMap,
@@ -635,17 +890,90 @@ const SurahDetails = () => {
     bulkProgress,
     downloadedCount,
     totalBytesLabel,
+    reciter,
     errorMsg,
     downloadVerse,
     playVerse,
     pauseVerse,
-    seekTo,
-    skipBy,
-    expandPlayer,
-    collapsePlayer,
     downloadAll,
     cancelDownloadAll,
-  } = useSurahAudioRegistry(surahId, ayahNumberList);
+  } = audioPlayer;
+  const activeAudioAyah = audioPlayer.activeAyah;
+  const { registerSurah } = audioPlayer;
+
+  useEffect(() => {
+    registerSurah(surahId);
+  }, [registerSurah, surahId]);
+
+  const reciterId = reciter?.id;
+  const audioResumeKey = useMemo(
+    () =>
+      surahId > 0 && reciterId != null
+        ? `surah_audio_last_${reciterId}_${surahId}`
+        : null,
+    [reciterId, surahId],
+  );
+
+  useEffect(() => {
+    if (!audioResumeKey || playingId == null) return;
+    AsyncStorage.setItem(audioResumeKey, String(playingId)).catch(() => {});
+  }, [audioResumeKey, playingId]);
+
+  // Auto scroll to verse when playingId changes
+  useEffect(() => {
+    if (!playingId || !listRef.current) return;
+    const idx = verses.findIndex((v) => v.ayah === playingId);
+    if (idx >= 0) {
+      try {
+        listRef.current.scrollToIndex?.({
+          index: idx,
+          animated: true,
+          viewPosition: AUDIO_FOCUS_VIEW_POSITION,
+        });
+      } catch {}
+    }
+  }, [playingId, verses]);
+
+  const restoreAudioPosition = useCallback(() => {
+    if (!playingId || targetAyahId != null) return undefined;
+    const index = verses.findIndex((verse) => verse.ayah === playingId);
+    if (index < 0) return undefined;
+
+    const restore = (animated) => {
+      try {
+        listRef.current?.scrollToIndex?.({
+          index,
+          animated,
+          viewPosition: AUDIO_FOCUS_VIEW_POSITION,
+        });
+      } catch {}
+    };
+
+    restore(false);
+    const firstRetry = setTimeout(() => restore(false), 120);
+    const secondRetry = setTimeout(() => restore(true), 420);
+    return () => {
+      clearTimeout(firstRetry);
+      clearTimeout(secondRetry);
+    };
+  }, [playingId, targetAyahId, verses]);
+
+  useFocusEffect(
+    useCallback(() => restoreAudioPosition(), [restoreAudioPosition]),
+  );
+
+  useEffect(() => {
+    let cleanup = null;
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active") return;
+      cleanup?.();
+      cleanup = restoreAudioPosition();
+    });
+    return () => {
+      cleanup?.();
+      subscription.remove();
+    };
+  }, [restoreAudioPosition]);
 
   // Surface download / playback errors
   useEffect(() => {
@@ -741,11 +1069,11 @@ const SurahDetails = () => {
 
   const quranLanguageOptions = useMemo(
     () => [
-      { label: "English", value: "english" },
-      { label: "پښتو", value: "pashto" },
-      { label: "دری", value: "dari" },
+      { label: t("English"), value: "english" },
+      { label: t("Pashto"), value: "pashto" },
+      { label: t("Dari"), value: "dari" },
     ],
-    [],
+    [t],
   );
 
   const currentIndex = surahId > 0 ? surahId - 1 : -1;
@@ -998,13 +1326,7 @@ const SurahDetails = () => {
           isAudioDownloaded={downloadedSet.has(item.ayah)}
           isAudioPlaying={playingId === item.ayah}
           isAudioDownloading={downloadingId === item.ayah}
-          isPlayerExpanded={expandedId === item.ayah}
           audioDurationSec={durationMap.get(item.ayah) || 0}
-          audioPositionSec={
-            playingId === item.ayah || expandedId === item.ayah
-              ? positionSec
-              : 0
-          }
           audioSizeLabel={sizeBytes ? formatBytes(sizeBytes) : null}
           audioDownloadProgress={
             typeof dlProgress === "number" ? dlProgress : 0
@@ -1012,10 +1334,6 @@ const SurahDetails = () => {
           onAudioDownload={downloadVerse}
           onAudioPlay={playVerse}
           onAudioPause={pauseVerse}
-          onAudioSeek={seekTo}
-          onAudioSkip={skipBy}
-          onAudioExpand={expandPlayer}
-          onAudioCollapse={collapsePlayer}
         />
       );
     },
@@ -1037,20 +1355,12 @@ const SurahDetails = () => {
       downloadedSet,
       playingId,
       downloadingId,
-      expandedId,
       durationMap,
       sizeMap,
       downloadProgressMap,
-      positionSec,
-
       downloadVerse,
       playVerse,
       pauseVerse,
-      seekTo,
-      skipBy,
-
-      expandPlayer,
-      collapsePlayer,
     ],
   );
 
@@ -1072,10 +1382,13 @@ const SurahDetails = () => {
     [updateScrollTopVisibility],
   );
 
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50,
-    minimumViewTime: 80,
-  }).current;
+  const viewabilityConfig = useMemo(
+    () => ({
+      itemVisiblePercentThreshold: 50,
+      minimumViewTime: 80,
+    }),
+    [],
+  );
 
   const handleViewableItemsChanged = useCallback(
     ({ viewableItems }) => {
@@ -1271,7 +1584,10 @@ const SurahDetails = () => {
               contentContainerStyle={[
                 styles.listContent,
                 {
-                  paddingTop: listTopPadding,
+                  paddingTop:
+                    activeAudioAyah != null
+                      ? listTopPadding + 110
+                      : listTopPadding,
                   paddingBottom: insets.bottom + 72,
                 },
               ]}
@@ -1486,6 +1802,141 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: "center",
     letterSpacing: 0.12,
+  },
+
+  // Global Audio Player
+  globalPlayerContainer: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    zIndex: 19,
+    maxWidth: 580,
+    alignSelf: "center",
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 8,
+    ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.16,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  globalPlayerTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 4,
+  },
+  globalPlayerAyahTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  globalPlayerAyahText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  globalPlayerReciter: {
+    fontSize: 12,
+    fontWeight: "600",
+    flex: 1,
+    textAlign: "center",
+  },
+  globalPlayerTopRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  globalPlayerTime: {
+    fontSize: 11.5,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
+  globalPlayerCloseBtn: {
+    width: 26,
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  globalPlayerDlRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginVertical: 6,
+  },
+  globalPlayerTrackBg: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  globalPlayerDlFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  globalPlayerDlPct: {
+    fontSize: 11,
+    fontWeight: "700",
+    minWidth: 32,
+    textAlign: "right",
+  },
+  seekTrack: {
+    height: 22,
+    justifyContent: "center",
+    marginVertical: 2,
+  },
+  seekTrackBg: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 3.5,
+    borderRadius: 2,
+  },
+  seekFill: {
+    position: "absolute",
+    left: 0,
+    height: 3.5,
+    borderRadius: 2,
+  },
+  seekThumb: {
+    position: "absolute",
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginLeft: -6,
+    borderWidth: 2,
+    top: 5,
+  },
+  globalPlayerControlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 22,
+    marginTop: 2,
+  },
+  globalPlayerControlBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  globalPlayerPlayBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   listContent: {

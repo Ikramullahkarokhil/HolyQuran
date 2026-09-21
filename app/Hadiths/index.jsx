@@ -123,11 +123,13 @@ const MiniPill = memo(
 
     const handlePressIn = useCallback(() => {
       cancelAnimation(scale);
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = withSpring(0.88, PRESS_SPRING_IN);
     }, [scale]);
 
     const handlePressOut = useCallback(() => {
       cancelAnimation(scale);
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = withSpring(1, PRESS_SPRING_OUT);
     }, [scale]);
 
@@ -238,6 +240,7 @@ const FloatingPillHeader = memo(
         lastChangeTime.value = now;
 
         if (direction > 0) {
+          // eslint-disable-next-line react-hooks/immutability
           compactProgress.value = withSpring(1, COMPACT_SPRING);
         } else {
           compactProgress.value = withSpring(0, COMPACT_SPRING);
@@ -632,6 +635,7 @@ const HadithsScreen = () => {
 
   // Reset when book / collection changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHighlightedHadithId(null);
     setShowScrollTop(false);
     showScrollTopRef.current = false;
@@ -854,10 +858,10 @@ const HadithsScreen = () => {
 
   const hadithLanguageOptions = useMemo(
     () => [
-      { label: "English", value: "english" },
-      { label: "العربية", value: "arabic" },
+      { label: t("English"), value: "english" },
+      { label: t("Arabic"), value: "arabic" },
     ],
-    [],
+    [t],
   );
 
   const handleLongPress = useCallback(
@@ -1064,10 +1068,13 @@ const HadithsScreen = () => {
     [updateScrollTopVisibility],
   );
 
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50,
-    minimumViewTime: 80,
-  }).current;
+  const viewabilityConfig = useMemo(
+    () => ({
+      itemVisiblePercentThreshold: 50,
+      minimumViewTime: 80,
+    }),
+    [],
+  );
 
   const handleViewableItemsChanged = useCallback(
     ({ viewableItems }) => {

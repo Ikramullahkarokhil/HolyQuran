@@ -21,9 +21,7 @@ import { getSurahNames } from "../../../components/quranData";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import useThemeStore from "../../../components/store/useThemeStore";
-import { useAppLanguageStore } from "../../../components/store/store";
 import { darkTheme, lightTheme } from "../../../components/Theme";
-import { isRTL } from "../../../components/utils/rtlUtils";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -60,6 +58,7 @@ const SearchBar = memo(
           {
             backgroundColor: colors.searchBg,
             borderColor: colors.border,
+            flexDirection: isRtl ? "row-reverse" : "row",
           },
         ]}
       >
@@ -94,7 +93,7 @@ SearchBar.displayName = "SearchBar";
 // ─── Memoized Surah Card ────────────────────────────────────────────────────
 
 const SurahItem = memo(
-  ({ surah, labels, colors, onSelect }) => {
+  ({ surah, labels, colors, onSelect, rtl, textAlign, writingDirection }) => {
     const isMeccan = surah.type === "Meccan";
     const typeLabel = isMeccan ? labels.meccan : labels.medinan;
 
@@ -105,10 +104,12 @@ const SurahItem = memo(
     }));
 
     const handlePressIn = () => {
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = withSpring(0.98, { damping: 15, stiffness: 300 });
     };
 
     const handlePressOut = () => {
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = withSpring(1, { damping: 15, stiffness: 300 });
     };
 
@@ -132,6 +133,7 @@ const SurahItem = memo(
             {
               backgroundColor: colors.card,
               borderColor: colors.border,
+              flexDirection: rtl ? "row-reverse" : "row",
             },
           ]}
           accessibilityRole="button"
@@ -140,20 +142,35 @@ const SurahItem = memo(
           {/* Surah Main Details */}
           <View style={styles.content}>
             <Text
-              style={[styles.arabicName, { color: colors.text }]}
+              style={[
+                styles.arabicName,
+                {
+                  color: colors.text,
+                  textAlign: "right",
+                  writingDirection: "rtl",
+                },
+              ]}
               numberOfLines={1}
             >
               {surah.name}
             </Text>
 
             <Text
-              style={[styles.transliterated, { color: colors.secondary }]}
+              style={[
+                styles.transliterated,
+                { color: colors.secondary, textAlign, writingDirection },
+              ]}
               numberOfLines={1}
             >
               {surah.tname}
             </Text>
 
-            <View style={styles.metaRow}>
+            <View
+              style={[
+                styles.metaRow,
+                { justifyContent: rtl ? "flex-end" : "flex-start" },
+              ]}
+            >
               <View
                 style={[
                   styles.typeChip,
@@ -169,6 +186,8 @@ const SurahItem = memo(
                     styles.typeText,
                     {
                       color: isMeccan ? colors.meccanText : colors.medinanText,
+                      textAlign,
+                      writingDirection,
                     },
                   ]}
                 >
@@ -176,7 +195,12 @@ const SurahItem = memo(
                 </Text>
               </View>
 
-              <Text style={[styles.verseCount, { color: colors.secondary }]}>
+              <Text
+                style={[
+                  styles.verseCount,
+                  { color: colors.secondary, textAlign, writingDirection },
+                ]}
+              >
                 {`${surah.ayas} ${labels.verseLabel}`}
               </Text>
             </View>
@@ -189,6 +213,8 @@ const SurahItem = memo(
               {
                 backgroundColor: colors.badgeBg,
                 borderColor: colors.badgeBorder,
+                marginLeft: rtl ? 6 : 0,
+                marginRight: rtl ? 0 : 6,
               },
             ]}
           >
@@ -198,7 +224,11 @@ const SurahItem = memo(
           </View>
           {/* Chevron Indicator */}
           <View style={styles.chevronWrap}>
-            <Icon source="chevron-left" size={20} color={colors.secondary} />
+            <Icon
+              source={rtl ? "chevron-left" : "chevron-right"}
+              size={20}
+              color={colors.secondary}
+            />
           </View>
         </Pressable>
       </Animated.View>
@@ -212,7 +242,10 @@ const SurahItem = memo(
     prev.surah.type === next.surah.type &&
     prev.labels === next.labels &&
     prev.colors === next.colors &&
-    prev.onSelect === next.onSelect,
+    prev.onSelect === next.onSelect &&
+    prev.rtl === next.rtl &&
+    prev.textAlign === next.textAlign &&
+    prev.writingDirection === next.writingDirection,
 );
 SurahItem.displayName = "SurahItem";
 
@@ -244,7 +277,7 @@ EmptyState.displayName = "EmptyState";
 
 // ─── Skeleton Loading State ─────────────────────────────────────────────────
 
-const LoadingState = memo(({ colors }) => {
+const LoadingState = memo(({ colors, rtl }) => {
   const pulse = useSharedValue(0.4);
 
   useEffect(() => {
@@ -264,17 +297,30 @@ const LoadingState = memo(({ colors }) => {
           key={i}
           style={[
             styles.skeletonCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              flexDirection: rtl ? "row-reverse" : "row",
+            },
           ]}
         >
           <Animated.View
             style={[
               styles.skeletonBadge,
               pulseStyle,
-              { backgroundColor: colors.skeleton },
+              {
+                backgroundColor: colors.skeleton,
+                marginLeft: rtl ? 12 : 0,
+                marginRight: rtl ? 0 : 12,
+              },
             ]}
           />
-          <View style={styles.skeletonBody}>
+          <View
+            style={[
+              styles.skeletonBody,
+              { alignItems: rtl ? "flex-end" : "flex-start" },
+            ]}
+          >
             <Animated.View
               style={[
                 styles.skeletonLineWide,
@@ -306,11 +352,10 @@ const Home = () => {
 
   const isDarkTheme = useThemeStore((s) => s.isDarkTheme);
   const theme = isDarkTheme ? darkTheme : lightTheme;
-  const appLanguage = useAppLanguageStore((s) => s.language);
   const { t } = useTranslation();
   const router = useRouter();
 
-  const isRtl = isRTL(appLanguage);
+  const isRtl = true;
 
   const opacity = useSharedValue(0);
   const animatedContainerStyle = useAnimatedStyle(() => ({
@@ -422,9 +467,12 @@ const Home = () => {
         labels={labels}
         colors={colors}
         onSelect={handleSelectSurah}
+        rtl={isRtl}
+        textAlign={isRtl ? "right" : "left"}
+        writingDirection={isRtl ? "rtl" : "ltr"}
       />
     ),
-    [labels, colors, handleSelectSurah],
+    [labels, colors, handleSelectSurah, isRtl],
   );
 
   const keyExtractor = useCallback((item) => String(item.index), []);
@@ -436,12 +484,12 @@ const Home = () => {
           value={searchQuery}
           onChangeText={setSearchQuery}
           colors={colors}
-          placeholder={t("Search Surah...") || "ابحث عن سورة..."}
+          placeholder={t("Search Surahs...") || "Search Surahs..."}
           isRtl={isRtl}
         />
       </View>
     ),
-    [colors, isRtl, searchQuery, surahs.length, t],
+    [colors, isRtl, searchQuery, t],
   );
 
   if (loading) {
@@ -449,7 +497,7 @@ const Home = () => {
       <View
         style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        <LoadingState colors={colors} />
+        <LoadingState colors={colors} rtl={isRtl} />
       </View>
     );
   }
@@ -627,7 +675,6 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
     gap: 8,
   },
   typeChip: {
@@ -709,7 +756,6 @@ const styles = StyleSheet.create({
 
   // Skeleton Loader
   skeletonCard: {
-    flexDirection: "row-reverse",
     alignItems: "center",
     marginBottom: 10,
     paddingVertical: 12,
@@ -722,7 +768,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    marginLeft: 12,
   },
   skeletonBody: {
     flex: 1,

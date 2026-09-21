@@ -3,7 +3,20 @@
  */
 
 // RTL language codes
-const RTL_LANGUAGES = ["pa", "da", "ar", "fa", "ur", "he", "yi"];
+const RTL_LANGUAGES = [
+  "pa",
+  "pashto",
+  "ps",
+  "da",
+  "dari",
+  "fa",
+  "persian",
+  "ar",
+  "arabic",
+  "ur",
+  "he",
+  "yi",
+];
 
 /**
  * Determines if a language code represents an RTL language
@@ -11,7 +24,7 @@ const RTL_LANGUAGES = ["pa", "da", "ar", "fa", "ur", "he", "yi"];
  * @returns {boolean} - True if the language is RTL, false otherwise
  */
 export const isRTL = (language) => {
-  return RTL_LANGUAGES.includes(language);
+  return RTL_LANGUAGES.includes(String(language || "").toLowerCase());
 };
 
 /**

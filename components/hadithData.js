@@ -4,8 +4,7 @@ const metadataCache = new Map();
 
 const HADITH_COLLECTIONS = {
   bukhari: {
-    books: () =>
-      require("../assets/Hadiths/sahih_bukhari/bukhari_books.json"),
+    books: () => require("../assets/Hadiths/sahih_bukhari/bukhari_books.json"),
     hadiths: {
       arabic: () =>
         require("../assets/Hadiths/sahih_bukhari/sahih_bukhari_arabic.json"),
@@ -73,8 +72,7 @@ const getHadithBooks = (collection = "bukhari", language = "english") => {
     .books()
     .map((book) => ({
       bookNumber: book.Book_Number,
-      bookName:
-        book.Book_Name[normalizedLanguage] || book.Book_Name.english,
+      bookName: book.Book_Name[normalizedLanguage] || book.Book_Name.english,
       count: book.Hadith_Count,
     }));
   booksCache.set(cacheKey, books);
@@ -83,6 +81,19 @@ const getHadithBooks = (collection = "bukhari", language = "english") => {
 
 const getHadithsByBook = (collection, language, bookNumber) =>
   getHadithIndex(collection, language).get(String(bookNumber)) || [];
+
+const getAllHadiths = (collection = "bukhari", language = "english") => {
+  const normalizedCollection = normalizeCollection(collection);
+  const normalizedLanguage = normalizeLanguage(language);
+  const cacheKey = `all:${normalizedCollection}:${normalizedLanguage}`;
+  const cachedHadiths = hadithIndexCache.get(cacheKey);
+  if (cachedHadiths) return cachedHadiths;
+
+  const hadiths =
+    HADITH_COLLECTIONS[normalizedCollection].hadiths[normalizedLanguage]();
+  hadithIndexCache.set(cacheKey, hadiths);
+  return hadiths;
+};
 
 const getHadithCollectionStats = (collection = "bukhari") => {
   const normalizedCollection = normalizeCollection(collection);
@@ -102,6 +113,7 @@ const getHadithId = (item) =>
   String(item?.reference?.hadith || item?.hadithnumber || "");
 
 export {
+  getAllHadiths,
   getHadithCollectionStats,
   getHadithId,
   getHadithBooks,

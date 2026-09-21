@@ -20,7 +20,6 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   withSpring,
   Easing,
   FadeIn,
@@ -41,7 +40,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHadithTranslationStore } from "../../components/store/store";
+import {
+  useAppLanguageStore,
+  useHadithTranslationStore,
+} from "../../components/store/store";
 import FloatingLanguagePickerModal from "../../components/FloatingLanguagePickerModal";
 import GeneralModal from "../../components/GeneralModal";
 import { useAppAlert } from "../../components/AppAlertProvider";
@@ -59,12 +61,6 @@ const LANGUAGE_FIELDS = {
 };
 
 const RTL_LANGUAGES = new Set(["pa", "pashto", "da", "dari"]);
-
-const getLocaleCode = (language) => {
-  if (language === "pashto" || language === "pa") return "pa";
-  if (language === "dari" || language === "da") return "da";
-  return "en";
-};
 
 const getLocalizedText = (item, language) => {
   if (!item || typeof item !== "object") return "";
@@ -147,11 +143,13 @@ const MiniPill = memo(
 
     const handlePressIn = useCallback(() => {
       cancelAnimation(scale);
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = withSpring(0.88, PRESS_SPRING_IN);
     }, [scale]);
 
     const handlePressOut = useCallback(() => {
       cancelAnimation(scale);
+      // eslint-disable-next-line react-hooks/immutability
       scale.value = withSpring(1, PRESS_SPRING_OUT);
     }, [scale]);
 
@@ -250,6 +248,7 @@ const FloatingPillHeader = memo(
         lastChangeTime.value = now;
 
         if (direction > 0) {
+          // eslint-disable-next-line react-hooks/immutability
           compactProgress.value = withSpring(1, COMPACT_SPRING);
         } else {
           compactProgress.value = withSpring(0, COMPACT_SPRING);
@@ -486,6 +485,7 @@ const JawamiAlKalim = () => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { showAlert, showToast } = useAppAlert();
+  const appLanguage = useAppLanguageStore((state) => state.language);
   const { translationLanguage: contentLanguage, setTranslationLanguage } =
     useHadithTranslationStore();
 
@@ -539,16 +539,12 @@ const JawamiAlKalim = () => {
     [t],
   );
 
-  const writingDirection = getWritingDirection(contentLanguage);
+  const writingDirection = getWritingDirection(appLanguage);
   const textAlign = writingDirection === "rtl" ? "right" : "left";
   const inactiveColor =
     theme.colors.inactiveColor || theme.colors.onSurfaceVariant;
 
-  const pageT = useCallback(
-    (key, options) =>
-      t(key, { ...(options || {}), lng: getLocaleCode(contentLanguage) }),
-    [contentLanguage, t],
-  );
+  const pageT = useCallback((key, options) => t(key, options), [t]);
 
   const getScrollStorageKey = useCallback(() => "jawami_al_kalim_scroll", []);
 
@@ -826,11 +822,11 @@ const JawamiAlKalim = () => {
 
   const translationOptions = useMemo(
     () => [
-      { label: "English", value: "english", icon: "translate" },
-      { label: "پښتو", value: "pashto", icon: "translate" },
-      { label: "دری", value: "dari", icon: "translate" },
+      { label: t("English"), value: "english", icon: "translate" },
+      { label: t("Pashto"), value: "pashto", icon: "translate" },
+      { label: t("Dari"), value: "dari", icon: "translate" },
     ],
-    [],
+    [t],
   );
 
   const handleBack = useCallback(() => {
@@ -873,10 +869,13 @@ const JawamiAlKalim = () => {
     [updateScrollTopVisibility],
   );
 
-  const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50,
-    minimumViewTime: 80,
-  }).current;
+  const viewabilityConfig = useMemo(
+    () => ({
+      itemVisiblePercentThreshold: 50,
+      minimumViewTime: 80,
+    }),
+    [],
+  );
 
   const handleViewableItemsChanged = useCallback(
     ({ viewableItems }) => {

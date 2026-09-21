@@ -64,7 +64,7 @@ const SelectedReciterCard = memo(
   }) => {
     if (!selectedVariant) return null;
 
-    const { progressColor, textColor, outlineColor } = themeColors;
+    const { progressColor, textColor } = themeColors;
 
     return (
       <View
@@ -77,9 +77,14 @@ const SelectedReciterCard = memo(
         ]}
       >
         <View style={[styles.headerTopRow, { flexDirection: flexDir }]}>
-          <View style={[styles.activePill, { backgroundColor: progressColor }]}>
+          <View
+            style={[
+              styles.activePill,
+              { backgroundColor: progressColor, flexDirection: flexDir },
+            ]}
+          >
             <View style={styles.activeDot} />
-            <Text style={styles.activePillText}>{t("CURRENTLY SELECTED")}</Text>
+            <Text style={styles.activePillText}>{t("Currently selected")}</Text>
           </View>
         </View>
 
