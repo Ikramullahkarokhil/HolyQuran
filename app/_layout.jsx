@@ -23,6 +23,7 @@ import {
 } from "../components/AudioPlayerProvider";
 import GlobalAudioPlayer from "../components/GlobalAudioPlayer";
 import { requestAudioNotificationPermission } from "../components/requestAudioNotificationPermission";
+import { getSurahByIndex } from "../components/quranData";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -167,11 +168,7 @@ const GlobalAudioDock = React.memo(() => {
 
   const player = useAudioPlayer();
   const { activeAyah, isVisible, surahId, playingId, downloadingId } = player;
-
-  // Early exit – no work when player is hidden
-  if (!activeAyah || !isVisible || !surahId) {
-    return null;
-  }
+  const surahName = getSurahByIndex(surahId)?.name;
 
   const colors = useMemo(
     () => ({
@@ -203,6 +200,11 @@ const GlobalAudioDock = React.memo(() => {
     });
   }, [router, surahId, activeAyah]);
 
+  // Early exit – no work when player is hidden
+  if (!activeAyah || !isVisible || !surahId) {
+    return null;
+  }
+
   return (
     <GlobalAudioPlayer
       activeAyah={activeAyah}
@@ -212,6 +214,7 @@ const GlobalAudioDock = React.memo(() => {
       positionSec={player.positionSec}
       durationSec={player.durationMap.get(activeAyah) || 0}
       reciter={player.reciter}
+      surahName={surahName}
       colors={colors}
       labels={labels}
       onPlay={() => player.playVerse(activeAyah)}

@@ -111,6 +111,7 @@ const GlobalAudioPlayer = memo(
     positionSec = 0,
     durationSec = 0,
     reciter,
+    surahName,
     colors,
     labels,
     onPlay,
@@ -160,10 +161,10 @@ const GlobalAudioPlayer = memo(
             <Icon source="target" size={12} color={colors.accent} />
           </Pressable>
           <Text
-            style={[styles.reciter, { color: colors.secondary }]}
+            style={[styles.trackInfo, { color: colors.secondary }]}
             numberOfLines={1}
           >
-            {reciterName}
+            {surahName ? `${surahName} · ${reciterName}` : reciterName}
           </Text>
           <View style={styles.topRight}>
             <Text style={[styles.time, { color: colors.secondary }]}>
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   ayahText: { fontSize: 12, fontWeight: "700" },
-  reciter: { flex: 1, marginHorizontal: 8, fontSize: 11 },
+  trackInfo: { flex: 1, marginHorizontal: 8, fontSize: 11 },
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   time: { fontSize: 11 },
   downloadRow: {

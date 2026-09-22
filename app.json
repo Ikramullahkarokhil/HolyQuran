@@ -18,7 +18,7 @@
     "android": {
       "package": "com.zadalhuda.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/zad-al-huda.png",
+        "foregroundImage": "./assets/images/app-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
@@ -33,7 +33,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/zad-al-huda.png"
+      "favicon": "./assets/images/app-icon.png"
     },
     "plugins": [
       "expo-router",

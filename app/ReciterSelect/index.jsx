@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { RECITERS, getAyahAudioUrl } from "../../components/reciters.js";
 import { useReciterStore } from "../../components/store/useReciterStore";
 import { useAppLanguageStore } from "../../components/store/store";
+import { useAppAlert } from "../../components/AppAlertProvider";
 import {
   getTextAlignment,
   getWritingDirection,
@@ -46,6 +47,13 @@ const withAlpha = (color, alpha) => {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
   return `rgba(37, 135, 216, ${alpha})`;
+};
+
+const isNetworkFailure = (error) => {
+  const message = String(error?.message || error || "").toLowerCase();
+  return /network request failed|failed to fetch|network error|offline|no internet|connection refused|connection reset|unable to resolve host|could not connect|timed out|timeout|dns/.test(
+    message,
+  );
 };
 
 // ─── Header: Currently Selected Reciter ──────────────────────────────────────
@@ -306,6 +314,7 @@ const ReciterSelectScreen = ({ navigation }) => {
   const { t } = useTranslation();
   const { language } = useAppLanguageStore();
   const { reciterId, setReciterId } = useReciterStore();
+  const { showAlert } = useAppAlert();
 
   const [search, setSearch] = useState("");
   const [playingId, setPlayingId] = useState(null);
@@ -393,6 +402,24 @@ const ReciterSelectScreen = ({ navigation }) => {
     setLoadingId(null);
   }, []);
 
+  const showPreviewError = useCallback(
+    (error) => {
+      if (isNetworkFailure(error)) {
+        showAlert(
+          t("No internet connection") || "No internet connection",
+          t("Connect to the internet to preview reciters") ||
+            "Connect to the internet to preview reciters",
+        );
+        return;
+      }
+      showAlert(
+        t("Error") || "Error",
+        t("Unable to play reciter preview") || "Unable to play reciter preview",
+      );
+    },
+    [showAlert, t],
+  );
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -414,10 +441,16 @@ const ReciterSelectScreen = ({ navigation }) => {
 
       try {
         const previewUrl = getAyahAudioUrl(id, 1, 1); // Al-Fatiha Ayah 1 preview
+        if (!previewUrl) throw new Error("Invalid reciter preview URL");
         const newPlayer = createAudioPlayer({ uri: previewUrl });
         playerRef.current = newPlayer;
 
         const sub = newPlayer.addListener("playbackStatusUpdate", (status) => {
+          if (status?.error) {
+            showPreviewError(status.error);
+            stopAudio();
+            return;
+          }
           if (status?.isLoaded) {
             if (status.isPlaying) {
               setLoadingId((curr) => (curr === id ? null : curr));
@@ -433,11 +466,11 @@ const ReciterSelectScreen = ({ navigation }) => {
         newPlayer.play();
         setPlayingId(id);
       } catch (err) {
-        console.warn("Audio playback failed:", err);
+        showPreviewError(err);
         stopAudio();
       }
     },
-    [playingId, stopAudio],
+    [playingId, showPreviewError, stopAudio],
   );
 
   const handleSelectVariant = useCallback(

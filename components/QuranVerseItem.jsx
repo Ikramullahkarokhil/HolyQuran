@@ -102,6 +102,18 @@ const formatBytes = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
 
+const OFFLINE_ERROR = "OFFLINE";
+
+const isNetworkFailure = (error) => {
+  const message = String(error?.message || error || "").toLowerCase();
+  return (
+    error?.name === "AbortError" ||
+    /network request failed|failed to fetch|network error|network unavailable|offline|no internet|connection refused|connection reset|unable to resolve host|could not connect|timed out|timeout|dns/.test(
+      message,
+    )
+  );
+};
+
 /** HEAD request for Content-Length (best-effort). */
 async function fetchRemoteSize(url) {
   try {
@@ -827,7 +839,11 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         );
       } catch (e) {
         if (isMounted.current) {
-          setErrorMsg(e?.message || "Download failed");
+          setErrorMsg(
+            isNetworkFailure(e)
+              ? OFFLINE_ERROR
+              : e?.message || "Download failed",
+          );
         }
         safeHaptic(() =>
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
@@ -961,7 +977,9 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         }
       } catch (e) {
         if (isMounted.current) setDownloadingId(null);
-        setErrorMsg(e?.message || "Playback failed");
+        setErrorMsg(
+          isNetworkFailure(e) ? OFFLINE_ERROR : e?.message || "Playback failed",
+        );
         safeHaptic(() =>
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
         );

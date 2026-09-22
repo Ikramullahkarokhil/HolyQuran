@@ -27,7 +27,6 @@ import Animated, {
   FadeIn,
   FadeOut,
   FadeInDown,
-  FadeOutDown,
   FadeOutUp,
   interpolate,
   Extrapolation,
@@ -689,8 +688,11 @@ const SurahDetails = () => {
   const showScrollTopRef = useRef(false);
   const currentTopIndexRef = useRef(0);
   const lastSavedIndexRef = useRef(null);
+  const hasUserScrolledRef = useRef(false);
   const indexSaveTimer = useRef(null);
   const scrollRetryTimer = useRef(null);
+  const lastReadDismissTimer = useRef(null);
+  const lastPlayedDismissTimer = useRef(null);
 
   const scrollY = useSharedValue(0);
 
@@ -706,6 +708,8 @@ const SurahDetails = () => {
   const [lastReadIndex, setLastReadIndex] = useState(null);
   const [lastReadAyah, setLastReadAyah] = useState(null);
   const [showLastReadBtn, setShowLastReadBtn] = useState(false);
+  const [lastPlayedAyah, setLastPlayedAyah] = useState(null);
+  const [showLastPlayedBtn, setShowLastPlayedBtn] = useState(false);
 
   const highlightProgress = useSharedValue(0);
 
@@ -802,6 +806,10 @@ const SurahDetails = () => {
       isMounted.current = false;
       if (indexSaveTimer.current) clearTimeout(indexSaveTimer.current);
       if (scrollRetryTimer.current) clearTimeout(scrollRetryTimer.current);
+      if (lastReadDismissTimer.current)
+        clearTimeout(lastReadDismissTimer.current);
+      if (lastPlayedDismissTimer.current)
+        clearTimeout(lastPlayedDismissTimer.current);
     };
   }, []);
 
@@ -813,9 +821,16 @@ const SurahDetails = () => {
     showScrollTopRef.current = false;
     currentTopIndexRef.current = 0;
     lastSavedIndexRef.current = null;
+    hasUserScrolledRef.current = false;
     setLastReadIndex(null);
     setLastReadAyah(null);
     setShowLastReadBtn(false);
+    setLastPlayedAyah(null);
+    setShowLastPlayedBtn(false);
+    if (lastReadDismissTimer.current)
+      clearTimeout(lastReadDismissTimer.current);
+    if (lastPlayedDismissTimer.current)
+      clearTimeout(lastPlayedDismissTimer.current);
     scrollY.value = 0;
     cancelAnimation(highlightProgress);
 
@@ -833,6 +848,10 @@ const SurahDetails = () => {
           setLastReadIndex(idx);
           setLastReadAyah(Number.isFinite(ayah) ? ayah : null);
           setShowLastReadBtn(true);
+          lastReadDismissTimer.current = setTimeout(
+            () => setShowLastReadBtn(false),
+            5000,
+          );
         }
       } catch {}
     };
@@ -875,6 +894,23 @@ const SurahDetails = () => {
     return getArabicVersesForSurah(surahId);
   }, [surahId]);
 
+  const scrollToVerse = useCallback(
+    (index, viewPosition = AUDIO_FOCUS_VIEW_POSITION, animated = true) => {
+      if (index < 0 || index >= verses.length) return;
+      requestAnimationFrame(() => {
+        if (!isMounted.current) return;
+        try {
+          listRef.current?.scrollToIndex?.({
+            index,
+            animated,
+            viewPosition,
+          });
+        } catch {}
+      });
+    },
+    [verses],
+  );
+
   // ─── Audio registry ───────────────────────────────────────────────────────
   const audioPlayer = useAudioPlayer();
   const {
@@ -899,6 +935,9 @@ const SurahDetails = () => {
     cancelDownloadAll,
   } = audioPlayer;
   const activeAudioAyah = audioPlayer.activeAyah;
+  const audioPlayerVisible = Boolean(
+    audioPlayer.isVisible && activeAudioAyah != null,
+  );
   const { registerSurah } = audioPlayer;
 
   useEffect(() => {
@@ -919,44 +958,61 @@ const SurahDetails = () => {
     AsyncStorage.setItem(audioResumeKey, String(playingId)).catch(() => {});
   }, [audioResumeKey, playingId]);
 
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const loadLastPlayedAyah = async () => {
+        if (!audioResumeKey) return;
+        try {
+          const stored = Number(await AsyncStorage.getItem(audioResumeKey));
+          if (
+            active &&
+            Number.isFinite(stored) &&
+            verses.some((verse) => verse.ayah === stored)
+          ) {
+            setLastPlayedAyah(stored);
+            setShowLastPlayedBtn(true);
+            lastPlayedDismissTimer.current = setTimeout(
+              () => setShowLastPlayedBtn(false),
+              5000,
+            );
+          }
+        } catch {}
+      };
+      loadLastPlayedAyah();
+      return () => {
+        active = false;
+        if (lastPlayedDismissTimer.current)
+          clearTimeout(lastPlayedDismissTimer.current);
+      };
+    }, [audioResumeKey, verses]),
+  );
+
   // Auto scroll to verse when playingId changes
   useEffect(() => {
-    if (!playingId || !listRef.current) return;
+    if (!playingId || targetAyahId != null) return;
     const idx = verses.findIndex((v) => v.ayah === playingId);
-    if (idx >= 0) {
-      try {
-        listRef.current.scrollToIndex?.({
-          index: idx,
-          animated: true,
-          viewPosition: AUDIO_FOCUS_VIEW_POSITION,
-        });
-      } catch {}
-    }
-  }, [playingId, verses]);
+    scrollToVerse(idx);
+  }, [playingId, scrollToVerse, targetAyahId, verses]);
 
   const restoreAudioPosition = useCallback(() => {
     if (!playingId || targetAyahId != null) return undefined;
     const index = verses.findIndex((verse) => verse.ayah === playingId);
     if (index < 0) return undefined;
 
-    const restore = (animated) => {
-      try {
-        listRef.current?.scrollToIndex?.({
-          index,
-          animated,
-          viewPosition: AUDIO_FOCUS_VIEW_POSITION,
-        });
-      } catch {}
-    };
-
-    restore(false);
-    const firstRetry = setTimeout(() => restore(false), 120);
-    const secondRetry = setTimeout(() => restore(true), 420);
+    const firstRetry = setTimeout(
+      () => scrollToVerse(index, AUDIO_FOCUS_VIEW_POSITION, false),
+      80,
+    );
+    const secondRetry = setTimeout(
+      () => scrollToVerse(index, AUDIO_FOCUS_VIEW_POSITION, true),
+      320,
+    );
     return () => {
       clearTimeout(firstRetry);
       clearTimeout(secondRetry);
     };
-  }, [playingId, targetAyahId, verses]);
+  }, [playingId, scrollToVerse, targetAyahId, verses]);
 
   useFocusEffect(
     useCallback(() => restoreAudioPosition(), [restoreAudioPosition]),
@@ -978,13 +1034,21 @@ const SurahDetails = () => {
   // Surface download / playback errors
   useEffect(() => {
     if (errorMsg) {
-      showToast?.(errorMsg) ?? showAlert(t("Error"), errorMsg);
+      if (errorMsg === "OFFLINE") {
+        showAlert(
+          t("No internet connection") || "No internet connection",
+          t("Connect to the internet to download or play Quran audio") ||
+            "Connect to the internet to download or play Quran audio",
+        );
+      } else {
+        showToast?.(errorMsg) ?? showAlert(t("Error"), errorMsg);
+      }
     }
   }, [errorMsg, showAlert, showToast, t]);
 
   const targetAyahIndex = useMemo(() => {
     if (targetAyahId === null) return -1;
-    return verses.findIndex((v) => v.id === targetAyahId);
+    return verses.findIndex((v) => v.ayah === targetAyahId);
   }, [targetAyahId, verses]);
 
   const clearHighlight = useCallback(() => {
@@ -992,25 +1056,13 @@ const SurahDetails = () => {
   }, []);
 
   useEffect(() => {
-    if (targetAyahIndex < 0 || !listRef.current) return;
-
-    const doScroll = (animated) => {
-      try {
-        listRef.current?.scrollToIndex?.({
-          index: targetAyahIndex,
-          animated,
-          viewPosition: 0.28,
-        });
-      } catch {}
-    };
-
-    doScroll(false);
+    if (targetAyahIndex < 0) return;
 
     const timer = setTimeout(() => {
       if (!isMounted.current) return;
-      doScroll(false);
+      scrollToVerse(targetAyahIndex, 0.28, false);
 
-      setHighlightedAyahId(targetAyahId);
+      setHighlightedAyahId(verses[targetAyahIndex]?.id ?? null);
       highlightProgress.value = 0;
       highlightProgress.value = withSequence(
         withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) }),
@@ -1020,7 +1072,7 @@ const SurahDetails = () => {
 
     scrollRetryTimer.current = setTimeout(() => {
       if (!isMounted.current) return;
-      doScroll(true);
+      scrollToVerse(targetAyahIndex, 0.28, true);
     }, 420);
 
     const clearTimer = setTimeout(() => {
@@ -1033,7 +1085,14 @@ const SurahDetails = () => {
       if (scrollRetryTimer.current) clearTimeout(scrollRetryTimer.current);
       cancelAnimation(highlightProgress);
     };
-  }, [clearHighlight, highlightProgress, targetAyahId, targetAyahIndex]);
+  }, [
+    clearHighlight,
+    highlightProgress,
+    scrollToVerse,
+    targetAyahId,
+    targetAyahIndex,
+    verses,
+  ]);
 
   const translationMap = useMemo(() => {
     const map = new Map();
@@ -1377,6 +1436,7 @@ const SurahDetails = () => {
   const onScroll = useCallback(
     (event) => {
       const offsetY = event.nativeEvent.contentOffset.y || 0;
+      if (offsetY > 24) hasUserScrolledRef.current = true;
       updateScrollTopVisibility(offsetY);
     },
     [updateScrollTopVisibility],
@@ -1404,13 +1464,9 @@ const SurahDetails = () => {
 
       currentTopIndexRef.current = topIndex;
 
-      if (
-        lastReadIndex != null &&
-        Math.abs(topIndex - lastReadIndex) <= 2 &&
-        showLastReadBtn
-      ) {
-        setShowLastReadBtn(false);
-      }
+      // Initial list measurement starts at the top. Do not overwrite a saved
+      // reading position until the user has actually scrolled this surah.
+      if (!hasUserScrolledRef.current && topIndex <= 2) return;
 
       const key = getScrollStorageKey();
       if (!key) return;
@@ -1428,7 +1484,7 @@ const SurahDetails = () => {
         } catch {}
       }, 450);
     },
-    [getScrollStorageKey, lastReadIndex, showLastReadBtn, verses],
+    [getScrollStorageKey, verses],
   );
 
   const scrollToTop = useCallback(() => {
@@ -1437,21 +1493,31 @@ const SurahDetails = () => {
   }, []);
 
   const goToLastRead = useCallback(() => {
-    if (lastReadIndex == null) return;
-    if (lastReadIndex >= verses.length) {
+    const savedAyahIndex = verses.findIndex(
+      (verse) => verse.ayah === lastReadAyah,
+    );
+    const targetIndex = savedAyahIndex >= 0 ? savedAyahIndex : lastReadIndex;
+    if (targetIndex == null) return;
+    if (targetIndex >= verses.length) {
       setShowLastReadBtn(false);
       return;
     }
-    try {
-      safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
-      listRef.current?.scrollToIndex?.({
-        index: lastReadIndex,
-        animated: true,
-        viewPosition: 0.12,
-      });
-      setShowLastReadBtn(false);
-    } catch {}
-  }, [lastReadIndex, verses.length]);
+    safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+    scrollToVerse(targetIndex, 0.12, true);
+    setShowLastReadBtn(false);
+  }, [lastReadAyah, lastReadIndex, scrollToVerse, verses]);
+
+  const currentPlayingAyah = verses.some((verse) => verse.ayah === playingId)
+    ? playingId
+    : null;
+  const displayedLastPlayedAyah = currentPlayingAyah ?? lastPlayedAyah;
+
+  const playLastPlayedAyah = useCallback(() => {
+    const ayahToPlay = displayedLastPlayedAyah;
+    if (ayahToPlay == null) return;
+    safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+    playVerse(ayahToPlay);
+  }, [displayedLastPlayedAyah, playVerse]);
 
   const listTopPadding = insets.top + 8 + HEADER_EXPANDED + 14;
 
@@ -1584,10 +1650,9 @@ const SurahDetails = () => {
               contentContainerStyle={[
                 styles.listContent,
                 {
-                  paddingTop:
-                    activeAudioAyah != null
-                      ? listTopPadding + 110
-                      : listTopPadding,
+                  paddingTop: audioPlayerVisible
+                    ? listTopPadding + 110
+                    : listTopPadding,
                   paddingBottom: insets.bottom + 72,
                 },
               ]}
@@ -1625,45 +1690,76 @@ const SurahDetails = () => {
         </Animated.View>
       )}
 
-      {showLastReadBtn && lastReadIndex != null && (
+      {(showLastReadBtn && lastReadIndex != null) ||
+      (showLastPlayedBtn && displayedLastPlayedAyah != null) ? (
         <Animated.View
           entering={FadeInDown.duration(220).easing(Easing.out(Easing.cubic))}
-          exiting={FadeOutDown.duration(140).easing(Easing.in(Easing.quad))}
-          style={[styles.lastReadWrapper, { bottom: insets.bottom + 22 }]}
+          style={[styles.resumeActionsWrapper, { bottom: insets.bottom + 22 }]}
           pointerEvents="box-none"
         >
-          <Pressable
-            onPress={goToLastRead}
-            style={({ pressed }) => [
-              styles.lastReadBtn,
-              {
-                backgroundColor: colors.surface,
-                borderColor: withAlpha(colors.accent, 0.35),
-                shadowColor: colors.shadow,
-                opacity: pressed ? 0.92 : 1,
-                transform: [{ scale: pressed ? 0.97 : 1 }],
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={
-              lastReadAyah != null
-                ? `${t("Continue reading") || "Continue reading"} — ${t("Ayah")} ${lastReadAyah}`
-                : t("Continue reading") || "Continue reading"
-            }
-          >
-            <Icon source="bookmark-outline" size={18} color={colors.accent} />
-            <Text
-              style={[styles.lastReadText, { color: colors.text }]}
-              numberOfLines={1}
-            >
-              {lastReadAyah != null
-                ? `${t("Continue reading") || "Continue reading"} · ${t("Ayah")} ${lastReadAyah}`
-                : t("Continue reading") || "Continue reading"}
-            </Text>
-            <Icon source="chevron-down" size={18} color={colors.secondary} />
-          </Pressable>
+          <View style={styles.resumeActionsRow}>
+            {showLastReadBtn && lastReadIndex != null && (
+              <Pressable
+                onPress={goToLastRead}
+                style={({ pressed }) => [
+                  styles.resumeActionBtn,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: withAlpha(colors.accent, 0.35),
+                    shadowColor: colors.shadow,
+                    opacity: pressed ? 0.92 : 1,
+                    transform: [{ scale: pressed ? 0.97 : 1 }],
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`${t("Continue reading") || "Continue reading"} ${lastReadAyah != null ? `${t("Ayah")} ${lastReadAyah}` : ""}`}
+              >
+                <Icon
+                  source="bookmark-outline"
+                  size={17}
+                  color={colors.accent}
+                />
+                <Text
+                  style={[styles.resumeActionText, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {t("Continue reading") || "Continue reading"}
+                  {lastReadAyah != null
+                    ? ` · ${t("Ayah")} ${lastReadAyah}`
+                    : ""}
+                </Text>
+              </Pressable>
+            )}
+
+            {showLastPlayedBtn && displayedLastPlayedAyah != null && (
+              <Pressable
+                onPress={playLastPlayedAyah}
+                style={({ pressed }) => [
+                  styles.resumeActionBtn,
+                  {
+                    backgroundColor: colors.accent,
+                    borderColor: colors.accent,
+                    shadowColor: colors.accent,
+                    opacity: pressed ? 0.9 : 1,
+                    transform: [{ scale: pressed ? 0.97 : 1 }],
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`${t("Play last played ayah") || "Play last played ayah"} ${displayedLastPlayedAyah}`}
+              >
+                <Icon source="play-circle-outline" size={18} color="#fff" />
+                <Text
+                  style={[styles.resumeActionText, { color: "#fff" }]}
+                  numberOfLines={1}
+                >
+                  {t("Play last played ayah") || "Play last played ayah"} ·{" "}
+                  {t("Ayah")} {displayedLastPlayedAyah}
+                </Text>
+              </Pressable>
+            )}
+          </View>
         </Animated.View>
-      )}
+      ) : null}
 
       <FloatingLanguagePickerModal
         visible={pickerVisible}
@@ -1960,23 +2056,30 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
 
-  lastReadWrapper: {
+  resumeActionsWrapper: {
     position: "absolute",
     left: 0,
     right: 0,
-    alignItems: "center",
     zIndex: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: 12,
   },
-  lastReadBtn: {
+  resumeActionsRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    justifyContent: "center",
+    gap: 8,
+  },
+  resumeActionBtn: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 11,
-    paddingHorizontal: 18,
-    borderRadius: 28,
+    justifyContent: "center",
+    gap: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 9,
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
-    maxWidth: 280,
     ...Platform.select({
       ios: {
         shadowOffset: { width: 0, height: 4 },
@@ -1988,10 +2091,11 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  lastReadText: {
-    fontSize: 14.5,
+  resumeActionText: {
+    flexShrink: 1,
+    fontSize: 12.5,
     fontWeight: "600",
-    letterSpacing: 0.2,
+    textAlign: "center",
   },
 
   errorText: {
