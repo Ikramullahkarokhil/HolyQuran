@@ -558,14 +558,10 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     };
 
     try {
-      if (player.setActiveForLockScreen) {
-        player.setActiveForLockScreen(true, metadata, {
-          showSeekBackward: true,
-          showSeekForward: true,
-        });
-      } else if (player.updateLockScreenMetadata) {
-        player.updateLockScreenMetadata(metadata);
-      }
+      player.setActiveForLockScreen(true, metadata, {
+        showSeekBackward: true,
+        showSeekForward: true,
+      });
       return true;
     } catch {
       return false;
@@ -928,6 +924,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         refreshLockScreenControls();
 
         player.play();
+        refreshLockScreenControls();
 
         const knownDur = durationMap.get(ayah);
         if (knownDur > 0) {
