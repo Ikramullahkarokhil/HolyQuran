@@ -1,17 +1,5 @@
-import React, {
-  useEffect,
-  useState,
-  useMemo,
-  useCallback,
-  memo,
-} from "react";
-import {
-  StyleSheet,
-  View,
-  Pressable,
-  TextInput,
-  Platform,
-} from "react-native";
+import React, { useEffect, useState, useMemo, useCallback, memo } from "react";
+import { StyleSheet, View, Pressable, TextInput, Platform } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -93,17 +81,17 @@ const BookItem = memo(
         >
           <View style={styles.itemContent}>
             {/* Count */}
-            <Text style={[styles.hadithCount, { color: inactiveColor || textColor }]}>
+            <Text
+              style={[
+                styles.hadithCount,
+                { color: inactiveColor || textColor },
+              ]}
+            >
               {count} {hadithsLabel}
             </Text>
 
             {/* Name + number badge */}
-            <View
-              style={[
-                styles.bookMeta,
-                isArabic && styles.bookMetaRtl,
-              ]}
-            >
+            <View style={[styles.bookMeta, isArabic && styles.bookMetaRtl]}>
               <Text
                 style={[
                   styles.bookName,
@@ -118,12 +106,7 @@ const BookItem = memo(
                 {bookName}
               </Text>
 
-              <View
-                style={[
-                  styles.numberBadge,
-                  { backgroundColor },
-                ]}
-              >
+              <View style={[styles.numberBadge, { backgroundColor }]}>
                 <Text
                   style={[
                     styles.bookNumber,
@@ -162,24 +145,24 @@ const HadithsScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { translationLanguage: hadithLanguage } =
-    useHadithTranslationStore();
+  const { translationLanguage: hadithLanguage } = useHadithTranslationStore();
   const { collection: collectionParam } = useLocalSearchParams();
   const collection = collectionParam === "muslim" ? "muslim" : "bukhari";
 
   const isArabic = hadithLanguage === "arabic";
 
   // Stable color primitives (avoids object-identity re-renders)
-  const primaryColor = theme.colors.primary;
+  const primaryColor = theme.dark ? theme.colors.surface : "#ffffff";
   const textColor = theme.colors.textColor || theme.colors.onSurface;
   const inactiveColor =
     theme.colors.inactiveColor ||
     theme.colors.onSurfaceVariant ||
     theme.colors.onSurface;
-  const backgroundColor = theme.colors.background;
+  const backgroundColor = theme.dark
+    ? theme.colors.surfaceVariant || theme.colors.surface
+    : "#f4f7fb";
   const progressColor = theme.colors.progressColor;
-  const outlineVariant =
-    theme.colors.outlineVariant || "rgba(0,0,0,0.08)";
+  const outlineVariant = theme.colors.outlineVariant || "rgba(0,0,0,0.08)";
 
   const hadithsLabel = t("hadiths");
 
@@ -268,20 +251,12 @@ const HadithsScreen = () => {
     ],
   );
 
-  const keyExtractor = useCallback(
-    (item) => String(item.bookNumber),
-    [],
-  );
+  const keyExtractor = useCallback((item) => String(item.bookNumber), []);
 
   const ListEmptyComponent = useCallback(
     () => (
       <View style={styles.emptyContainer}>
-        <Text
-          style={[
-            styles.emptyText,
-            { color: inactiveColor },
-          ]}
-        >
+        <Text style={[styles.emptyText, { color: inactiveColor }]}>
           {searchQuery ? t("No results found") : t("Loading hadiths...")}
         </Text>
       </View>
@@ -297,10 +272,7 @@ const HadithsScreen = () => {
           { backgroundColor: theme.colors.background },
         ]}
       >
-        <ActivityIndicator
-          size="large"
-          color={theme.colors.progressColor}
-        />
+        <ActivityIndicator size="large" color={theme.colors.progressColor} />
       </View>
     );
   }
@@ -334,11 +306,7 @@ const HadithsScreen = () => {
           clearButtonMode="while-editing"
         />
         <View style={styles.searchIcon}>
-          <MaterialIcons
-            name="search"
-            size={22}
-            color={inactiveColor}
-          />
+          <MaterialIcons name="search" size={22} color={inactiveColor} />
         </View>
       </View>
 

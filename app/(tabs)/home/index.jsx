@@ -367,7 +367,7 @@ const Home = () => {
   const colors = useMemo(() => {
     const accentColor = theme.colors.progressColor || theme.colors.textColor;
     return {
-      card: theme.colors.primary,
+      card: theme.colors.surface || theme.colors.primary,
       text: theme.colors.textColor,
       secondary: isDarkTheme ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)",
       accent: accentColor,

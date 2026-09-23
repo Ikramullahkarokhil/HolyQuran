@@ -49,17 +49,20 @@ const getCardData = (t) => [
     href: { pathname: "Tazbih" },
     accent: "#db2777",
   },
+  {
+    id: "quiz",
+    title: t("Quran Challenge"),
+    description: t("Test your Quran knowledge"),
+    icon: "brain",
+    href: { pathname: "QuranQuiz" },
+    accent: "#7c3aed",
+  },
 ];
 
 // ─── Memoized tool card ─────────────────────────────────────────────────────
 
 const ToolCard = memo(
-  ({
-    card,
-    flexDir,
-    textAlign,
-    writingDir,
-  }) => {
+  ({ card, flexDir, textAlign, writingDir }) => {
     const scale = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
@@ -148,7 +151,9 @@ const ToolCard = memo(
 
             <View style={styles.chevronWrap}>
               <Icon
-                source={textAlign === "right" ? "chevron-left" : "chevron-right"}
+                source={
+                  textAlign === "right" ? "chevron-left" : "chevron-right"
+                }
                 size={22}
                 color="rgba(255,255,255,0.75)"
               />

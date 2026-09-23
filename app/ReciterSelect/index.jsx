@@ -330,11 +330,15 @@ const ReciterSelectScreen = ({ navigation }) => {
 
   const themeColors = useMemo(
     () => ({
-      progressColor: theme.colors.progressColor || "#2587D8",
-      textColor: theme.colors.textColor || theme.colors.onSurface,
-      primaryColor: theme.colors.primary || "#FFFFFF",
+      progressColor:
+        theme.colors.progressColor || theme.colors.primary || "#2587D8",
+      textColor: theme.colors.textColor || theme.colors.onSurface || "#111111",
+      primaryColor: theme.colors.surface || theme.colors.primary || "#FFFFFF",
       backgroundColor: theme.colors.background || "#F5F7FA",
-      outlineColor: theme.colors.outline || theme.colors.outlineVariant,
+      outlineColor:
+        theme.colors.outline ||
+        theme.colors.outlineVariant ||
+        "rgba(17, 17, 17, 0.12)",
     }),
     [theme],
   );

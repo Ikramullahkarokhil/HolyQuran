@@ -1,7 +1,7 @@
 const lightTheme = {
   dark: false,
   colors: {
-    primary: "#ffffff",
+    primary: "#2587d8",
     background: "#f8f9fa",
     surface: "#ffffff",
     onSurface: "#111111",
@@ -22,7 +22,7 @@ const lightTheme = {
 const darkTheme = {
   dark: true,
   colors: {
-    primary: "#303030",
+    primary: "#4ea1ff",
     background: "#121212",
     surface: "#1e1e1e",
     onSurface: "#f5f5f5",

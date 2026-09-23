@@ -2,7 +2,6 @@ import React, { useMemo } from "react";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "react-native-paper";
-import { Platform } from "react-native";
 
 /** Convert #RRGGBB / #RRGGBBAA → #RRGGBBAA with given alpha (0–1) */
 const withAlpha = (color, alpha) => {
@@ -42,7 +41,10 @@ const TabsLayout = () => {
       c.surface ?? c.background ?? (isDark ? "#121212" : "#ffffff");
 
     const inactiveColor =
-      c.onSurfaceVariant ?? c.outline ?? (isDark ? "#a0a0a0" : "#666666");
+      c.inactiveColor ??
+      c.onSurfaceVariant ??
+      c.outline ??
+      (isDark ? "#a0a0a0" : "#666666");
 
     // Prefer your custom progress / text color, fall back sensibly
     const activeColor =

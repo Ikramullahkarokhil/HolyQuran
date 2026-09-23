@@ -65,11 +65,13 @@ const RadioGroup = memo(
     onSelect,
     progressColor,
     textColor,
+    inactiveTextColor,
     primaryColor,
     outlineColor,
     flexDir,
     textAlign,
     writingDir,
+    isDarkTheme,
   }) => {
     return (
       <View
@@ -96,7 +98,9 @@ const RadioGroup = memo(
                       borderWidth: StyleSheet.hairlineWidth * 2,
                     }
                   : {
-                      backgroundColor: withAlpha(primaryColor, 0.35),
+                      backgroundColor: isDarkTheme
+                        ? withAlpha(primaryColor, 0.18)
+                        : "rgba(255,255,255,0.7)",
                       borderColor: "transparent",
                       borderWidth: StyleSheet.hairlineWidth * 2,
                     },
@@ -110,18 +114,14 @@ const RadioGroup = memo(
                 <Icon
                   source={opt.icon}
                   size={18}
-                  color={
-                    isSelected ? progressColor : withAlpha(textColor, 0.55)
-                  }
+                  color={isSelected ? progressColor : inactiveTextColor}
                 />
               ) : null}
               <Text
                 style={[
                   styles.chipLabel,
                   {
-                    color: isSelected
-                      ? progressColor
-                      : withAlpha(textColor, 0.82),
+                    color: isSelected ? progressColor : inactiveTextColor,
                     fontWeight: isSelected ? "700" : "500",
                     textAlign,
                     writingDirection: writingDir,
@@ -198,12 +198,13 @@ const SettingCard = memo(
     flexDir,
     textAlign,
     writingDir,
+    isDarkTheme,
   }) => (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: primaryColor,
+          backgroundColor: isDarkTheme ? primaryColor : "#ffffff",
           borderColor: withAlpha(outlineColor || "#000", 0.08),
         },
       ]}
@@ -268,7 +269,10 @@ const Settings = () => {
   const colorScheme = useColorScheme();
   const progressColor = theme.colors.progressColor;
   const textColor = theme.colors.textColor || theme.colors.onSurface;
-  const primaryColor = theme.colors.primary;
+  const inactiveTextColor =
+    theme.colors.inactiveColor ||
+    (theme.dark ? "rgba(255,255,255,0.72)" : withAlpha(textColor, 0.72));
+  const primaryColor = theme.colors.surface || theme.colors.primary;
   const backgroundColor = theme.colors.background;
   const outlineColor = theme.colors.outline || theme.colors.outlineVariant;
 
@@ -348,20 +352,24 @@ const Settings = () => {
     () => ({
       progressColor,
       textColor,
+      inactiveTextColor,
       primaryColor,
       outlineColor,
       flexDir,
       textAlign,
       writingDir,
+      isDarkTheme: theme.dark,
     }),
     [
       progressColor,
       textColor,
+      inactiveTextColor,
       primaryColor,
       outlineColor,
       flexDir,
       textAlign,
       writingDir,
+      theme.dark,
     ],
   );
 
@@ -374,6 +382,7 @@ const Settings = () => {
       flexDir,
       textAlign,
       writingDir,
+      isDarkTheme: theme.dark,
     }),
     [
       primaryColor,
@@ -383,6 +392,7 @@ const Settings = () => {
       flexDir,
       textAlign,
       writingDir,
+      theme.dark,
     ],
   );
 
@@ -438,7 +448,7 @@ const Settings = () => {
                 style={[
                   styles.navRowSubtitle,
                   {
-                    color: withAlpha(textColor, 0.6),
+                    color: inactiveTextColor,
                     textAlign,
                     writingDirection: writingDir,
                   },

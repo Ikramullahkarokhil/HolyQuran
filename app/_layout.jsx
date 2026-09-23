@@ -242,13 +242,13 @@ const AppStack = React.memo(({ bookName }) => {
     () => ({
       headerTitleAlign: "center",
       headerStyle: {
-        backgroundColor: theme.colors.primary,
+        backgroundColor: theme.colors.surface,
       },
       headerTitleStyle: {
-        color: theme.colors.textColor,
+        color: theme.colors.onSurface || theme.colors.textColor,
         fontSize: 20,
       },
-      headerTintColor: theme.colors.textColor,
+      headerTintColor: theme.colors.onSurface || theme.colors.textColor,
     }),
     [theme],
   );

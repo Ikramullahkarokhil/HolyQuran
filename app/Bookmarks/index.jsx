@@ -26,7 +26,7 @@ const BookmarksTabs = () => {
     <TabBar
       {...props}
       indicatorStyle={{ backgroundColor: theme.colors.progressColor }}
-      style={{ backgroundColor: theme.colors.primary }}
+      style={{ backgroundColor: theme.colors.surface }}
       inactiveColor={theme.colors.inactiveColor}
       activeColor={theme.colors.progressColor}
     />

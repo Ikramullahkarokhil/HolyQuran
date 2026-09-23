@@ -59,6 +59,39 @@ const Tazbih = () => {
   const theme = useTheme();
   const { t } = useTranslation();
 
+  const palette = React.useMemo(() => {
+    const isDark = Boolean(theme?.dark);
+    const background =
+      theme?.colors?.background ?? (isDark ? "#121212" : "#f8f9fa");
+    const surface = theme?.colors?.surface ?? (isDark ? "#1e1e1e" : "#ffffff");
+    const primary = theme?.colors?.primary ?? "#2587d8";
+    const progress = theme?.colors?.progressColor ?? primary;
+    const text =
+      theme?.colors?.textColor ?? theme?.colors?.onSurface ?? "#111111";
+    const muted =
+      theme?.colors?.inactiveColor ??
+      theme?.colors?.onSurfaceVariant ??
+      (isDark ? "rgba(255,255,255,0.72)" : "rgba(17,17,17,0.64)");
+    const border =
+      theme?.colors?.outline ??
+      theme?.colors?.outlineVariant ??
+      (isDark ? "rgba(255,255,255,0.12)" : "rgba(17,17,17,0.1)");
+    const buttonText = theme?.colors?.buttonText ?? "#ffffff";
+    const overlay = isDark ? "rgba(0,0,0,0.6)" : "rgba(17,17,17,0.42)";
+
+    return {
+      background,
+      surface,
+      primary,
+      progress,
+      text,
+      muted,
+      border,
+      buttonText,
+      overlay,
+    };
+  }, [theme]);
+
   const [counter, setCounter] = useState(0);
   const [reciteIndex, setReciteIndex] = useState(0);
   const [soundMode, setSoundMode] = useState("vibrate");
@@ -75,7 +108,10 @@ const Tazbih = () => {
   const saveCounterToStorage = useCallback(async (nextCounter) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.counter, String(nextCounter));
-      await AsyncStorage.setItem(STORAGE_KEYS.legacyCounter, String(nextCounter));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.legacyCounter,
+        String(nextCounter),
+      );
     } catch (error) {
       console.error("Failed to save counter to Async Storage", error);
     }
@@ -84,7 +120,10 @@ const Tazbih = () => {
   const persistMaxCount = useCallback(async (nextMaxCount) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.maxCount, String(nextMaxCount));
-      await AsyncStorage.setItem(STORAGE_KEYS.legacyMaxCount, String(nextMaxCount));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.legacyMaxCount,
+        String(nextMaxCount),
+      );
     } catch (error) {
       console.error("Failed to persist maxCount", error);
     }
@@ -102,7 +141,10 @@ const Tazbih = () => {
   const persistReciteIndex = useCallback(async (nextIndex) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.reciteIndex, String(nextIndex));
-      await AsyncStorage.setItem(STORAGE_KEYS.legacyReciteIndex, String(nextIndex));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.legacyReciteIndex,
+        String(nextIndex),
+      );
     } catch (error) {
       console.error("Failed to persist recite index", error);
     }
@@ -119,11 +161,14 @@ const Tazbih = () => {
         ]);
 
       const fallbackCounterValue =
-        counterValue ?? (await AsyncStorage.getItem(STORAGE_KEYS.legacyCounter));
+        counterValue ??
+        (await AsyncStorage.getItem(STORAGE_KEYS.legacyCounter));
       const fallbackMaxCountValue =
-        maxCountValue ?? (await AsyncStorage.getItem(STORAGE_KEYS.legacyMaxCount));
+        maxCountValue ??
+        (await AsyncStorage.getItem(STORAGE_KEYS.legacyMaxCount));
       const fallbackSoundModeValue =
-        soundModeValue ?? (await AsyncStorage.getItem(STORAGE_KEYS.legacySoundMode));
+        soundModeValue ??
+        (await AsyncStorage.getItem(STORAGE_KEYS.legacySoundMode));
       const fallbackReciteIndexValue =
         reciteIndexValue ??
         (await AsyncStorage.getItem(STORAGE_KEYS.legacyReciteIndex));
@@ -223,19 +268,19 @@ const Tazbih = () => {
           <IconButton
             icon="refresh"
             onPress={handleReset}
-            iconColor={theme.colors.textColor}
+            iconColor={palette.text}
             style={styles.headerButton}
           />
           <IconButton
             icon={soundModes[soundMode]}
             onPress={switchSoundMode}
-            iconColor={theme.colors.textColor}
+            iconColor={palette.text}
             style={styles.headerButton}
           />
           <IconButton
             icon="cog"
             onPress={() => setShowMaxCountModal(true)}
-            iconColor={theme.colors.textColor}
+            iconColor={palette.text}
             style={styles.headerButton}
           />
         </View>
@@ -245,7 +290,7 @@ const Tazbih = () => {
     navigation,
     soundMode,
     maxCount,
-    theme.colors.textColor,
+    palette.text,
     handleReset,
     switchSoundMode,
   ]);
@@ -346,41 +391,39 @@ const Tazbih = () => {
         style={[
           styles.container,
           styles.loadingContainer,
-          { backgroundColor: theme.colors.primary },
+          { backgroundColor: palette.background },
         ]}
       >
-        <ActivityIndicator size="large" color={theme.colors.progressColor} />
+        <ActivityIndicator size="large" color={palette.progress} />
       </View>
     );
   }
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
       {showMaxCountModal && (
         <Animated.View style={[styles.modalOverlay, modalAnimatedStyle]}>
           <View
             style={[
               styles.modalContent,
               {
-                backgroundColor: theme.colors.primary,
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+                borderWidth: StyleSheet.hairlineWidth,
               },
             ]}
           >
-            <Text
-              style={[styles.modalTitle, { color: theme.colors.textColor }]}
-            >
+            <Text style={[styles.modalTitle, { color: palette.text }]}>
               {t("Set Max Count")}
             </Text>
             <View style={styles.inputRow}>
               <IconButton
                 icon="minus"
                 onPress={() => setTempMaxCount(Math.max(1, tempMaxCount - 1))}
-                iconColor={theme.colors.progressColor}
+                iconColor={palette.progress}
                 style={[
                   styles.inputButton,
-                  { backgroundColor: theme.colors.background },
+                  { backgroundColor: palette.background },
                 ]}
                 accessibilityLabel={t("Decrease max count")}
               />
@@ -388,9 +431,9 @@ const Tazbih = () => {
                 style={[
                   styles.modalInput,
                   {
-                    color: theme.colors.textColor,
-                    backgroundColor: theme.colors.background,
-                    borderColor: theme.colors.progressColor,
+                    color: palette.text,
+                    backgroundColor: palette.background,
+                    borderColor: palette.progress,
                   },
                 ]}
                 value={tempMaxCount.toString()}
@@ -400,16 +443,16 @@ const Tazbih = () => {
                 }}
                 keyboardType="numeric"
                 placeholder={t("Enter count")}
-                placeholderTextColor={theme.colors.inactiveColor}
+                placeholderTextColor={palette.muted}
                 accessibilityLabel={t("Enter count")}
               />
               <IconButton
                 icon="plus"
                 onPress={() => setTempMaxCount(tempMaxCount + 1)}
-                iconColor={theme.colors.progressColor}
+                iconColor={palette.progress}
                 style={[
                   styles.inputButton,
-                  { backgroundColor: theme.colors.background },
+                  { backgroundColor: palette.background },
                 ]}
                 accessibilityLabel={t("Increase max count")}
               />
@@ -422,8 +465,8 @@ const Tazbih = () => {
                   setShowMaxCountModal(false);
                 }}
                 style={styles.modalActionButton}
-                buttonColor={theme.colors.progressColor}
-                textColor={theme.colors.buttonText}
+                buttonColor={palette.progress}
+                textColor={palette.buttonText}
                 accessibilityLabel={t("Save max count")}
               >
                 {t("Save")}
@@ -435,7 +478,7 @@ const Tazbih = () => {
                   setShowMaxCountModal(false);
                 }}
                 style={styles.modalActionButton}
-                textColor={theme.colors.textColor}
+                textColor={palette.text}
                 accessibilityLabel={t("Cancel max count")}
               >
                 {t("Cancel")}
@@ -450,18 +493,17 @@ const Tazbih = () => {
           style={[
             styles.reciteContainer,
             {
-              backgroundColor: theme.colors.primary,
+              backgroundColor: palette.surface,
+              borderColor: palette.border,
+              borderWidth: StyleSheet.hairlineWidth,
             },
           ]}
         >
           <IconButton
             icon="chevron-left"
             onPress={handlePreviousRecite}
-            iconColor={theme.colors.progressColor}
-            style={[
-              styles.navButton,
-              { backgroundColor: theme.colors.background },
-            ]}
+            iconColor={palette.progress}
+            style={[styles.navButton, { backgroundColor: palette.background }]}
             accessibilityLabel={t("Previous recitation")}
           />
           <ScrollView
@@ -469,20 +511,15 @@ const Tazbih = () => {
             contentContainerStyle={styles.reciteScroll}
             showsHorizontalScrollIndicator={false}
           >
-            <Text
-              style={[styles.reciteText, { color: theme.colors.textColor }]}
-            >
+            <Text style={[styles.reciteText, { color: palette.text }]}>
               {recitations[reciteIndex]}
             </Text>
           </ScrollView>
           <IconButton
             icon="chevron-right"
             onPress={handleNextRecite}
-            iconColor={theme.colors.progressColor}
-            style={[
-              styles.navButton,
-              { backgroundColor: theme.colors.background },
-            ]}
+            iconColor={palette.progress}
+            style={[styles.navButton, { backgroundColor: palette.background }]}
             accessibilityLabel={t("Next recitation")}
           />
         </Pressable>
@@ -491,7 +528,7 @@ const Tazbih = () => {
       <Pressable
         style={[
           styles.progressContainer,
-          { backgroundColor: theme.colors.background },
+          { backgroundColor: palette.background },
         ]}
         onPress={handleIncrement}
         accessibilityLabel={t("Tap to increment counter")}
@@ -501,35 +538,25 @@ const Tazbih = () => {
           size={260}
           width={18}
           fill={(counter / maxCount) * 100}
-          tintColor={theme.colors.progressColor}
-          backgroundColor={theme.colors.primary}
+          tintColor={palette.progress}
+          backgroundColor={palette.surface}
           rotation={0}
           lineCap="round"
         >
           {() => (
             <Animated.View style={[styles.progressInner, counterAnimatedStyle]}>
               <View style={styles.counterDisplay}>
-                <Text
-                  style={[
-                    styles.counterText,
-                    { color: theme.colors.progressColor },
-                  ]}
-                >
+                <Text style={[styles.counterText, { color: palette.progress }]}>
                   {counter}
                 </Text>
-                <Text
-                  style={[
-                    styles.maxCountText,
-                    { color: theme.colors.inactiveColor },
-                  ]}
-                >
+                <Text style={[styles.maxCountText, { color: palette.muted }]}>
                   / {maxCount}
                 </Text>
               </View>
             </Animated.View>
           )}
         </AnimatedCircularProgress>
-        <Text style={[styles.tapText, { color: theme.colors.inactiveColor }]}>
+        <Text style={[styles.tapText, { color: palette.muted }]}>
           {t("Tap to count")}
         </Text>
       </Pressable>
@@ -628,7 +655,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(17, 17, 17, 0.38)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 100,
