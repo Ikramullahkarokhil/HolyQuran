@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { getArabicVersesForSurah } from "./quranData";
@@ -13,10 +14,18 @@ import { setAudioModeAsync } from "expo-audio";
 const AudioPlayerContext = createContext(null);
 
 export const AudioPlayerProvider = ({ children }) => {
-  const [surahId, setSurahId] = useState(0);
+  const [routeSurahId, setRouteSurahId] = useState(0);
+  const [sessionSurahId, setSessionSurahId] = useState(0);
   const [ayahList, setAyahList] = useState([]);
   const [isVisible, setIsVisible] = useState(true);
-  const registry = useSurahAudioRegistry(surahId, ayahList);
+
+  const activeSessionSurahId = sessionSurahId || routeSurahId;
+  const registry = useSurahAudioRegistry(activeSessionSurahId, ayahList);
+  const registryRef = useRef(registry);
+
+  useEffect(() => {
+    registryRef.current = registry;
+  }, [registry]);
 
   useEffect(() => {
     setAudioModeAsync({
@@ -27,17 +36,35 @@ export const AudioPlayerProvider = ({ children }) => {
     }).catch(() => {});
   }, []);
 
+  const updateAyahListForSurah = useCallback((surahId) => {
+    const nextAyahList = getArabicVersesForSurah(surahId).map(
+      (verse) => verse.ayah,
+    );
+    setAyahList((current) => {
+      if (
+        current.length === nextAyahList.length &&
+        current[0] === nextAyahList[0]
+      ) {
+        return current;
+      }
+      return nextAyahList;
+    });
+  }, []);
+
   const registerSurah = useCallback(
     (nextSurahId) => {
       const id = Number(nextSurahId);
       if (!Number.isFinite(id) || id < 1 || id > 114) return;
-      setSurahId((current) => (current === id ? current : id));
-      setAyahList((current) => {
-        if (current.length && id === surahId) return current;
-        return getArabicVersesForSurah(id).map((verse) => verse.ayah);
-      });
+
+      setRouteSurahId(id);
+      const shouldKeepSession =
+        !!registry.playingSurahId && registry.playingSurahId !== id;
+      if (shouldKeepSession) return;
+
+      setSessionSurahId(id);
+      updateAyahListForSurah(id);
     },
-    [surahId],
+    [registry.playingSurahId, updateAyahListForSurah],
   );
 
   const showPlayer = useCallback(() => setIsVisible(true), []);
@@ -45,19 +72,43 @@ export const AudioPlayerProvider = ({ children }) => {
     registry.refreshLockScreenControls?.();
     setIsVisible(false);
   }, [registry]);
+
   const playVerse = useCallback(
-    async (ayah) => {
+    async (ayah, opts = {}) => {
+      const targetAyah = Number(ayah);
+      if (!Number.isFinite(targetAyah) || targetAyah <= 0) return;
+
+      const targetSurahId = Number(routeSurahId || sessionSurahId || 0);
+      if (targetSurahId <= 0) return;
+
+      setSessionSurahId(targetSurahId);
+      updateAyahListForSurah(targetSurahId);
       setIsVisible(true);
-      return registry.playVerse(ayah);
+
+      const player = registryRef.current;
+      if (!player) return;
+      setTimeout(() => {
+        player.playVerse(targetAyah, opts).catch(() => {});
+      }, 0);
     },
-    [registry],
+    [routeSurahId, sessionSurahId, updateAyahListForSurah],
   );
+
+  const activeAyah =
+    registry.expandedId ??
+    registry.playingId ??
+    registry.lastActiveAyah ??
+    null;
+  const playbackSurahId =
+    registry.playingSurahId ?? registry.lastActiveSurahId ?? routeSurahId;
 
   const value = useMemo(
     () => ({
       ...registry,
-      surahId,
-      activeAyah: registry.expandedId ?? registry.playingId ?? null,
+      surahId: routeSurahId,
+      playbackSurahId,
+      activeAyah,
+      activeSurahId: playbackSurahId,
       isVisible,
       registerSurah,
       showPlayer,
@@ -65,13 +116,15 @@ export const AudioPlayerProvider = ({ children }) => {
       playVerse,
     }),
     [
+      activeAyah,
       hidePlayer,
       isVisible,
       playVerse,
+      playbackSurahId,
       registerSurah,
       registry,
       showPlayer,
-      surahId,
+      routeSurahId,
     ],
   );
 

@@ -56,6 +56,32 @@ const isNetworkFailure = (error) => {
   );
 };
 
+const ensureAudioReachable = async (url, timeoutMs = 15000) => {
+  if (!url) return false;
+  try {
+    const headRes = await fetch(url, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (headRes.ok) return true;
+    if (
+      headRes.status === 405 ||
+      headRes.status === 403 ||
+      headRes.status === 501
+    ) {
+      const rangeRes = await fetch(url, {
+        method: "GET",
+        headers: { Range: "bytes=0-0" },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      return Boolean(rangeRes.ok || rangeRes.status === 206);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 // ─── Header: Currently Selected Reciter ──────────────────────────────────────
 
 const SelectedReciterCard = memo(
@@ -323,6 +349,7 @@ const ReciterSelectScreen = ({ navigation }) => {
   // Audio player references for synchronous cleanup and mutual exclusion
   const playerRef = useRef(null);
   const listenerRef = useRef(null);
+  const previewRequestRef = useRef(0);
 
   const flexDir = getFlexDirection(language);
   const textAlign = getTextAlignment(language);
@@ -375,6 +402,7 @@ const ReciterSelectScreen = ({ navigation }) => {
 
   // Safely stop and release active player instance (fixesExpo Audio shared object issue)
   const stopAudio = useCallback(() => {
+    previewRequestRef.current += 1;
     const activePlayer = playerRef.current;
     const activeListener = listenerRef.current;
 
@@ -439,17 +467,23 @@ const ReciterSelectScreen = ({ navigation }) => {
         return;
       }
 
-      // Stop previous instance immediately
+      const requestId = ++previewRequestRef.current;
       stopAudio();
       setLoadingId(id);
 
       try {
         const previewUrl = getAyahAudioUrl(id, 1, 1); // Al-Fatiha Ayah 1 preview
         if (!previewUrl) throw new Error("Invalid reciter preview URL");
+        if (!(await ensureAudioReachable(previewUrl, 15000))) {
+          throw new Error("Network unavailable");
+        }
+        if (requestId !== previewRequestRef.current) return;
+
         const newPlayer = createAudioPlayer({ uri: previewUrl });
         playerRef.current = newPlayer;
 
         const sub = newPlayer.addListener("playbackStatusUpdate", (status) => {
+          if (requestId !== previewRequestRef.current) return;
           if (status?.error) {
             showPreviewError(status.error);
             stopAudio();
@@ -470,6 +504,7 @@ const ReciterSelectScreen = ({ navigation }) => {
         newPlayer.play();
         setPlayingId(id);
       } catch (err) {
+        if (requestId !== previewRequestRef.current) return;
         showPreviewError(err);
         stopAudio();
       }

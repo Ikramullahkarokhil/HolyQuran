@@ -114,20 +114,72 @@ const isNetworkFailure = (error) => {
   );
 };
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function ensureAudioReachable(url, timeoutMs = 15000) {
+  if (!url) return false;
+  try {
+    const headRes = await fetchWithTimeout(url, { method: "HEAD" }, timeoutMs);
+    if (headRes.ok) return true;
+    if (
+      headRes.status === 405 ||
+      headRes.status === 403 ||
+      headRes.status === 501
+    ) {
+      const rangeRes = await fetchWithTimeout(
+        url,
+        {
+          method: "GET",
+          headers: { Range: "bytes=0-0" },
+        },
+        timeoutMs,
+      );
+      return Boolean(rangeRes.ok || rangeRes.status === 206);
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /** HEAD request for Content-Length (best-effort). */
 async function fetchRemoteSize(url) {
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(url, {
-      method: "HEAD",
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    if (!res.ok) return null;
-    const len = res.headers.get("content-length");
-    const n = Number(len);
-    return Number.isFinite(n) && n > 0 ? n : null;
+    const headRes = await fetchWithTimeout(url, { method: "HEAD" }, 8000);
+    if (headRes.ok) {
+      const len = headRes.headers.get("content-length");
+      const n = Number(len);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+    if (
+      headRes.status === 405 ||
+      headRes.status === 403 ||
+      headRes.status === 501
+    ) {
+      const rangeRes = await fetchWithTimeout(
+        url,
+        {
+          method: "GET",
+          headers: { Range: "bytes=0-0" },
+        },
+        8000,
+      );
+      if (!rangeRes.ok && rangeRes.status !== 206) return null;
+      const len =
+        rangeRes.headers.get("content-range")?.split("/")?.[1] ??
+        rangeRes.headers.get("content-length");
+      const n = Number(len);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -352,6 +404,9 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     () => new Map(),
   );
   const [playingId, setPlayingId] = useState(null);
+  const [playingSurahId, setPlayingSurahId] = useState(null);
+  const [lastActiveAyah, setLastActiveAyah] = useState(null);
+  const [lastActiveSurahId, setLastActiveSurahId] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
   const [positionSec, setPositionSec] = useState(0);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
@@ -362,7 +417,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const playerListenerRef = useRef(null);
   const statusIntervalRef = useRef(null);
   const bulkCancelRef = useRef(false);
-  const downloadAbortRef = useRef(null);
+  const downloadAbortRef = useRef(new Map());
+  const activeDownloadsRef = useRef(new Map());
   const positionRef = useRef(0);
   const durationRef = useRef(0);
   const isMounted = useRef(true);
@@ -374,6 +430,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const downloadedSetRef = useRef(downloadedSet);
   const playVerseRef = useRef(null);
   const prefetchingRef = useRef(new Set());
+  const sessionIdRef = useRef(0);
 
   const reciterIdRef = useRef(reciterId);
   useEffect(() => {
@@ -399,6 +456,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
 
   useEffect(() => {
     isMounted.current = true;
+    const abortControllersSnapshot = downloadAbortRef.current;
 
     setAudioModeAsync({
       playsInSilentMode: true,
@@ -451,8 +509,16 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       appStateSubscription.remove();
       bulkCancelRef.current = true;
       autoAdvanceRef.current = false;
+      const activeAbortControllers = Array.from(
+        abortControllersSnapshot.values(),
+      );
       try {
-        downloadAbortRef.current?.abort?.();
+        for (const controller of activeAbortControllers) {
+          controller?.abort?.();
+        }
+      } catch {}
+      try {
+        abortControllersSnapshot.clear();
       } catch {}
       if (statusIntervalRef.current) {
         clearInterval(statusIntervalRef.current);
@@ -545,6 +611,24 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     }
   }, []);
 
+  const resetPlaybackState = useCallback(() => {
+    sessionIdRef.current += 1;
+    userPausedRef.current = true;
+    autoAdvanceRef.current = false;
+    if (statusIntervalRef.current) {
+      clearInterval(statusIntervalRef.current);
+      statusIntervalRef.current = null;
+    }
+    playingAyahRef.current = null;
+    positionRef.current = 0;
+    durationRef.current = 0;
+    setPlayingId(null);
+    setPlayingSurahId(null);
+    setExpandedId(null);
+    setPositionSec(0);
+    unloadPlayer();
+  }, [unloadPlayer]);
+
   const refreshLockScreenControls = useCallback(() => {
     const player = playerRef.current;
     const ayah = playingAyahRef.current;
@@ -607,125 +691,145 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       const url = getAyahAudioUrl(reciterId, surahId, ayah);
       if (!url) throw new Error("Invalid reciter / ayah");
 
-      const dir = ayahDirFor(reciterId, surahId);
-      ensureDir(dir);
+      const pending = activeDownloadsRef.current.get(ayah);
+      if (pending) return pending;
 
-      const destFile = ayahFileFor(reciterId, surahId, ayah);
-
-      if (destFile.exists && (destFile.size ?? 0) > 1024) {
-        await markDownloaded(
-          ayah,
-          durationMap.get(ayah) || 0,
-          destFile.size ?? 0,
-        );
-        return destFile.uri;
-      }
-
-      let remoteSize = sizeMap.get(ayah);
-      if (!remoteSize) {
-        remoteSize = await fetchRemoteSize(url);
-        if (remoteSize && isMounted.current) {
-          setSizeMap((prev) => {
-            const n = new Map(prev);
-            n.set(ayah, remoteSize);
-            return n;
-          });
+      const downloadTask = (async () => {
+        if (!(await ensureAudioReachable(url, 15000))) {
+          throw new Error("Network unavailable");
         }
-      }
 
-      onProgress?.(0.04);
-      if (isMounted.current && !silent) {
-        setDownloadProgressMap((prev) => {
-          const n = new Map(prev);
-          n.set(ayah, 0.04);
-          return n;
-        });
-      }
+        const dir = ayahDirFor(reciterId, surahId);
+        ensureDir(dir);
 
-      const tmpName = `${getAyahFileName(surahId, ayah)}.tmp`;
-      const tmpFile = new File(dir, tmpName);
-      if (tmpFile.exists) {
-        try {
-          tmpFile.delete();
-        } catch {}
-      }
+        const destFile = ayahFileFor(reciterId, surahId, ayah);
 
-      const controller = new AbortController();
-      downloadAbortRef.current = controller;
+        if (destFile.exists && (destFile.size ?? 0) > 1024) {
+          await markDownloaded(
+            ayah,
+            durationMap.get(ayah) || 0,
+            destFile.size ?? 0,
+          );
+          return destFile.uri;
+        }
 
-      try {
-        const downloaded = await File.downloadFileAsync(url, dir, {
-          idempotent: true,
-          signal: controller.signal,
-          onProgress: (data) => {
-            const total = data?.totalBytes ?? remoteSize ?? 0;
-            const written = data?.bytesWritten ?? 0;
-            if (total > 0) {
-              const p = Math.min(0.98, written / total);
-              onProgress?.(p);
-              if (isMounted.current && !silent) {
-                setDownloadProgressMap((prev) => {
-                  const n = new Map(prev);
-                  n.set(ayah, p);
-                  return n;
-                });
-              }
-            }
-          },
-        });
-
-        if (downloaded.uri !== destFile.uri) {
-          if (destFile.exists) {
-            try {
-              destFile.delete();
-            } catch {}
+        let remoteSize = sizeMap.get(ayah);
+        if (!remoteSize) {
+          remoteSize = await fetchRemoteSize(url);
+          if (remoteSize && isMounted.current) {
+            setSizeMap((prev) => {
+              const n = new Map(prev);
+              n.set(ayah, remoteSize);
+              return n;
+            });
           }
-          const src = new File(downloaded.uri);
-          src.move(destFile);
         }
 
-        onProgress?.(1);
+        onProgress?.(0.04);
         if (isMounted.current && !silent) {
           setDownloadProgressMap((prev) => {
             const n = new Map(prev);
-            n.set(ayah, 1);
+            n.set(ayah, 0.04);
             return n;
           });
         }
-      } catch (e) {
-        if (controller.signal.aborted) throw e;
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) throw new Error("Download failed");
-        const bytes = await res.bytes();
-        if (!destFile.exists) {
-          destFile.create();
+
+        const tmpName = `${getAyahFileName(surahId, ayah)}.tmp`;
+        const tmpFile = new File(dir, tmpName);
+        if (tmpFile.exists) {
+          try {
+            tmpFile.delete();
+          } catch {}
         }
-        destFile.write(bytes);
-        onProgress?.(1);
+
+        const controller = new AbortController();
+        downloadAbortRef.current.set(ayah, controller);
+
+        try {
+          const downloaded = await File.downloadFileAsync(url, dir, {
+            idempotent: true,
+            signal: controller.signal,
+            onProgress: (data) => {
+              const total = data?.totalBytes ?? remoteSize ?? 0;
+              const written = data?.bytesWritten ?? 0;
+              if (total > 0) {
+                const p = Math.min(0.98, written / total);
+                onProgress?.(p);
+                if (isMounted.current && !silent) {
+                  setDownloadProgressMap((prev) => {
+                    const n = new Map(prev);
+                    n.set(ayah, p);
+                    return n;
+                  });
+                }
+              }
+            },
+          });
+
+          if (downloaded.uri !== destFile.uri) {
+            if (destFile.exists) {
+              try {
+                destFile.delete();
+              } catch {}
+            }
+            const src = new File(downloaded.uri);
+            src.move(destFile);
+          }
+
+          onProgress?.(1);
+          if (isMounted.current && !silent) {
+            setDownloadProgressMap((prev) => {
+              const n = new Map(prev);
+              n.set(ayah, 1);
+              return n;
+            });
+          }
+        } catch (e) {
+          if (controller.signal.aborted) throw e;
+          const res = await fetchWithTimeout(
+            url,
+            { signal: controller.signal },
+            20000,
+          );
+          if (!res.ok) throw new Error("Download failed");
+          const bytes = await res.arrayBuffer();
+          if (!destFile.exists) {
+            destFile.create();
+          }
+          destFile.write(new Uint8Array(bytes));
+          onProgress?.(1);
+        } finally {
+          downloadAbortRef.current.delete(ayah);
+          try {
+            if (tmpFile.exists) tmpFile.delete();
+          } catch {}
+        }
+
+        if (!destFile.exists || (destFile.size ?? 0) < 512) {
+          try {
+            if (destFile.exists) destFile.delete();
+          } catch {}
+          throw new Error("Corrupt download");
+        }
+
+        const finalSize = destFile.size ?? 0;
+        await markDownloaded(ayah, 0, finalSize);
+        if (isMounted.current && !silent) {
+          setDownloadProgressMap((prev) => {
+            const n = new Map(prev);
+            n.delete(ayah);
+            return n;
+          });
+        }
+        return destFile.uri;
+      })();
+
+      activeDownloadsRef.current.set(ayah, downloadTask);
+      try {
+        return await downloadTask;
       } finally {
-        downloadAbortRef.current = null;
-        try {
-          if (tmpFile.exists) tmpFile.delete();
-        } catch {}
+        activeDownloadsRef.current.delete(ayah);
       }
-
-      if (!destFile.exists || (destFile.size ?? 0) < 512) {
-        try {
-          if (destFile.exists) destFile.delete();
-        } catch {}
-        throw new Error("Corrupt download");
-      }
-
-      const finalSize = destFile.size ?? 0;
-      await markDownloaded(ayah, 0, finalSize);
-      if (isMounted.current && !silent) {
-        setDownloadProgressMap((prev) => {
-          const n = new Map(prev);
-          n.delete(ayah);
-          return n;
-        });
-      }
-      return destFile.uri;
     },
     [reciterId, surahId, durationMap, sizeMap, markDownloaded],
   );
@@ -799,11 +903,14 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
 
   const handlePlaybackFinished = useCallback(
     (ayah) => {
+      const activeSession = sessionIdRef.current;
+      if (activeSession !== sessionIdRef.current) return;
       if (statusIntervalRef.current) {
         clearInterval(statusIntervalRef.current);
         statusIntervalRef.current = null;
       }
       setPlayingId(null);
+      setPlayingSurahId(null);
       playingAyahRef.current = null;
       positionRef.current = 0;
       setPositionSec(0);
@@ -817,7 +924,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
 
   const downloadVerse = useCallback(
     async (ayah) => {
-      if (downloadingId != null) return;
+      if (activeDownloadsRef.current.has(ayah)) return;
       setErrorMsg(null);
       setDownloadingId(ayah);
       setExpandedId(ayah);
@@ -855,12 +962,13 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         }
       }
     },
-    [downloadingId, downloadOne, reciterId, surahId, sizeMap],
+    [downloadOne, reciterId, surahId, sizeMap],
   );
 
   const playVerse = useCallback(
     async (ayah, opts = {}) => {
       const fromAuto = !!opts.fromAutoAdvance;
+      const activeSession = ++sessionIdRef.current;
       setErrorMsg(null);
       userPausedRef.current = false;
       autoAdvanceRef.current = true;
@@ -874,8 +982,12 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         }
 
         const file = ayahFileFor(reciterId, surahId, ayah);
+        const remoteUrl = getAyahAudioUrl(reciterId, surahId, ayah);
         let uri = file.uri;
         if (!file.exists || (file.size ?? 0) < 512) {
+          if (remoteUrl && !(await ensureAudioReachable(remoteUrl, 15000))) {
+            throw new Error("Network unavailable");
+          }
           if (!fromAuto) setDownloadingId(ayah);
           uri = await downloadOne(ayah);
           if (!fromAuto && isMounted.current) setDownloadingId(null);
@@ -908,6 +1020,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
             (status) => {
               const currentPlayer = playerRef.current;
               const currentAyah = playingAyahRef.current;
+              if (activeSession !== sessionIdRef.current) return;
               if (currentPlayer !== player || currentAyah == null) return;
               if (status?.isLoaded && status.playing) {
                 setPlayingId(currentAyah);
@@ -920,6 +1033,9 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         }
 
         playingAyahRef.current = ayah;
+        setPlayingSurahId(surahId);
+        setLastActiveAyah(ayah);
+        setLastActiveSurahId(surahId);
 
         refreshLockScreenControls();
 
@@ -1002,6 +1118,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   }, [playVerse]);
 
   const pauseVerse = useCallback(async () => {
+    sessionIdRef.current += 1;
     userPausedRef.current = true;
     autoAdvanceRef.current = false;
     try {
@@ -1009,8 +1126,17 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         playerRef.current.pause();
       }
     } catch {}
+    const activeAyah = playingAyahRef.current ?? lastActiveAyah;
+    playingAyahRef.current = null;
     setPlayingId(null);
-  }, []);
+    setPlayingSurahId((current) =>
+      current != null ? current : lastActiveSurahId,
+    );
+    if (activeAyah != null) {
+      setLastActiveAyah(activeAyah);
+    }
+    setExpandedId(null);
+  }, [lastActiveAyah, lastActiveSurahId]);
 
   const seekTo = useCallback(async (ratio) => {
     const player = playerRef.current;
@@ -1074,10 +1200,12 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
 
   const cancelDownloadAll = useCallback(() => {
     bulkCancelRef.current = true;
-    try {
-      downloadAbortRef.current?.abort?.();
-    } catch {}
-    downloadAbortRef.current = null;
+    for (const controller of downloadAbortRef.current.values()) {
+      try {
+        controller?.abort?.();
+      } catch {}
+    }
+    downloadAbortRef.current.clear();
     setIsDownloadingAll(false);
     setDownloadingId(null);
   }, []);
@@ -1128,6 +1256,9 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     downloadingId,
     downloadProgressMap,
     playingId,
+    playingSurahId,
+    lastActiveAyah,
+    lastActiveSurahId,
     expandedId,
     positionSec,
     isDownloadingAll,
@@ -1146,6 +1277,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     downloadAll,
     cancelDownloadAll,
     refreshLockScreenControls,
+    resetPlaybackState,
   };
 }
 

@@ -129,118 +129,145 @@ const GlobalAudioPlayer = memo(
       reciter?.englishName ||
       labels.quranAudio ||
       "Quran Audio";
+    const translateY = useSharedValue(0);
+
+    const swipe = Gesture.Pan()
+      .activeOffsetY([-14, 14])
+      .onUpdate((event) => {
+        const next = Math.max(-150, Math.min(0, event.translationY));
+        translateY.value = next;
+      })
+      .onEnd((event) => {
+        const shouldClose = event.translationY < -80 || event.velocityY < -600;
+        if (shouldClose) {
+          runOnJS(onClose)?.();
+          return;
+        }
+        translateY.value = withTiming(0, {
+          duration: 150,
+          easing: Easing.out(Easing.cubic),
+        });
+      });
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ translateY: translateY.value }],
+    }));
 
     return (
-      <Animated.View
-        entering={FadeInDown.duration(220).easing(Easing.out(Easing.cubic))}
-        exiting={FadeOutUp.duration(160).easing(Easing.in(Easing.quad))}
-        style={[
-          styles.container,
-          {
-            top: topOffset,
-            backgroundColor: colors.surface,
-            borderColor: withAlpha(colors.accent, 0.28),
-            shadowColor: colors.shadow,
-          },
-        ]}
-      >
-        <View style={styles.topRow}>
-          <Pressable
-            onPress={onJumpToVerse}
-            style={[
-              styles.ayahTag,
-              { backgroundColor: withAlpha(colors.accent, 0.12) },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`${labels.ayah || "Ayah"} ${activeAyah}`}
-          >
-            <Icon source="volume-high" size={14} color={colors.accent} />
-            <Text style={[styles.ayahText, { color: colors.accent }]}>
-              {labels.ayah || "Ayah"} {activeAyah}
-            </Text>
-            <Icon source="target" size={12} color={colors.accent} />
-          </Pressable>
-          <Text
-            style={[styles.trackInfo, { color: colors.secondary }]}
-            numberOfLines={1}
-          >
-            {surahName ? `${surahName} · ${reciterName}` : reciterName}
-          </Text>
-          <View style={styles.topRight}>
-            <Text style={[styles.time, { color: colors.secondary }]}>
-              {formatTime(positionSec)} / {formatTime(durationSec)}
-            </Text>
-            <Pressable
-              onPress={onClose}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Close audio player"
-            >
-              <Icon source="close" size={19} color={colors.secondary} />
-            </Pressable>
-          </View>
-        </View>
-        {isDownloading ? (
-          <View style={styles.downloadRow}>
-            <View
-              style={[
-                styles.downloadTrack,
-                { backgroundColor: withAlpha(colors.accent, 0.16) },
-              ]}
-            >
-              <View
+      <GestureDetector gesture={swipe}>
+        <Animated.View
+          entering={FadeInDown.duration(220).easing(Easing.out(Easing.cubic))}
+          exiting={FadeOutUp.duration(160).easing(Easing.in(Easing.quad))}
+          style={[
+            styles.container,
+            {
+              top: topOffset,
+              backgroundColor: colors.surface,
+              borderColor: withAlpha(colors.accent, 0.28),
+              shadowColor: colors.shadow,
+            },
+          ]}
+        >
+          <Animated.View style={animatedStyle}>
+            <View style={styles.topRow}>
+              <Pressable
+                onPress={onJumpToVerse}
                 style={[
-                  styles.downloadFill,
-                  {
-                    backgroundColor: colors.accent,
-                    width: `${Math.round(downloadProgress * 100)}%`,
-                  },
+                  styles.ayahTag,
+                  { backgroundColor: withAlpha(colors.accent, 0.12) },
                 ]}
-              />
+                accessibilityRole="button"
+                accessibilityLabel={`${labels.ayah || "Ayah"} ${activeAyah}`}
+              >
+                <Icon source="volume-high" size={14} color={colors.accent} />
+                <Text style={[styles.ayahText, { color: colors.accent }]}>
+                  {labels.ayah || "Ayah"} {activeAyah}
+                </Text>
+                <Icon source="target" size={12} color={colors.accent} />
+              </Pressable>
+              <Text
+                style={[styles.trackInfo, { color: colors.secondary }]}
+                numberOfLines={1}
+              >
+                {surahName ? `${surahName} · ${reciterName}` : reciterName}
+              </Text>
+              <View style={styles.topRight}>
+                <Text style={[styles.time, { color: colors.secondary }]}>
+                  {formatTime(positionSec)} / {formatTime(durationSec)}
+                </Text>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close audio player"
+                >
+                  <Icon source="close" size={19} color={colors.secondary} />
+                </Pressable>
+              </View>
             </View>
-            <Text style={[styles.downloadPct, { color: colors.accent }]}>
-              {Math.round(downloadProgress * 100)}%
-            </Text>
-          </View>
-        ) : (
-          <SeekBar
-            progress={progress}
-            onSeek={onSeek}
-            colors={colors}
-            disabled={durationSec <= 0}
-          />
-        )}
-        <View style={styles.controlsRow}>
-          <Pressable
-            onPress={() => onSkip(-5)}
-            hitSlop={10}
-            style={styles.control}
-            accessibilityLabel="Rewind 5 seconds"
-          >
-            <Icon source="rewind-5" size={20} color={colors.text} />
-          </Pressable>
-          <Pressable
-            onPress={isPlaying ? onPause : onPlay}
-            style={[styles.play, { backgroundColor: colors.accent }]}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? "Pause" : "Play"}
-          >
-            <Icon
-              source={isPlaying ? "pause" : "play"}
-              size={20}
-              color="#fff"
-            />
-          </Pressable>
-          <Pressable
-            onPress={() => onSkip(5)}
-            hitSlop={10}
-            style={styles.control}
-            accessibilityLabel="Forward 5 seconds"
-          >
-            <Icon source="fast-forward-5" size={20} color={colors.text} />
-          </Pressable>
-        </View>
-      </Animated.View>
+            {isDownloading ? (
+              <View style={styles.downloadRow}>
+                <View
+                  style={[
+                    styles.downloadTrack,
+                    { backgroundColor: withAlpha(colors.accent, 0.16) },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.downloadFill,
+                      {
+                        backgroundColor: colors.accent,
+                        width: `${Math.round(downloadProgress * 100)}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.downloadPct, { color: colors.accent }]}>
+                  {Math.round(downloadProgress * 100)}%
+                </Text>
+              </View>
+            ) : (
+              <SeekBar
+                progress={progress}
+                onSeek={onSeek}
+                colors={colors}
+                disabled={durationSec <= 0}
+              />
+            )}
+            <View style={styles.controlsRow}>
+              <Pressable
+                onPress={() => onSkip(-5)}
+                hitSlop={10}
+                style={styles.control}
+                accessibilityLabel="Rewind 5 seconds"
+              >
+                <Icon source="rewind-5" size={20} color={colors.text} />
+              </Pressable>
+              <Pressable
+                onPress={isPlaying ? onPause : onPlay}
+                style={[styles.play, { backgroundColor: colors.accent }]}
+                accessibilityRole="button"
+                accessibilityLabel={isPlaying ? "Pause" : "Play"}
+              >
+                <Icon
+                  source={isPlaying ? "pause" : "play"}
+                  size={20}
+                  color="#fff"
+                />
+              </Pressable>
+              <Pressable
+                onPress={() => onSkip(5)}
+                hitSlop={10}
+                style={styles.control}
+                accessibilityLabel="Forward 5 seconds"
+              >
+                <Icon source="fast-forward-5" size={20} color={colors.text} />
+              </Pressable>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      </GestureDetector>
     );
   },
 );

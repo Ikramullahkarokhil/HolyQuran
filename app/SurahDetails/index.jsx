@@ -920,6 +920,7 @@ const SurahDetails = () => {
     downloadingId,
     downloadProgressMap,
     playingId,
+    playingSurahId,
     expandedId,
     positionSec,
     isDownloadingAll,
@@ -935,6 +936,10 @@ const SurahDetails = () => {
     cancelDownloadAll,
   } = audioPlayer;
   const activeAudioAyah = audioPlayer.activeAyah;
+  const isPlayingInThisSurah =
+    playingSurahId === surahId &&
+    playingId != null &&
+    verses.some((v) => v.ayah === playingId);
   const audioPlayerVisible = Boolean(
     audioPlayer.isVisible && activeAudioAyah != null,
   );
@@ -990,13 +995,13 @@ const SurahDetails = () => {
 
   // Auto scroll to verse when playingId changes
   useEffect(() => {
-    if (!playingId || targetAyahId != null) return;
+    if (!isPlayingInThisSurah || targetAyahId != null) return;
     const idx = verses.findIndex((v) => v.ayah === playingId);
     scrollToVerse(idx);
-  }, [playingId, scrollToVerse, targetAyahId, verses]);
+  }, [isPlayingInThisSurah, playingId, scrollToVerse, targetAyahId, verses]);
 
   const restoreAudioPosition = useCallback(() => {
-    if (!playingId || targetAyahId != null) return undefined;
+    if (!isPlayingInThisSurah || targetAyahId != null) return undefined;
     const index = verses.findIndex((verse) => verse.ayah === playingId);
     if (index < 0) return undefined;
 
@@ -1012,7 +1017,7 @@ const SurahDetails = () => {
       clearTimeout(firstRetry);
       clearTimeout(secondRetry);
     };
-  }, [playingId, scrollToVerse, targetAyahId, verses]);
+  }, [isPlayingInThisSurah, playingId, scrollToVerse, targetAyahId, verses]);
 
   useFocusEffect(
     useCallback(() => restoreAudioPosition(), [restoreAudioPosition]),
@@ -1358,6 +1363,8 @@ const SurahDetails = () => {
 
   const renderItem = useCallback(
     ({ item, index }) => {
+      if (!item || typeof item.ayah !== "number") return null;
+
       const rawTranslation = translationMap.get(item.id);
       const translationVerse = rawTranslation || translationFallback;
       const isFallbackTranslation = !rawTranslation;
@@ -1383,7 +1390,7 @@ const SurahDetails = () => {
           onLongPress={handleLongPress}
           surahId={surahId}
           isAudioDownloaded={downloadedSet.has(item.ayah)}
-          isAudioPlaying={playingId === item.ayah}
+          isAudioPlaying={isPlayingInThisSurah && playingId === item.ayah}
           isAudioDownloading={downloadingId === item.ayah}
           audioDurationSec={durationMap.get(item.ayah) || 0}
           audioSizeLabel={sizeBytes ? formatBytes(sizeBytes) : null}
@@ -1412,6 +1419,7 @@ const SurahDetails = () => {
       toggleTafseer,
       surahId,
       downloadedSet,
+      isPlayingInThisSurah,
       playingId,
       downloadingId,
       durationMap,
@@ -1507,9 +1515,7 @@ const SurahDetails = () => {
     setShowLastReadBtn(false);
   }, [lastReadAyah, lastReadIndex, scrollToVerse, verses]);
 
-  const currentPlayingAyah = verses.some((verse) => verse.ayah === playingId)
-    ? playingId
-    : null;
+  const currentPlayingAyah = isPlayingInThisSurah ? playingId : null;
   const displayedLastPlayedAyah = currentPlayingAyah ?? lastPlayedAyah;
 
   const playLastPlayedAyah = useCallback(() => {

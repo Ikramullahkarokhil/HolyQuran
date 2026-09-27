@@ -167,8 +167,16 @@ const GlobalAudioDock = React.memo(() => {
   const theme = isDarkTheme ? darkTheme : lightTheme;
 
   const player = useAudioPlayer();
-  const { activeAyah, isVisible, surahId, playingId, downloadingId } = player;
-  const surahName = getSurahByIndex(surahId)?.name;
+  const {
+    activeAyah,
+    isVisible,
+    surahId,
+    activeSurahId,
+    playingId,
+    downloadingId,
+  } = player;
+  const playbackSurahId = activeSurahId ?? surahId;
+  const surahName = getSurahByIndex(playbackSurahId)?.name;
 
   const colors = useMemo(
     () => ({
@@ -194,14 +202,25 @@ const GlobalAudioDock = React.memo(() => {
     router.push({
       pathname: "/SurahDetails",
       params: {
-        surahId: String(surahId),
+        surahId: String(playbackSurahId),
         ayahId: String(activeAyah),
       },
     });
-  }, [router, surahId, activeAyah]);
+  }, [router, playbackSurahId, activeAyah]);
 
-  // Early exit – no work when player is hidden
-  if (!activeAyah || !isVisible || !surahId) {
+  const handlePause = useCallback(() => {
+    player.pauseVerse();
+  }, [player]);
+
+  const handleHide = useCallback(() => {
+    player.hidePlayer();
+  }, [player]);
+
+  if (!activeAyah || !playbackSurahId) {
+    return null;
+  }
+
+  if (!isVisible) {
     return null;
   }
 
@@ -218,10 +237,10 @@ const GlobalAudioDock = React.memo(() => {
       colors={colors}
       labels={labels}
       onPlay={() => player.playVerse(activeAyah)}
-      onPause={player.pauseVerse}
+      onPause={handlePause}
       onSeek={player.seekTo}
       onSkip={player.skipBy}
-      onClose={player.hidePlayer}
+      onClose={handleHide}
       onJumpToVerse={handleJumpToVerse}
       topOffset={insets.top + 8}
     />
