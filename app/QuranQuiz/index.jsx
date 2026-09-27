@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  BackHandler,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -171,10 +178,28 @@ const QuranQuiz = () => {
     return selected === question.isTrue;
   }, [isAnswered, selected, question]);
 
+  const handleBack = useCallback(() => {
+    if (showHub) {
+      router.back();
+      return true;
+    }
+
+    setShowHub(true);
+    return true;
+  }, [router, showHub]);
+
   useFocusEffect(
     useCallback(() => {
       navigation.setOptions({ headerShown: false });
-    }, [navigation]),
+
+      const backAction = () => handleBack();
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        backAction,
+      );
+
+      return () => subscription.remove();
+    }, [handleBack, navigation]),
   );
 
   useEffect(() => {
@@ -493,7 +518,7 @@ const QuranQuiz = () => {
       >
         <Animated.View entering={FadeInDown.duration(450)}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={handleBack}
             style={styles.hubBack}
             accessibilityRole="button"
             accessibilityLabel={t("Go back")}
@@ -710,7 +735,7 @@ const QuranQuiz = () => {
       {/* Floating header */}
       <View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }]}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={handleBack}
           style={[
             styles.headerPill,
             {
