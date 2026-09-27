@@ -672,7 +672,7 @@ FloatingPillHeader.displayName = "FloatingPillHeader";
 
 const SurahDetails = () => {
   const params = useLocalSearchParams();
-  const { surahId: paramSurahId, surahName, ayahId } = params;
+  const { surahId: paramSurahId, surahName, ayahId, verseId } = params;
 
   const navigation = useNavigation();
   const router = useRouter();
@@ -742,10 +742,12 @@ const SurahDetails = () => {
   const surahId = surah?.index ?? -1;
 
   const targetAyahId = useMemo(() => {
-    const value = Array.isArray(ayahId) ? ayahId[0] : ayahId;
-    const parsed = Number(value);
+    const rawValue = Array.isArray(ayahId) ? ayahId[0] : ayahId;
+    const fallbackValue = Array.isArray(verseId) ? verseId[0] : verseId;
+    const sourceValue = rawValue ?? fallbackValue;
+    const parsed = Number(sourceValue);
     return Number.isFinite(parsed) ? parsed : null;
-  }, [ayahId]);
+  }, [ayahId, verseId]);
 
   const colors = useMemo(
     () => ({

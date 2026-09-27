@@ -4,6 +4,7 @@ import { initI18n, i18n } from "../components/i18n";
 import { I18nextProvider, useTranslation } from "react-i18next";
 import { StatusBar } from "expo-status-bar";
 import { AppState, View, useColorScheme, Text, StyleSheet } from "react-native";
+import * as Notifications from "expo-notifications";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import useThemeStore from "../components/store/useThemeStore";
@@ -49,7 +50,28 @@ const RootLayout = () => {
   );
 
   const { bookName } = useGlobalSearchParams();
+  const router = useRouter();
   const theme = isDarkTheme ? darkTheme : lightTheme;
+
+  const handleNotificationNavigation = useCallback(
+    (response) => {
+      const data = response?.notification?.request?.content?.data;
+      const screen = data?.screen;
+      const surahId = data?.surahId;
+      const ayahId = data?.ayahId;
+
+      if (screen === "SurahDetails" && surahId) {
+        router.push({
+          pathname: "/SurahDetails",
+          params: {
+            surahId: String(surahId),
+            ayahId: ayahId ? String(ayahId) : undefined,
+          },
+        });
+      }
+    },
+    [router],
+  );
 
   // ---- One-time initialization ----
   useEffect(() => {
@@ -96,6 +118,21 @@ const RootLayout = () => {
     const subscription = AppState.addEventListener("change", onChange);
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    const initial = Notifications.getLastNotificationResponse();
+    if (initial) {
+      handleNotificationNavigation(initial);
+    }
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        handleNotificationNavigation(response);
+      },
+    );
+
+    return () => subscription.remove();
+  }, [handleNotificationNavigation]);
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
@@ -324,6 +361,12 @@ const AppStack = React.memo(({ bookName }) => {
         options={{
           headerTitle: "Reciter Selection",
           headerTitleStyle: { color: theme.colors.textColor },
+        }}
+      />
+      <Stack.Screen
+        name="IslamicHistory/index"
+        options={{
+          headerShown: false,
         }}
       />
     </Stack>

@@ -51,7 +51,9 @@ const CollectionCard = memo(
   }) => {
     const theme = useTheme();
     const available = item.available;
-    const iconColor = available ? progressColor : theme.colors.onSurfaceDisabled;
+    const iconColor = available
+      ? progressColor
+      : theme.colors.onSurfaceDisabled;
     const titleColor = available
       ? theme.colors.onSurface
       : theme.colors.onSurfaceDisabled;
@@ -72,7 +74,8 @@ const CollectionCard = memo(
           {
             backgroundColor: available
               ? theme.colors.surface
-              : theme.colors.surfaceDisabled || withAlpha(theme.colors.onSurface, 0.04),
+              : theme.colors.surfaceDisabled ||
+                withAlpha(theme.colors.onSurface, 0.04),
             borderColor: available
               ? withAlpha(progressColor, 0.25)
               : theme.colors.outlineVariant,
@@ -88,7 +91,10 @@ const CollectionCard = memo(
           accessibilityHint={
             available ? t("Open collection") : t("Collection unavailable")
           }
-          android_ripple={{ color: withAlpha(progressColor, 0.12), borderless: false }}
+          android_ripple={{
+            color: withAlpha(progressColor, 0.12),
+            borderless: false,
+          }}
           style={({ pressed }) => [
             styles.cardPressable,
             { flexDirection, opacity: pressed ? 0.82 : 1 },
@@ -100,7 +106,12 @@ const CollectionCard = memo(
           <View
             style={[
               styles.collectionIcon,
-              { backgroundColor: withAlpha(progressColor, available ? 0.12 : 0.06) },
+              {
+                backgroundColor: withAlpha(
+                  progressColor,
+                  available ? 0.12 : 0.06,
+                ),
+              },
             ]}
           >
             <MaterialIcons name={item.icon} size={22} color={iconColor} />
@@ -115,7 +126,10 @@ const CollectionCard = memo(
               <Text
                 variant="titleMedium"
                 numberOfLines={1}
-                style={[styles.title, { color: titleColor, textAlign, writingDirection }]}
+                style={[
+                  styles.title,
+                  { color: titleColor, textAlign, writingDirection },
+                ]}
               >
                 {item.title}
               </Text>
@@ -123,10 +137,18 @@ const CollectionCard = memo(
                 <View
                   style={[
                     styles.badge,
-                    { backgroundColor: withAlpha(theme.colors.onSurfaceVariant, 0.12) },
+                    {
+                      backgroundColor: withAlpha(
+                        theme.colors.onSurfaceVariant,
+                        0.12,
+                      ),
+                    },
                   ]}
                 >
-                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  <Text
+                    variant="labelSmall"
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
                     {t("Soon")}
                   </Text>
                 </View>
@@ -135,7 +157,10 @@ const CollectionCard = memo(
             <Text
               variant="bodySmall"
               numberOfLines={2}
-              style={[styles.description, { color: descriptionColor, textAlign, writingDirection }]}
+              style={[
+                styles.description,
+                { color: descriptionColor, textAlign, writingDirection },
+              ]}
             >
               {available ? item.description : t("Coming soon")}
             </Text>
@@ -146,12 +171,20 @@ const CollectionCard = memo(
                   { flexDirection: isRtl ? "row-reverse" : "row" },
                 ]}
               >
-                <MaterialIcons name="format-list-numbered" size={15} color={iconColor} />
+                <MaterialIcons
+                  name="format-list-numbered"
+                  size={15}
+                  color={iconColor}
+                />
                 <Text
                   variant="labelSmall"
-                  style={[styles.statsText, { color: iconColor, writingDirection }]}
+                  style={[
+                    styles.statsText,
+                    { color: iconColor, writingDirection },
+                  ]}
                 >
-                  {getLocalizedNumber(item.hadithCount, language)} {t("hadiths")}
+                  {getLocalizedNumber(item.hadithCount, language)}{" "}
+                  {t("hadiths")}
                   {item.bookCount
                     ? `  ·  ${getLocalizedNumber(item.bookCount, language)} ${t("books")}`
                     : ""}
@@ -184,15 +217,12 @@ const HadithCollections = () => {
       router.push({ pathname: "/HadithBooks", params: { collection } }),
     [router],
   );
-  const handleNavigateJawami = useCallback(() => router.push("/JawamiAlKalim"), [router]);
-  const bukhariStats = useMemo(
-    () => getHadithCollectionStats("bukhari"),
-    [],
+  const handleNavigateJawami = useCallback(
+    () => router.push("/JawamiAlKalim"),
+    [router],
   );
-  const muslimStats = useMemo(
-    () => getHadithCollectionStats("muslim"),
-    [],
-  );
+  const bukhariStats = useMemo(() => getHadithCollectionStats("bukhari"), []);
+  const muslimStats = useMemo(() => getHadithCollectionStats("muslim"), []);
   const collections = useMemo(
     () => [
       {
@@ -205,7 +235,7 @@ const HadithCollections = () => {
         available: true,
         onPress: handleNavigateCollection("bukhari"),
       },
-        {
+      {
         id: "muslim",
         title: t("Sahih Muslim"),
         description: t("Browse the complete Sahih Muslim collection"),
@@ -219,12 +249,12 @@ const HadithCollections = () => {
         id: "jawami-al-kalim",
         title: t("Jawami al-Kalim"),
         description: t("Explore concise Hadiths with deep meanings"),
-        icon: "auto-stories",
+        icon: "book-open-page-variant",
         hadithCount: 100,
         available: true,
         onPress: handleNavigateJawami,
       },
-    
+
       {
         id: "other",
         title: t("Other Hadith Collections"),
@@ -233,7 +263,13 @@ const HadithCollections = () => {
         available: false,
       },
     ],
-    [bukhariStats, handleNavigateCollection, handleNavigateJawami, muslimStats, t],
+    [
+      bukhariStats,
+      handleNavigateCollection,
+      handleNavigateJawami,
+      muslimStats,
+      t,
+    ],
   );
 
   return (
@@ -242,27 +278,44 @@ const HadithCollections = () => {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-
       <Surface
         elevation={1}
         style={[
           styles.introCard,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outlineVariant,
+          },
         ]}
       >
-        <View style={[styles.introIcon, { backgroundColor: withAlpha(progressColor, 0.12) }]}>
+        <View
+          style={[
+            styles.introIcon,
+            { backgroundColor: withAlpha(progressColor, 0.12) },
+          ]}
+        >
           <MaterialIcons name="auto-awesome" size={21} color={progressColor} />
         </View>
         <View style={styles.introText}>
           <Text
             variant="titleSmall"
-            style={[styles.introTitle, { color: theme.colors.onSurface, textAlign, writingDirection }]}
+            style={[
+              styles.introTitle,
+              { color: theme.colors.onSurface, textAlign, writingDirection },
+            ]}
           >
             {t("Choose a Hadith collection")}
           </Text>
           <Text
             variant="bodySmall"
-            style={[styles.introDescription, { color: theme.colors.onSurfaceVariant, textAlign, writingDirection }]}
+            style={[
+              styles.introDescription,
+              {
+                color: theme.colors.onSurfaceVariant,
+                textAlign,
+                writingDirection,
+              },
+            ]}
           >
             {t("Choose a Hadith collection to read and study")}
           </Text>
@@ -322,7 +375,11 @@ const styles = StyleSheet.create({
   introTitle: { fontWeight: "700" },
   introDescription: { lineHeight: 18 },
   list: { gap: 10 },
-  card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: "hidden" },
+  card: {
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+  },
   cardPressable: {
     alignItems: "center",
     gap: 10,
@@ -339,7 +396,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   cardBody: { flex: 1, gap: 2 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
   title: { fontWeight: "700", flexShrink: 1 },
   badge: { paddingHorizontal: 7, paddingVertical: 1, borderRadius: 5 },
   description: { lineHeight: 18 },

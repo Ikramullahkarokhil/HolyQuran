@@ -35,7 +35,12 @@ import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import { Icon, useTheme } from "react-native-paper";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
@@ -485,6 +490,7 @@ const JawamiAlKalim = () => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { showAlert, showToast } = useAppAlert();
+  const { hadithId } = useLocalSearchParams();
   const appLanguage = useAppLanguageStore((state) => state.language);
   const { translationLanguage: contentLanguage, setTranslationLanguage } =
     useHadithTranslationStore();
@@ -620,6 +626,36 @@ const JawamiAlKalim = () => {
       return searchable.includes(query) || String(item.id).includes(query);
     });
   }, [searchQuery]);
+
+  const targetHadithNumber = useMemo(() => {
+    const value = Array.isArray(hadithId) ? hadithId[0] : hadithId;
+    return value != null ? String(value) : null;
+  }, [hadithId]);
+
+  const targetHadithIndex = useMemo(() => {
+    if (!targetHadithNumber) return -1;
+    return filteredHadiths.findIndex(
+      (item) => String(item.id) === targetHadithNumber,
+    );
+  }, [filteredHadiths, targetHadithNumber]);
+
+  useEffect(() => {
+    if (targetHadithIndex < 0 || !listRef.current) return;
+
+    const timer = setTimeout(() => {
+      try {
+        listRef.current?.scrollToIndex?.({
+          index: targetHadithIndex,
+          animated: true,
+          viewPosition: 0.3,
+        });
+      } catch {
+        // Ignore list timing issues while the data settles.
+      }
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [targetHadithIndex]);
 
   const savePins = useCallback((nextPins) => {
     setPins(nextPins);

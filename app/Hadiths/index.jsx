@@ -54,7 +54,11 @@ import { useHadithTranslationStore } from "../../components/store/store";
 import FloatingLanguagePickerModal from "../../components/FloatingLanguagePickerModal";
 import GeneralModal from "../../components/GeneralModal";
 import { useAppAlert } from "../../components/AppAlertProvider";
-import { getHadithId, getHadithsByBook } from "../../components/hadithData";
+import {
+  getHadithBooks,
+  getHadithId,
+  getHadithsByBook,
+} from "../../components/hadithData";
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
 
@@ -540,6 +544,7 @@ const HadithsScreen = () => {
     bookName: bookNameParam,
     collection: collectionParam,
     hadithNumber,
+    hadithId,
   } = useLocalSearchParams();
 
   const bookNumber = Array.isArray(bookNumberParam)
@@ -702,8 +707,24 @@ const HadithsScreen = () => {
 
   const targetHadithNumber = useMemo(() => {
     const value = Array.isArray(hadithNumber) ? hadithNumber[0] : hadithNumber;
-    return value != null ? String(value) : null;
-  }, [hadithNumber]);
+    const fallbackValue = Array.isArray(hadithId) ? hadithId[0] : hadithId;
+    const resolvedValue = value ?? fallbackValue;
+    return resolvedValue != null ? String(resolvedValue) : null;
+  }, [hadithId, hadithNumber]);
+
+  const resolvedBookName = useMemo(() => {
+    const rawBookName = bookName ? String(bookName).trim() : "";
+    if (rawBookName && !/^\d+$/.test(rawBookName)) {
+      return rawBookName;
+    }
+    if (!bookNumber) return null;
+
+    const books = getHadithBooks(collection, hadithLanguage);
+    const match = books.find(
+      (item) => String(item.bookNumber) === String(bookNumber),
+    );
+    return match?.bookName || null;
+  }, [bookName, bookNumber, collection, hadithLanguage]);
 
   const currentHadithIndex = useMemo(() => {
     if (!targetHadithNumber || hadiths.length === 0) return -1;
@@ -718,7 +739,7 @@ const HadithsScreen = () => {
 
   // Reliable scroll-to-target with layout settle retries
   useEffect(() => {
-    if (currentHadithIndex < 0 || !listRef.current) return;
+    if (currentHadithIndex < 0) return;
 
     const doScroll = (animated) => {
       try {
@@ -732,24 +753,36 @@ const HadithsScreen = () => {
       }
     };
 
-    doScroll(false);
-
-    const timer = setTimeout(() => {
+    const runHighlight = () => {
       if (!isMounted.current) return;
       doScroll(false);
-
       setHighlightedHadithId(targetHadithNumber);
       highlightProgress.value = 0;
       highlightProgress.value = withSequence(
         withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) }),
         withTiming(0, { duration: 1400, easing: Easing.inOut(Easing.quad) }),
       );
+    };
+
+    doScroll(false);
+
+    const timer = setTimeout(() => {
+      runHighlight();
     }, 120);
 
-    scrollRetryTimer.current = setTimeout(() => {
-      if (!isMounted.current) return;
-      doScroll(true);
-    }, 420);
+    const retryTimers = [
+      setTimeout(() => {
+        if (!isMounted.current) return;
+        doScroll(true);
+      }, 420),
+      setTimeout(() => {
+        if (!isMounted.current) return;
+        doScroll(true);
+        runHighlight();
+      }, 900),
+    ];
+
+    scrollRetryTimer.current = retryTimers[0];
 
     const clearTimer = setTimeout(() => {
       runOnJS(clearHighlight)();
@@ -758,7 +791,7 @@ const HadithsScreen = () => {
     return () => {
       clearTimeout(timer);
       clearTimeout(clearTimer);
-      if (scrollRetryTimer.current) clearTimeout(scrollRetryTimer.current);
+      retryTimers.forEach((timeoutId) => clearTimeout(timeoutId));
       cancelAnimation(highlightProgress);
     };
   }, [
@@ -797,12 +830,12 @@ const HadithsScreen = () => {
   const handleTranslate = useCallback(() => setPickerVisible(true), []);
 
   const headerTitle = useMemo(() => {
+    if (resolvedBookName) return resolvedBookName;
     if (targetHadithNumber) {
       return `${t("Hadith")} #${targetHadithNumber}`;
     }
-    if (bookName) return String(bookName);
     return t("Hadith");
-  }, [targetHadithNumber, bookName, t]);
+  }, [resolvedBookName, targetHadithNumber, t]);
 
   const handleBookmark = useCallback(
     async (item) => {
