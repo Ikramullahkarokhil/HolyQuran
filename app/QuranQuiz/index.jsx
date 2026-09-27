@@ -36,6 +36,72 @@ const SURAH_NAMES = getSurahNames();
 
 const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
 
+const MODE_META = {
+  surah: {
+    key: "surah",
+    icon: "book-open-page-variant",
+    color: "#14b8a6",
+    label: "Surah Sprint",
+    description: "Find the surah from an ayah",
+    accent: "#0f766e",
+  },
+  ayah: {
+    key: "ayah",
+    icon: "numeric",
+    color: "#60a5fa",
+    label: "Ayah Rush",
+    description: "Spot the ayah number",
+    accent: "#2563eb",
+  },
+  truefalse: {
+    key: "truefalse",
+    icon: "check-decagram",
+    color: "#f59e0b",
+    label: "True or False",
+    description: "Trust your Quran knowledge",
+    accent: "#b45309",
+  },
+  reference: {
+    key: "reference",
+    icon: "format-list-numbered",
+    color: "#f472b6",
+    label: "Verse Match",
+    description: "Match the complete reference",
+    accent: "#be185d",
+  },
+  sequence: {
+    key: "sequence",
+    icon: "arrow-right-thin-circle-outline",
+    color: "#a78bfa",
+    label: "Surah Flow",
+    description: "Choose the next surah in order",
+    accent: "#6d28d9",
+  },
+};
+
+const createSequenceQuestion = () => {
+  const baseSurah =
+    SURAH_NAMES[Math.floor(Math.random() * (SURAH_NAMES.length - 1))];
+  const nextSurah =
+    SURAH_NAMES.find((entry) => entry.index === baseSurah.index + 1) ||
+    SURAH_NAMES[0];
+  const distractors = shuffle(
+    SURAH_NAMES.filter(
+      (entry) =>
+        entry.index !== baseSurah.index && entry.index !== nextSurah.index,
+    ),
+  ).slice(0, 3);
+
+  return {
+    type: "sequence",
+    baseSurah,
+    correctSurah: nextSurah,
+    options: shuffle([nextSurah, ...distractors]),
+    promptKey: "Which surah comes next?",
+    promptHint: `${baseSurah.tname}`,
+  };
+};
+
 /* ------------------------------------------------------------------ */
 /*  Question generators                                               */
 /* ------------------------------------------------------------------ */
@@ -122,12 +188,34 @@ const createQuestion = (verses, mode) => {
   if (mode === "ayah") return createAyahQuestion(verses);
   if (mode === "truefalse") return createTrueFalseQuestion(verses);
   if (mode === "reference") return createReferenceQuestion(verses);
+  if (mode === "sequence") return createSequenceQuestion();
   return createSurahQuestion(verses);
 };
 
-/* ------------------------------------------------------------------ */
-/*  Main component                                                    */
-/* ------------------------------------------------------------------ */
+const getModeList = (t) =>
+  Object.keys(MODE_META).map((key) => ({
+    ...MODE_META[key],
+    label:
+      key === "surah"
+        ? t("Surah Finder")
+        : key === "ayah"
+          ? t("Ayah Number")
+          : key === "truefalse"
+            ? t("True or False")
+            : key === "reference"
+              ? t("Verse Match")
+              : "Surah Flow",
+    description:
+      key === "surah"
+        ? t("Find the surah from an ayah")
+        : key === "ayah"
+          ? t("Spot the ayah number")
+          : key === "truefalse"
+            ? t("Trust your Quran knowledge")
+            : key === "reference"
+              ? t("Match the complete reference")
+              : "Choose the next surah in order",
+  }));
 
 const QuranQuiz = () => {
   const theme = useTheme();
@@ -164,6 +252,8 @@ const QuranQuiz = () => {
   const writingDirection = getWritingDirection(translationLanguage);
   const isAnswered = selected !== null;
 
+  const modeCards = useMemo(() => getModeList(t), [t]);
+
   const isCorrect = useMemo(() => {
     if (!isAnswered) return false;
     if (question.type === "surah") {
@@ -174,6 +264,9 @@ const QuranQuiz = () => {
     }
     if (question.type === "reference") {
       return selected === question.correctReference;
+    }
+    if (question.type === "sequence") {
+      return selected === question.correctSurah.index;
     }
     return selected === question.isTrue;
   }, [isAnswered, selected, question]);
@@ -216,8 +309,6 @@ const QuranQuiz = () => {
     transform: [{ scale: cardScale.value }],
   }));
 
-  /* -------------------- handlers -------------------- */
-
   const answerQuestion = useCallback(
     (value) => {
       if (isAnswered) return;
@@ -231,6 +322,8 @@ const QuranQuiz = () => {
         correct = value === question.correctAyah;
       } else if (question.type === "reference") {
         correct = value === question.correctReference;
+      } else if (question.type === "sequence") {
+        correct = value === question.correctSurah.index;
       } else {
         correct = value === question.isTrue;
       }
@@ -243,7 +336,6 @@ const QuranQuiz = () => {
           setBestStreak((b) => Math.max(b, next));
           return next;
         });
-        // eslint-disable-next-line react-hooks/immutability
         cardScale.value = withSequence(
           withSpring(1.03, { damping: 12 }),
           withSpring(1),
@@ -256,7 +348,6 @@ const QuranQuiz = () => {
         );
       }
 
-      // eslint-disable-next-line react-hooks/immutability
       feedbackOpacity.value = withTiming(1, { duration: 250 });
     },
     [cardScale, feedbackOpacity, isAnswered, question, streak],
@@ -268,7 +359,6 @@ const QuranQuiz = () => {
       return;
     }
 
-    // eslint-disable-next-line react-hooks/immutability
     feedbackOpacity.value = 0;
     setQuestion(createQuestion(verses, mode));
     setSelected(null);
@@ -284,7 +374,6 @@ const QuranQuiz = () => {
     setRound(1);
     setFinished(false);
     setShowHub(false);
-    // eslint-disable-next-line react-hooks/immutability
     progress.value = 0;
   }, [mode, progress, verses]);
 
@@ -299,7 +388,6 @@ const QuranQuiz = () => {
       setRound(1);
       setFinished(false);
       setShowHub(false);
-      // eslint-disable-next-line react-hooks/immutability
       progress.value = 0;
     },
     [progress, verses],
@@ -336,34 +424,10 @@ const QuranQuiz = () => {
     ayah: t("Ayah Number"),
     truefalse: t("True or False"),
     reference: t("Verse Match"),
+    sequence: "Surah Flow",
   };
 
-  const modeDetails = {
-    surah: {
-      icon: "book-open-page-variant",
-      color: "#0f766e",
-      description: t("Find the surah from an ayah"),
-    },
-    ayah: {
-      icon: "numeric",
-      color: "#2563eb",
-      description: t("Spot the ayah number"),
-    },
-    truefalse: {
-      icon: "check-decagram",
-      color: "#b45309",
-      description: t("Trust your Quran knowledge"),
-    },
-    reference: {
-      icon: "format-list-numbered",
-      color: "#be185d",
-      description: t("Match the complete reference"),
-    },
-  };
-
-  const quizModes = ["surah", "ayah", "truefalse", "reference"];
-
-  /* -------------------- render helpers -------------------- */
+  const currentModeMeta = MODE_META[mode] || MODE_META.surah;
 
   const renderOptions = () => {
     if (question.type === "truefalse") {
@@ -419,15 +483,15 @@ const QuranQuiz = () => {
       });
     }
 
-    // surah & ayah options
     return question.options.map((option, idx) => {
-      const value = question.type === "surah" ? option.index : option;
-      const label =
-        question.type === "surah"
-          ? option.tname
-          : question.type === "reference"
-            ? option
-            : String(option);
+      const isSurahOption =
+        question.type === "surah" || question.type === "sequence";
+      const value = isSurahOption ? option.index : option;
+      const label = isSurahOption
+        ? option.tname || option.name || option
+        : question.type === "reference"
+          ? option
+          : String(option);
 
       const isSelected = selected === value;
       const isAnswer =
@@ -435,7 +499,9 @@ const QuranQuiz = () => {
           ? value === question.correctSurah.index
           : question.type === "reference"
             ? value === question.correctReference
-            : value === question.correctAyah;
+            : question.type === "sequence"
+              ? value === question.correctSurah.index
+              : value === question.correctAyah;
 
       let bg = theme.colors.surface;
       let borderColor = "transparent";
@@ -457,7 +523,7 @@ const QuranQuiz = () => {
 
       return (
         <Animated.View
-          key={value}
+          key={`${question.type}-${value}-${idx}`}
           entering={FadeInDown.delay(idx * 70).springify()}
           layout={Layout.springify()}
         >
@@ -472,7 +538,7 @@ const QuranQuiz = () => {
               },
             ]}
           >
-            {question.type === "surah" && (
+            {(question.type === "surah" || question.type === "sequence") && (
               <View
                 style={[
                   styles.optionBadge,
@@ -517,21 +583,28 @@ const QuranQuiz = () => {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.duration(450)}>
-          <Pressable
-            onPress={handleBack}
-            style={styles.hubBack}
-            accessibilityRole="button"
-            accessibilityLabel={t("Go back")}
-          >
-            <Icon
-              source="arrow-left"
-              size={21}
-              color={theme.colors.onSurface}
-            />
-          </Pressable>
-          <Text style={[styles.hubKicker, { color: theme.colors.primary }]}>
-            {t("Quran Challenge")}
-          </Text>
+          <View style={styles.heroHeader}>
+            <Pressable
+              onPress={handleBack}
+              style={styles.hubBack}
+              accessibilityRole="button"
+              accessibilityLabel={t("Go back")}
+            >
+              <Icon
+                source="arrow-left"
+                size={21}
+                color={theme.colors.onSurface}
+              />
+            </Pressable>
+            <View style={styles.heroBadge}>
+              <Text
+                style={[styles.heroBadgeText, { color: theme.colors.primary }]}
+              >
+                {t("Quran Challenge")}
+              </Text>
+            </View>
+          </View>
+
           <Text style={[styles.hubTitle, { color: theme.colors.onSurface }]}>
             {t("Learn through play")}
           </Text>
@@ -543,62 +616,108 @@ const QuranQuiz = () => {
           >
             {t("Choose a challenge and sharpen your Quran memory.")}
           </Text>
+
+          <Animated.View
+            entering={FadeInUp.delay(120).duration(600)}
+            style={[
+              styles.featureCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outlineVariant,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.featurePill,
+                { backgroundColor: currentModeMeta.color },
+              ]}
+            >
+              <Icon source={currentModeMeta.icon} size={24} color="#fff" />
+            </View>
+            <View style={styles.featureTextWrap}>
+              <Text
+                style={[styles.featureEyebrow, { color: theme.colors.primary }]}
+              >
+                {t("Featured mode")}
+              </Text>
+              <Text
+                style={[styles.featureTitle, { color: theme.colors.onSurface }]}
+              >
+                {modeLabels[mode]}
+              </Text>
+              <Text
+                style={[
+                  styles.featureDescription,
+                  { color: theme.colors.onSurfaceVariant },
+                ]}
+              >
+                {currentModeMeta.description}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => changeMode(mode)}
+              style={[
+                styles.playButton,
+                { backgroundColor: currentModeMeta.color },
+              ]}
+            >
+              <Text style={styles.playButtonText}>{t("Play")}</Text>
+            </Pressable>
+          </Animated.View>
         </Animated.View>
 
         <View style={styles.modeGrid}>
-          {quizModes.map((quizMode, index) => {
-            const detail = modeDetails[quizMode];
-            return (
-              <Animated.View
-                key={quizMode}
-                entering={FadeInDown.delay(100 + index * 70).springify()}
-                style={styles.modeCardWrap}
+          {modeCards.map((card, index) => (
+            <Animated.View
+              key={card.key}
+              entering={FadeInDown.delay(160 + index * 70).springify()}
+              style={styles.modeCardWrap}
+            >
+              <Pressable
+                onPress={() => changeMode(card.key)}
+                style={({ pressed }) => [
+                  styles.modeCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outlineVariant,
+                    opacity: pressed ? 0.82 : 1,
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={card.description}
               >
-                <Pressable
-                  onPress={() => changeMode(quizMode)}
-                  style={({ pressed }) => [
-                    styles.modeCard,
-                    {
-                      backgroundColor: theme.colors.surface,
-                      borderColor: theme.colors.outlineVariant,
-                      opacity: pressed ? 0.82 : 1,
-                    },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel={detail.description}
+                <View
+                  style={[styles.modeIcon, { backgroundColor: card.color }]}
                 >
-                  <View
-                    style={[styles.modeIcon, { backgroundColor: detail.color }]}
-                  >
-                    <Icon source={detail.icon} size={24} color="#ffffff" />
-                  </View>
-                  <Text
-                    style={[
-                      styles.modeCardTitle,
-                      { color: theme.colors.onSurface },
-                    ]}
-                  >
-                    {modeLabels[quizMode]}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.modeCardDescription,
-                      { color: theme.colors.onSurfaceVariant },
-                    ]}
-                  >
-                    {detail.description}
-                  </Text>
-                  <View style={styles.modeArrow}>
-                    <Icon
-                      source="arrow-top-right"
-                      size={18}
-                      color={detail.color}
-                    />
-                  </View>
-                </Pressable>
-              </Animated.View>
-            );
-          })}
+                  <Icon source={card.icon} size={24} color="#ffffff" />
+                </View>
+                <Text
+                  style={[
+                    styles.modeCardTitle,
+                    { color: theme.colors.onSurface },
+                  ]}
+                >
+                  {card.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.modeCardDescription,
+                    { color: theme.colors.onSurfaceVariant },
+                  ]}
+                >
+                  {card.description}
+                </Text>
+                <View style={styles.modeArrow}>
+                  <Icon
+                    source="arrow-top-right"
+                    size={18}
+                    color={card.accent}
+                  />
+                </View>
+              </Pressable>
+            </Animated.View>
+          ))}
         </View>
 
         <Animated.View
@@ -627,8 +746,6 @@ const QuranQuiz = () => {
       </ScrollView>
     );
   }
-
-  /* -------------------- finished screen -------------------- */
 
   if (finished) {
     return (
@@ -726,13 +843,10 @@ const QuranQuiz = () => {
     );
   }
 
-  /* -------------------- main quiz UI -------------------- */
-
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
-      {/* Floating header */}
       <View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }]}>
         <Pressable
           onPress={handleBack}
@@ -784,7 +898,6 @@ const QuranQuiz = () => {
         </Pressable>
       </View>
 
-      {/* Progress bar */}
       <View
         style={[
           styles.progressTrack,
@@ -811,7 +924,6 @@ const QuranQuiz = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Stats */}
         <Animated.View entering={FadeIn.duration(400)} style={styles.statsRow}>
           <Stat
             label={t("Question")}
@@ -826,7 +938,6 @@ const QuranQuiz = () => {
           />
         </Animated.View>
 
-        {/* Verse card */}
         <Animated.View style={cardAnimStyle}>
           <View
             style={[
@@ -838,8 +949,28 @@ const QuranQuiz = () => {
             ]}
           >
             <Text style={[styles.eyebrow, { color: theme.colors.primary }]}>
-              {t(question.promptKey)}
+              {question.type === "sequence"
+                ? "Next in the sequence"
+                : t(question.promptKey)}
             </Text>
+
+            {question.type === "sequence" && (
+              <View
+                style={[
+                  styles.sequenceBadge,
+                  { backgroundColor: theme.colors.primaryContainer },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.sequenceBadgeText,
+                    { color: theme.colors.onPrimaryContainer },
+                  ]}
+                >
+                  {question.baseSurah.tname}
+                </Text>
+              </View>
+            )}
 
             {question.type === "truefalse" && (
               <View
@@ -869,7 +1000,7 @@ const QuranQuiz = () => {
                 },
               ]}
             >
-              {question.verse.verse}
+              {question.verse ? question.verse.verse : question.baseSurah.tname}
             </Text>
 
             <Text
@@ -884,15 +1015,15 @@ const QuranQuiz = () => {
             >
               {question.type === "ayah"
                 ? t("Guess the ayah number")
-                : `${t("Ayah")} ${question.verse.ayah}`}
+                : question.type === "sequence"
+                  ? "Pick the next surah in order"
+                  : `${t("Ayah")} ${question.verse.ayah}`}
             </Text>
           </View>
         </Animated.View>
 
-        {/* Options */}
         <View style={styles.options}>{renderOptions()}</View>
 
-        {/* Feedback + Next */}
         {isAnswered && (
           <Animated.View
             entering={FadeInUp.springify()}
@@ -922,12 +1053,16 @@ const QuranQuiz = () => {
                       ? t("The correct reference is {{reference}}", {
                           reference: question.correctReference,
                         })
-                      : t(
-                          question.isTrue
-                            ? "Yes, it belongs to that surah"
-                            : "No, it belongs to {{surah}}",
-                          { surah: question.correctSurah.tname },
-                        )}
+                      : question.type === "sequence"
+                        ? t("The next surah is {{surah}}", {
+                            surah: question.correctSurah.tname,
+                          })
+                        : t(
+                            question.isTrue
+                              ? "Yes, it belongs to that surah"
+                              : "No, it belongs to {{surah}}",
+                            { surah: question.correctSurah.tname },
+                          )}
             </Text>
 
             <Pressable
@@ -976,10 +1111,6 @@ const QuranQuiz = () => {
   );
 };
 
-/* ------------------------------------------------------------------ */
-/*  Small components                                                  */
-/* ------------------------------------------------------------------ */
-
 const Stat = ({ label, value, theme, highlight = false }) => (
   <View
     style={[
@@ -1018,13 +1149,27 @@ const Stat = ({ label, value, theme, highlight = false }) => (
 
 export default QuranQuiz;
 
-/* ------------------------------------------------------------------ */
-/*  Styles                                                            */
-/* ------------------------------------------------------------------ */
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flex: 1 },
+  heroHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 22,
+  },
+  heroBadge: {
+    borderRadius: 999,
+    backgroundColor: "rgba(37, 135, 216, 0.12)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  heroBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   hubContent: {
     paddingHorizontal: 20,
     paddingBottom: 36,
@@ -1035,27 +1180,66 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 34,
     backgroundColor: "rgba(128,128,128,0.12)",
   },
-  hubKicker: {
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 1.1,
-    textTransform: "uppercase",
-    marginBottom: 10,
-  },
   hubTitle: {
-    fontSize: 34,
-    lineHeight: 39,
+    fontSize: 38,
+    lineHeight: 42,
     fontWeight: "900",
-    letterSpacing: 0,
+    letterSpacing: -0.9,
   },
   hubSubtitle: {
     fontSize: 16,
     lineHeight: 24,
     marginTop: 10,
     maxWidth: 330,
+  },
+  featureCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginTop: 28,
+    borderRadius: 26,
+    borderWidth: 1,
+    padding: 16,
+  },
+  featurePill: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureTextWrap: {
+    flex: 1,
+  },
+  featureEyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  featureTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  featureDescription: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  playButton: {
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  playButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   modeGrid: {
     flexDirection: "row",
@@ -1069,7 +1253,7 @@ const styles = StyleSheet.create({
     minWidth: 145,
   },
   modeCard: {
-    minHeight: 184,
+    minHeight: 190,
     borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
@@ -1116,7 +1300,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 48,
   },
-
   floatingHeader: {
     position: "absolute",
     top: 0,
@@ -1152,7 +1335,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     maxWidth: "80%",
   },
-
   progressTrack: {
     position: "absolute",
     left: 16,
@@ -1166,7 +1348,6 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 2,
   },
-
   statsRow: {
     flexDirection: "row",
     gap: 10,
@@ -1188,14 +1369,29 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: "500",
   },
-
   prompt: {
     borderRadius: 24,
     padding: 22,
-    minHeight: 200,
+    minHeight: 210,
     justifyContent: "center",
     marginBottom: 20,
     borderWidth: StyleSheet.hairlineWidth,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+  },
+  sequenceBadge: {
+    alignSelf: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  sequenceBadgeText: {
+    fontSize: 15,
+    fontWeight: "700",
   },
   eyebrow: {
     fontSize: 13,
@@ -1226,7 +1422,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "500",
   },
-
   options: {
     gap: 12,
   },
@@ -1254,7 +1449,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-
   tfOption: {
     minHeight: 64,
     borderRadius: 18,
@@ -1268,7 +1462,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-
   feedbackArea: {
     alignItems: "center",
     marginTop: 28,
@@ -1293,7 +1486,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
   },
-
   finishedCard: {
     marginHorizontal: 24,
     marginTop: 120,
