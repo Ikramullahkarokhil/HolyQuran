@@ -6,6 +6,7 @@ import React, {
   useRef,
   memo,
 } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -20,7 +21,12 @@ import { Icon, useTheme } from "react-native-paper";
 import { createAudioPlayer } from "expo-audio";
 import { File, Directory, Paths } from "expo-file-system";
 import { useTranslation } from "react-i18next";
-import { RECITERS, getAyahAudioUrl } from "../../components/reciters.js";
+import {
+  RECITERS,
+  getAyahAudioUrl,
+  getAyahCountForSurah,
+  getAyahFileName,
+} from "../../components/reciters.js";
 import { useReciterStore } from "../../components/store/useReciterStore";
 import { useAppLanguageStore } from "../../components/store/store";
 import { useAppAlert } from "../../components/AppAlertProvider";
@@ -83,6 +89,194 @@ const ensureAudioReachable = async (url, timeoutMs = 15000) => {
   }
 };
 
+const BULK_DOWNLOAD_CONCURRENCY = 4;
+const AUDIO_SIZE_INDEX_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
+
+const formatDownloadBytes = (bytes) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024)
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
+const getAyahDirectory = (reciterId, surahId) =>
+  new Directory(
+    new Directory(Paths.document, "quran-audio"),
+    String(reciterId),
+    String(surahId).padStart(3, "0"),
+  );
+
+const getAyahFile = (reciterId, surahId, ayah) =>
+  new File(
+    getAyahDirectory(reciterId, surahId),
+    getAyahFileName(surahId, ayah),
+  );
+
+const hasCompleteAyahSizeIndex = (sizes) => {
+  if (!sizes) return false;
+  for (let surah = 1; surah <= 114; surah += 1) {
+    for (let ayah = 1; ayah <= getAyahCountForSurah(surah); ayah += 1) {
+      const size = sizes.get(getAyahFileName(surah, ayah));
+      if (!Number.isFinite(size) || size <= 0) return false;
+    }
+  }
+  return true;
+};
+
+const fetchReciterAudioSizes = async (reciterId) => {
+  const cacheKey = `quran_audio_size_index_v1_${reciterId}`;
+  try {
+    const cached = await AsyncStorage.getItem(cacheKey);
+    if (cached) {
+      const cachedIndex = JSON.parse(cached);
+      const cacheAge = Date.now() - cachedIndex.fetchedAt;
+      if (
+        cacheAge >= 0 &&
+        cacheAge < AUDIO_SIZE_INDEX_CACHE_TTL &&
+        cachedIndex.sizes
+      ) {
+        const sizes = new Map(Object.entries(cachedIndex.sizes));
+        for (const [name, size] of sizes) sizes.set(name, Number(size));
+        if (hasCompleteAyahSizeIndex(sizes)) return sizes;
+      }
+    }
+  } catch {}
+
+  const sampleUrl = getAyahAudioUrl(reciterId, 1, 1);
+  if (!sampleUrl) return null;
+  const directoryUrl = sampleUrl.slice(0, sampleUrl.lastIndexOf("/") + 1);
+  const response = await fetch(directoryUrl, {
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok) throw new Error("Audio size index unavailable");
+
+  const html = await response.text();
+  const sizes = new Map();
+  const rowPattern = /<tr class="file">([\s\S]*?)<\/tr>/g;
+  let row;
+  while ((row = rowPattern.exec(html)) !== null) {
+    const name = row[1].match(/<span class="name">(\d{6}\.mp3)<\/span>/)?.[1];
+    const size = Number(row[1].match(/<td data-order="(\d+)"/)?.[1]);
+    if (name && Number.isFinite(size) && size > 0) sizes.set(name, size);
+  }
+
+  if (hasCompleteAyahSizeIndex(sizes)) {
+    AsyncStorage.setItem(
+      cacheKey,
+      JSON.stringify({
+        fetchedAt: Date.now(),
+        sizes: Object.fromEntries(sizes),
+      }),
+    ).catch(() => {});
+  }
+  return sizes;
+};
+
+const prepareReciterDownloads = async (reciterId, onProgress) => {
+  const total = Array.from({ length: 114 }, (_, index) =>
+    getAyahCountForSurah(index + 1),
+  ).reduce((sum, count) => sum + count, 0);
+  const tasks = [];
+  const localFiles = new Map();
+  let existingCount = 0;
+  let existingBytes = 0;
+  let scanned = 0;
+
+  for (let surah = 1; surah <= 114; surah += 1) {
+    for (let ayah = 1; ayah <= getAyahCountForSurah(surah); ayah += 1) {
+      const key = `${surah}:${ayah}`;
+      try {
+        const file = getAyahFile(reciterId, surah, ayah);
+        const fileSize = file.exists ? (file.size ?? 0) : 0;
+        if (fileSize > 512) {
+          localFiles.set(key, { file, size: fileSize });
+          existingCount += 1;
+          existingBytes += fileSize;
+        }
+      } catch {}
+      if (!localFiles.has(key)) {
+        tasks.push({ surah, ayah });
+      }
+      scanned += 1;
+
+      if (scanned % 200 === 0) {
+        onProgress?.({
+          stage: "scanning",
+          scanned,
+          total,
+          existingCount,
+          existingBytes,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+  }
+
+  onProgress?.({
+    stage: "loadingSizes",
+    scanned: total,
+    total,
+    existingCount,
+    existingBytes,
+  });
+  let sizes = null;
+  try {
+    sizes = await fetchReciterAudioSizes(reciterId);
+  } catch {}
+
+  if (sizes) {
+    tasks.length = 0;
+    existingCount = 0;
+    existingBytes = 0;
+    for (let surah = 1; surah <= 114; surah += 1) {
+      for (let ayah = 1; ayah <= getAyahCountForSurah(surah); ayah += 1) {
+        const key = `${surah}:${ayah}`;
+        const localFile = localFiles.get(key);
+        const expectedSize = sizes.get(getAyahFileName(surah, ayah));
+        const isComplete =
+          localFile &&
+          (expectedSize == null
+            ? localFile.size > 512
+            : localFile.size === expectedSize);
+
+        if (isComplete) {
+          existingCount += 1;
+          existingBytes += localFile.size;
+        } else {
+          if (localFile) {
+            try {
+              localFile.file.delete();
+            } catch {}
+          }
+          tasks.push({ surah, ayah });
+        }
+      }
+    }
+  }
+
+  let totalBytes = 0;
+  let isTotalBytesKnown = hasCompleteAyahSizeIndex(sizes);
+  if (isTotalBytesKnown) {
+    for (let surah = 1; surah <= 114; surah += 1) {
+      for (let ayah = 1; ayah <= getAyahCountForSurah(surah); ayah += 1) {
+        totalBytes += sizes.get(getAyahFileName(surah, ayah));
+      }
+    }
+  }
+
+  return {
+    reciterId,
+    tasks,
+    existingCount,
+    existingBytes,
+    total,
+    totalBytes: isTotalBytesKnown ? totalBytes : null,
+    sizes,
+  };
+};
+
 // ─── Header: Currently Selected Reciter ──────────────────────────────────────
 
 const SelectedReciterCard = memo(
@@ -106,8 +300,8 @@ const SelectedReciterCard = memo(
         style={[
           styles.headerCard,
           {
-            backgroundColor: withAlpha(progressColor, 0.08),
-            borderColor: withAlpha(progressColor, 0.3),
+            backgroundColor: withAlpha(progressColor, 0.09),
+            borderColor: withAlpha(progressColor, 0.28),
           },
         ]}
       >
@@ -137,13 +331,13 @@ const SelectedReciterCard = memo(
             <View
               style={[
                 styles.badgeRow,
-                { flexDirection: flexDir, marginTop: 4 },
+                { flexDirection: flexDir, marginTop: 6 },
               ]}
             >
               <View
                 style={[
                   styles.badge,
-                  { backgroundColor: withAlpha(progressColor, 0.18) },
+                  { backgroundColor: withAlpha(progressColor, 0.16) },
                 ]}
               >
                 <Icon source="tune-variant" size={12} color={progressColor} />
@@ -156,7 +350,7 @@ const SelectedReciterCard = memo(
 
           <Pressable
             onPress={() => onTogglePreview(selectedVariant.id)}
-            hitSlop={8}
+            hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={
               isPlaying ? t("Pause preview") : t("Play preview")
@@ -164,7 +358,7 @@ const SelectedReciterCard = memo(
             style={({ pressed }) => [
               styles.headerPreviewBtn,
               { backgroundColor: progressColor },
-              pressed && { opacity: 0.85 },
+              pressed && styles.pressedScale,
             ]}
           >
             {isLoading ? (
@@ -202,13 +396,11 @@ const ReciterCard = memo(
     const { progressColor, textColor, primaryColor, outlineColor } =
       themeColors;
 
-    // Check if any variant inside this grouped reciter is selected
     const activeVariant = group.variants.find(
       (v) => v.id === selectedReciterId,
     );
     const isSelected = Boolean(activeVariant);
 
-    // Default variant to preview (either currently active or highest quality)
     const previewVariant = activeVariant || group.variants[0];
     const isPlaying = playingId === previewVariant.id;
     const isLoading = loadingId === previewVariant.id;
@@ -221,35 +413,51 @@ const ReciterCard = memo(
             backgroundColor: primaryColor,
             borderColor: isSelected
               ? progressColor
-              : withAlpha(outlineColor || "#000", 0.08),
+              : withAlpha(outlineColor || "#000", 0.1),
             borderWidth: isSelected ? 2 : StyleSheet.hairlineWidth,
+          },
+          isSelected && {
+            shadowColor: progressColor,
+            shadowOpacity: 0.12,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 3,
           },
         ]}
       >
         <View style={[styles.cardContent, { flexDirection: flexDir }]}>
-          {/* Selection Radio / Check Indicator */}
           <Pressable
             onPress={() => onSelectVariant(previewVariant.id)}
+            hitSlop={6}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: isSelected }}
             style={[
               styles.radioCircle,
               {
                 borderColor: isSelected
                   ? progressColor
-                  : withAlpha(textColor, 0.3),
+                  : withAlpha(textColor, 0.28),
                 backgroundColor: isSelected ? progressColor : "transparent",
               },
             ]}
           >
-            {isSelected && <Icon source="check" size={14} color="#FFF" />}
+            {isSelected && <Icon source="check" size={13} color="#FFF" />}
           </Pressable>
 
-          {/* Reciter Details & Bitrate Quality Selectors */}
           <View style={styles.textDetails}>
-            <Pressable onPress={() => onSelectVariant(previewVariant.id)}>
+            <Pressable
+              onPress={() => onSelectVariant(previewVariant.id)}
+              accessibilityRole="button"
+            >
               <Text
                 style={[
                   styles.reciterName,
-                  { color: textColor, textAlign, writingDirection: writingDir },
+                  {
+                    color: textColor,
+                    textAlign,
+                    writingDirection: writingDir,
+                    fontWeight: isSelected ? "700" : "600",
+                  },
                 ]}
                 numberOfLines={1}
               >
@@ -257,11 +465,10 @@ const ReciterCard = memo(
               </Text>
             </Pressable>
 
-            {/* Quality Selector Pills */}
             <View
               style={[
                 styles.badgeRow,
-                { flexDirection: flexDir, flexWrap: "wrap", marginTop: 6 },
+                { flexDirection: flexDir, flexWrap: "wrap", marginTop: 8 },
               ]}
             >
               {group.variants.map((variant) => {
@@ -270,6 +477,8 @@ const ReciterCard = memo(
                   <Pressable
                     key={String(variant.id)}
                     onPress={() => onSelectVariant(variant.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isQualitySelected }}
                     style={({ pressed }) => [
                       styles.qualityChip,
                       {
@@ -278,9 +487,9 @@ const ReciterCard = memo(
                           : withAlpha(progressColor, 0.1),
                         borderColor: isQualitySelected
                           ? progressColor
-                          : withAlpha(progressColor, 0.2),
+                          : withAlpha(progressColor, 0.22),
                       },
-                      pressed && { opacity: 0.8 },
+                      pressed && { opacity: 0.75 },
                     ]}
                   >
                     <Text
@@ -297,13 +506,14 @@ const ReciterCard = memo(
             </View>
           </View>
 
-          {/* Audio Preview Button */}
           <Pressable
             onPress={(e) => {
-              e.stopPropagation();
+              e.stopPropagation?.();
               onTogglePreview(previewVariant.id);
             }}
-            hitSlop={8}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? "Pause preview" : "Play preview"}
             style={({ pressed }) => [
               styles.previewBtn,
               {
@@ -311,7 +521,7 @@ const ReciterCard = memo(
                   ? progressColor
                   : withAlpha(progressColor, 0.12),
               },
-              pressed && { opacity: 0.8 },
+              pressed && styles.pressedScale,
             ]}
           >
             {isLoading ? (
@@ -334,6 +544,51 @@ const ReciterCard = memo(
 );
 ReciterCard.displayName = "ReciterCard";
 
+// ─── Empty Search State ──────────────────────────────────────────────────────
+
+const EmptySearchState = memo(({ themeColors, textAlign, writingDir, t }) => (
+  <View style={styles.emptyState}>
+    <View
+      style={[
+        styles.emptyIconWrap,
+        { backgroundColor: withAlpha(themeColors.progressColor, 0.1) },
+      ]}
+    >
+      <Icon
+        source="magnify"
+        size={28}
+        color={withAlpha(themeColors.progressColor, 0.7)}
+      />
+    </View>
+    <Text
+      style={[
+        styles.emptyTitle,
+        {
+          color: themeColors.textColor,
+          textAlign,
+          writingDirection: writingDir,
+        },
+      ]}
+    >
+      {t("No reciters found") || "No reciters found"}
+    </Text>
+    <Text
+      style={[
+        styles.emptySubtitle,
+        {
+          color: withAlpha(themeColors.textColor, 0.55),
+          textAlign,
+          writingDirection: writingDir,
+        },
+      ]}
+    >
+      {t("Try a different name or quality") ||
+        "Try a different name or quality"}
+    </Text>
+  </View>
+));
+EmptySearchState.displayName = "EmptySearchState";
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 const ReciterSelectScreen = ({ navigation }) => {
@@ -346,12 +601,42 @@ const ReciterSelectScreen = ({ navigation }) => {
   const [search, setSearch] = useState("");
   const [playingId, setPlayingId] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
+  const [bulkDownload, setBulkDownload] = useState({
+    status: "idle",
+    total: 0,
+    completed: 0,
+    failed: 0,
+    transferredBytes: 0,
+    totalBytes: null,
+    speed: 0,
+  });
+  const [downloadEstimate, setDownloadEstimate] = useState({
+    reciterId,
+    status: "scanning",
+    scanned: 0,
+    total: 0,
+    remaining: 0,
+    existingCount: 0,
+    existingBytes: 0,
+    totalBytes: null,
+  });
+  const [activeDownloads, setActiveDownloads] = useState([]);
 
-  // Audio player references for synchronous cleanup and mutual exclusion
   const playerRef = useRef(null);
   const listenerRef = useRef(null);
   const previewRequestRef = useRef(0);
   const previewTimeoutRef = useRef(null);
+  const downloadQueueRef = useRef([]);
+  const failedDownloadsRef = useRef([]);
+  const activeDownloadsRef = useRef(new Map());
+  const downloadControllersRef = useRef(new Map());
+  const downloadControlRef = useRef({ paused: false, cancelled: false });
+  const downloadBytesRef = useRef(0);
+  const sessionBytesRef = useRef(0);
+  const downloadStartTimeRef = useRef(0);
+  const isScreenMountedRef = useRef(true);
+  const preflightRef = useRef(null);
+  const preflightRunRef = useRef(0);
 
   const flexDir = getFlexDirection(language);
   const textAlign = getTextAlignment(language);
@@ -372,7 +657,6 @@ const ReciterSelectScreen = ({ navigation }) => {
     [theme],
   );
 
-  // Group reciters by name to deduplicate identical reciters with different qualities
   const groupedReciters = useMemo(() => {
     const map = new Map();
     (RECITERS || []).forEach((r) => {
@@ -388,7 +672,6 @@ const ReciterSelectScreen = ({ navigation }) => {
 
     return Array.from(map.values()).map((group) => ({
       ...group,
-      // Sort quality variants descending (e.g. 192kbps -> 128kbps -> 64kbps)
       variants: group.variants.sort((a, b) => {
         const bitA = parseInt(a.bitrate, 10) || 0;
         const bitB = parseInt(b.bitrate, 10) || 0;
@@ -397,12 +680,10 @@ const ReciterSelectScreen = ({ navigation }) => {
     }));
   }, []);
 
-  // Selected variant metadata lookup
   const selectedVariant = useMemo(() => {
     return (RECITERS || []).find((r) => r.id === reciterId) || RECITERS?.[0];
   }, [reciterId]);
 
-  // Safely stop and release active player instance (fixesExpo Audio shared object issue)
   const stopAudio = useCallback((preserveRequest = false) => {
     if (!preserveRequest) {
       previewRequestRef.current += 1;
@@ -415,7 +696,6 @@ const ReciterSelectScreen = ({ navigation }) => {
     const activePlayer = playerRef.current;
     const activeListener = listenerRef.current;
 
-    // Immediately detach refs to block concurrent or re-entrant teardown calls
     playerRef.current = null;
     listenerRef.current = null;
 
@@ -501,14 +781,319 @@ const ReciterSelectScreen = ({ navigation }) => {
     return downloaded.uri;
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
+    isScreenMountedRef.current = true;
+    const downloadControl = downloadControlRef.current;
+    const downloadControllers = downloadControllersRef.current;
     return () => {
+      isScreenMountedRef.current = false;
+      downloadControl.cancelled = true;
+      for (const controller of downloadControllers.values()) {
+        controller.abort();
+      }
       stopAudio();
     };
   }, [stopAudio]);
 
-  // Handle single audio playback preview (stops previous audio before starting new)
+  useEffect(() => {
+    const runId = ++preflightRunRef.current;
+    preflightRef.current = null;
+
+    prepareReciterDownloads(reciterId, (progress) => {
+      if (runId !== preflightRunRef.current || !isScreenMountedRef.current) {
+        return;
+      }
+      setDownloadEstimate({
+        reciterId,
+        status: progress.stage,
+        scanned: progress.scanned,
+        total: progress.total,
+        remaining: progress.total - progress.existingCount,
+        existingCount: progress.existingCount,
+        existingBytes: progress.existingBytes,
+        totalBytes: null,
+      });
+      if (progress.stage === "loadingSizes") {
+        downloadBytesRef.current = progress.existingBytes;
+        sessionBytesRef.current = 0;
+        setBulkDownload({
+          status: "idle",
+          total: progress.total,
+          completed: progress.existingCount,
+          failed: 0,
+          transferredBytes: progress.existingBytes,
+          totalBytes: null,
+          speed: 0,
+        });
+      }
+    }).then((prepared) => {
+      if (runId !== preflightRunRef.current || !isScreenMountedRef.current) {
+        return;
+      }
+      preflightRef.current = prepared;
+      downloadBytesRef.current = prepared.existingBytes;
+      sessionBytesRef.current = 0;
+      setDownloadEstimate({
+        reciterId,
+        status: "ready",
+        scanned: prepared.total,
+        total: prepared.total,
+        remaining: prepared.tasks.length,
+        existingCount: prepared.existingCount,
+        existingBytes: prepared.existingBytes,
+        totalBytes: prepared.totalBytes,
+      });
+      setBulkDownload({
+        status: prepared.tasks.length ? "idle" : "complete",
+        total: prepared.total,
+        completed: prepared.existingCount,
+        failed: 0,
+        transferredBytes: prepared.existingBytes,
+        totalBytes: prepared.totalBytes,
+        speed: 0,
+      });
+    });
+
+    return () => {
+      if (preflightRunRef.current === runId) preflightRunRef.current += 1;
+    };
+  }, [reciterId]);
+
+  const updateDownloadProgress = useCallback(
+    (task, bytesWritten, totalBytes) => {
+      const key = `${task.surah}:${task.ayah}`;
+      const previous = activeDownloadsRef.current.get(key);
+      const written = Math.max(0, bytesWritten || 0);
+      const delta = Math.max(0, written - (previous?.bytesWritten || 0));
+      downloadBytesRef.current += delta;
+      sessionBytesRef.current += delta;
+      activeDownloadsRef.current.set(key, {
+        ...task,
+        bytesWritten: written,
+        totalBytes: totalBytes || previous?.totalBytes || 0,
+        progress:
+          totalBytes > 0
+            ? Math.min(1, written / totalBytes)
+            : previous?.progress || 0,
+      });
+      const elapsedSeconds = Math.max(
+        1,
+        (Date.now() - downloadStartTimeRef.current) / 1000,
+      );
+      const downloads = Array.from(activeDownloadsRef.current.values());
+      if (isScreenMountedRef.current) {
+        setActiveDownloads(downloads);
+        setBulkDownload((current) => ({
+          ...current,
+          transferredBytes: downloadBytesRef.current,
+          speed: sessionBytesRef.current / elapsedSeconds,
+        }));
+      }
+    },
+    [],
+  );
+
+  const runBulkDownloads = useCallback(async () => {
+    const control = downloadControlRef.current;
+    control.paused = false;
+    control.cancelled = false;
+    downloadStartTimeRef.current = Date.now();
+    sessionBytesRef.current = 0;
+    if (isScreenMountedRef.current) {
+      setBulkDownload((current) => ({ ...current, status: "downloading" }));
+    }
+
+    const worker = async () => {
+      while (!control.paused && !control.cancelled) {
+        const task = downloadQueueRef.current.shift();
+        if (!task) return;
+        const url = getAyahAudioUrl(reciterId, task.surah, task.ayah);
+        const directory = getAyahDirectory(reciterId, task.surah);
+        const destination = getAyahFile(reciterId, task.surah, task.ayah);
+        const taskKey = `${task.surah}:${task.ayah}`;
+        const expectedSize = preflightRef.current?.sizes?.get(
+          getAyahFileName(task.surah, task.ayah),
+        );
+        let controller;
+
+        try {
+          if (!url) throw new Error("Invalid reciter or ayah");
+          if (!directory.exists) directory.create({ intermediates: true });
+          const existingSize = destination.exists ? (destination.size ?? 0) : 0;
+          if (
+            existingSize > 512 &&
+            (expectedSize == null || existingSize === expectedSize)
+          ) {
+            updateDownloadProgress(task, existingSize, existingSize);
+            if (isScreenMountedRef.current) {
+              setBulkDownload((current) => ({
+                ...current,
+                completed: Math.min(current.total, current.completed + 1),
+              }));
+            }
+            continue;
+          }
+          if (destination.exists) destination.delete();
+
+          controller = new AbortController();
+          downloadControllersRef.current.set(taskKey, controller);
+          activeDownloadsRef.current.set(taskKey, {
+            ...task,
+            progress: 0,
+            bytesWritten: 0,
+            totalBytes: 0,
+          });
+          if (isScreenMountedRef.current) {
+            setActiveDownloads(Array.from(activeDownloadsRef.current.values()));
+          }
+
+          const result = await File.downloadFileAsync(url, directory, {
+            idempotent: true,
+            signal: controller.signal,
+            onProgress: (progress) =>
+              updateDownloadProgress(
+                task,
+                progress?.bytesWritten,
+                progress?.totalBytes,
+              ),
+          });
+          const downloadedFile = new File(result.uri);
+          const finalSize = downloadedFile.size ?? 0;
+          if (
+            !downloadedFile.exists ||
+            finalSize <= 512 ||
+            (expectedSize != null && finalSize !== expectedSize)
+          ) {
+            throw new Error("Audio file is incomplete");
+          }
+          updateDownloadProgress(task, finalSize, finalSize);
+          if (downloadedFile.uri !== destination.uri) {
+            if (destination.exists) destination.delete();
+            downloadedFile.move(destination);
+          }
+          if (isScreenMountedRef.current) {
+            setBulkDownload((current) => ({
+              ...current,
+              completed: Math.min(current.total, current.completed + 1),
+            }));
+          }
+        } catch {
+          const wasAborted = controller?.signal.aborted;
+          const incompleteBytes =
+            activeDownloadsRef.current.get(taskKey)?.bytesWritten || 0;
+          if (incompleteBytes > 0) {
+            downloadBytesRef.current = Math.max(
+              preflightRef.current?.existingBytes || 0,
+              downloadBytesRef.current - incompleteBytes,
+            );
+            if (isScreenMountedRef.current) {
+              setBulkDownload((current) => ({
+                ...current,
+                transferredBytes: downloadBytesRef.current,
+              }));
+            }
+          }
+          if (wasAborted && control.paused && !control.cancelled) {
+            downloadQueueRef.current.unshift(task);
+          } else if (!wasAborted && !control.cancelled) {
+            failedDownloadsRef.current.push(task);
+            if (isScreenMountedRef.current) {
+              setBulkDownload((current) => ({
+                ...current,
+                failed: failedDownloadsRef.current.length,
+              }));
+            }
+          }
+        } finally {
+          downloadControllersRef.current.delete(taskKey);
+          activeDownloadsRef.current.delete(taskKey);
+          if (isScreenMountedRef.current) {
+            setActiveDownloads(Array.from(activeDownloadsRef.current.values()));
+          }
+        }
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: BULK_DOWNLOAD_CONCURRENCY }, () => worker()),
+    );
+    if (!isScreenMountedRef.current) return;
+    setActiveDownloads([]);
+    if (control.cancelled) {
+      setBulkDownload((current) => ({ ...current, status: "cancelled" }));
+    } else if (control.paused) {
+      setBulkDownload((current) => ({ ...current, status: "paused" }));
+    } else {
+      setBulkDownload((current) => ({
+        ...current,
+        status: failedDownloadsRef.current.length ? "error" : "complete",
+        failed: failedDownloadsRef.current.length,
+      }));
+    }
+  }, [reciterId, updateDownloadProgress]);
+
+  const startBulkDownload = useCallback(async () => {
+    if (bulkDownload.status === "downloading") return;
+    if (bulkDownload.status === "paused") {
+      runBulkDownloads();
+      return;
+    }
+    if (bulkDownload.status === "preparing") return;
+
+    const prepared = preflightRef.current;
+    if (!prepared || prepared.reciterId !== reciterId) return;
+
+    setBulkDownload((current) => ({
+      ...current,
+      status: "preparing",
+      total: prepared.total,
+      completed: prepared.existingCount,
+      transferredBytes: prepared.existingBytes,
+      totalBytes: prepared.totalBytes,
+    }));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    if (!isScreenMountedRef.current) return;
+
+    failedDownloadsRef.current = [];
+    activeDownloadsRef.current.clear();
+    downloadQueueRef.current = prepared.tasks;
+    downloadBytesRef.current = prepared.existingBytes;
+    sessionBytesRef.current = 0;
+    setBulkDownload({
+      status: prepared.tasks.length ? "downloading" : "complete",
+      total: prepared.total,
+      completed: prepared.existingCount,
+      failed: 0,
+      transferredBytes: prepared.existingBytes,
+      totalBytes: prepared.totalBytes,
+      speed: 0,
+    });
+    if (prepared.tasks.length) await runBulkDownloads();
+  }, [bulkDownload.status, reciterId, runBulkDownloads]);
+
+  const pauseBulkDownload = useCallback(() => {
+    downloadControlRef.current.paused = true;
+    for (const controller of downloadControllersRef.current.values()) {
+      controller.abort();
+    }
+  }, []);
+
+  const cancelBulkDownload = useCallback(() => {
+    downloadControlRef.current.cancelled = true;
+    downloadControlRef.current.paused = false;
+    downloadQueueRef.current = [];
+    for (const controller of downloadControllersRef.current.values()) {
+      controller.abort();
+    }
+  }, []);
+
+  const retryFailedDownloads = useCallback(() => {
+    downloadQueueRef.current = failedDownloadsRef.current;
+    failedDownloadsRef.current = [];
+    setBulkDownload((current) => ({ ...current, failed: 0 }));
+    runBulkDownloads();
+  }, [runBulkDownloads]);
+
   const handleTogglePreview = useCallback(
     async (id) => {
       if (playingId === id) {
@@ -529,7 +1114,7 @@ const ReciterSelectScreen = ({ navigation }) => {
       }, 20000);
 
       try {
-        const previewUrl = getAyahAudioUrl(id, 1, 1); // Al-Fatiha Ayah 1 preview
+        const previewUrl = getAyahAudioUrl(id, 1, 1);
         if (!previewUrl) throw new Error("Invalid reciter preview URL");
         if (!(await ensureAudioReachable(previewUrl, 15000))) {
           throw new Error("Network unavailable");
@@ -587,7 +1172,6 @@ const ReciterSelectScreen = ({ navigation }) => {
     [setReciterId, navigation],
   );
 
-  // Filter reciters list based on search text
   const filteredReciters = useMemo(() => {
     if (!search.trim()) return groupedReciters;
     const query = search.toLowerCase();
@@ -628,12 +1212,51 @@ const ReciterSelectScreen = ({ navigation }) => {
 
   const getItemLayout = useCallback(
     (_, index) => ({
-      length: 82,
-      offset: 82 * index,
+      length: 88,
+      offset: 88 * index,
       index,
     }),
     [],
   );
+
+  const bulkProgressValue = bulkDownload.total
+    ? Math.min(
+        1,
+        (bulkDownload.completed +
+          activeDownloads.reduce((sum, item) => sum + item.progress, 0)) /
+          bulkDownload.total,
+      )
+    : 0;
+  const bulkProgressPercent = Math.round(bulkProgressValue * 100);
+  const visibleDownloadEstimate =
+    downloadEstimate.reciterId === reciterId
+      ? downloadEstimate
+      : {
+          reciterId: null,
+          status: "scanning",
+          remaining: 0,
+          existingBytes: 0,
+          totalBytes: null,
+        };
+  const displayedDownloadedBytes =
+    visibleDownloadEstimate.reciterId !== reciterId
+      ? 0
+      : visibleDownloadEstimate.status === "scanning"
+        ? visibleDownloadEstimate.existingBytes
+        : Math.max(
+            visibleDownloadEstimate.existingBytes,
+            bulkDownload.transferredBytes,
+          );
+  const remainingDownloadBytes =
+    visibleDownloadEstimate.totalBytes == null
+      ? null
+      : Math.max(
+          0,
+          visibleDownloadEstimate.totalBytes - displayedDownloadedBytes,
+        );
+
+  const isSearching = search.trim().length > 0;
+  const hasNoResults = isSearching && filteredReciters.length === 0;
 
   return (
     <View
@@ -646,7 +1269,7 @@ const ReciterSelectScreen = ({ navigation }) => {
             styles.searchBar,
             {
               backgroundColor: themeColors.primaryColor,
-              borderColor: withAlpha(themeColors.outlineColor, 0.12),
+              borderColor: withAlpha(themeColors.outlineColor, 0.14),
               flexDirection: flexDir,
             },
           ]}
@@ -654,7 +1277,7 @@ const ReciterSelectScreen = ({ navigation }) => {
           <Icon
             source="magnify"
             size={20}
-            color={withAlpha(themeColors.textColor, 0.5)}
+            color={withAlpha(themeColors.textColor, 0.45)}
           />
           <TextInput
             style={[
@@ -670,12 +1293,20 @@ const ReciterSelectScreen = ({ navigation }) => {
             value={search}
             onChangeText={setSearch}
             autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="never"
+            returnKeyType="search"
           />
           {search.length > 0 && (
             <Pressable
               onPress={() => setSearch("")}
-              hitSlop={8}
-              style={styles.clearBtn}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t("Clear search") || "Clear search"}
+              style={({ pressed }) => [
+                styles.clearBtn,
+                pressed && { opacity: 0.6 },
+              ]}
             >
               <Icon
                 source="close-circle"
@@ -687,30 +1318,475 @@ const ReciterSelectScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Reciter List */}
       <FlatList
         data={filteredReciters}
         keyExtractor={(item) => item.name}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[
+          styles.listContainer,
+          hasNoResults && styles.listContainerEmpty,
+        ]}
         ListHeaderComponent={
-          <SelectedReciterCard
-            selectedVariant={selectedVariant}
-            isPlaying={playingId === selectedVariant?.id}
-            isLoading={loadingId === selectedVariant?.id}
-            onTogglePreview={handleTogglePreview}
-            themeColors={themeColors}
-            flexDir={flexDir}
-            textAlign={textAlign}
-            writingDir={writingDir}
-            t={t}
-          />
+          <>
+            <SelectedReciterCard
+              selectedVariant={selectedVariant}
+              isPlaying={playingId === selectedVariant?.id}
+              isLoading={loadingId === selectedVariant?.id}
+              onTogglePreview={handleTogglePreview}
+              themeColors={themeColors}
+              flexDir={flexDir}
+              textAlign={textAlign}
+              writingDir={writingDir}
+              t={t}
+            />
+
+            {/* Download Panel */}
+            <View
+              style={[
+                styles.downloadPanel,
+                {
+                  backgroundColor: themeColors.primaryColor,
+                  borderColor: withAlpha(themeColors.outlineColor, 0.12),
+                },
+              ]}
+            >
+              <View
+                style={[styles.downloadHeading, { flexDirection: flexDir }]}
+              >
+                <View
+                  style={[
+                    styles.downloadIcon,
+                    {
+                      backgroundColor: withAlpha(
+                        themeColors.progressColor,
+                        0.12,
+                      ),
+                    },
+                  ]}
+                >
+                  <Icon
+                    source="download-multiple"
+                    size={20}
+                    color={themeColors.progressColor}
+                  />
+                </View>
+                <View style={styles.downloadHeadingText}>
+                  <Text
+                    style={[
+                      styles.downloadTitle,
+                      {
+                        color: themeColors.textColor,
+                        textAlign,
+                        writingDirection: writingDir,
+                      },
+                    ]}
+                  >
+                    {t("Download all audio") || "Download all audio"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.downloadSubtitle,
+                      {
+                        color: withAlpha(themeColors.textColor, 0.6),
+                        textAlign,
+                        writingDirection: writingDir,
+                      },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {selectedVariant?.name} · {selectedVariant?.bitrate}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.downloadSizeSummary}>
+                <View
+                  style={[styles.downloadSizeRow, { flexDirection: flexDir }]}
+                >
+                  <Text
+                    style={[
+                      styles.downloadSizeLabel,
+                      {
+                        color: withAlpha(themeColors.textColor, 0.65),
+                        textAlign,
+                      },
+                    ]}
+                  >
+                    {t("Total size") || "Total size"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.downloadSizeValue,
+                      { color: themeColors.textColor },
+                    ]}
+                  >
+                    {visibleDownloadEstimate.totalBytes == null
+                      ? visibleDownloadEstimate.status === "ready"
+                        ? t("Download size unavailable") ||
+                          "Download size unavailable"
+                        : "..."
+                      : formatDownloadBytes(visibleDownloadEstimate.totalBytes)}
+                  </Text>
+                </View>
+                <View
+                  style={[styles.downloadSizeRow, { flexDirection: flexDir }]}
+                >
+                  <Text
+                    style={[
+                      styles.downloadSizeLabel,
+                      {
+                        color: withAlpha(themeColors.textColor, 0.65),
+                        textAlign,
+                      },
+                    ]}
+                  >
+                    {t("Downloaded") || "Downloaded"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.downloadSizeValue,
+                      { color: themeColors.textColor },
+                    ]}
+                  >
+                    {formatDownloadBytes(displayedDownloadedBytes)}
+                  </Text>
+                </View>
+                <View
+                  style={[styles.downloadSizeRow, { flexDirection: flexDir }]}
+                >
+                  <Text
+                    style={[
+                      styles.downloadSizeLabel,
+                      {
+                        color: withAlpha(themeColors.textColor, 0.65),
+                        textAlign,
+                      },
+                    ]}
+                  >
+                    {t("Remaining to download") || "Remaining to download"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.downloadSizeValue,
+                      { color: themeColors.textColor },
+                    ]}
+                  >
+                    {remainingDownloadBytes == null
+                      ? t("Download size unavailable") ||
+                        "Download size unavailable"
+                      : formatDownloadBytes(remainingDownloadBytes)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.downloadEstimateRow,
+                    { flexDirection: flexDir },
+                  ]}
+                >
+                  {visibleDownloadEstimate.status === "scanning" ||
+                  visibleDownloadEstimate.status === "loadingSizes" ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={themeColors.progressColor}
+                    />
+                  ) : null}
+                  <Text
+                    style={[
+                      styles.downloadEstimateText,
+                      {
+                        color: withAlpha(themeColors.textColor, 0.68),
+                        textAlign,
+                      },
+                    ]}
+                  >
+                    {visibleDownloadEstimate.status === "scanning"
+                      ? t("Preparing audio list") || "Preparing audio list"
+                      : visibleDownloadEstimate.status === "loadingSizes"
+                        ? t("Loading exact audio sizes") ||
+                          "Loading exact audio sizes"
+                        : `${visibleDownloadEstimate.remaining} ${t("ayahs") || "ayahs"} ${t("remaining") || "remaining"}`}
+                  </Text>
+                </View>
+              </View>
+
+              {bulkDownload.status !== "idle" &&
+                bulkDownload.status !== "preparing" && (
+                  <View style={styles.downloadProgressArea}>
+                    <View
+                      style={[styles.downloadStats, { flexDirection: flexDir }]}
+                    >
+                      <Text
+                        style={[
+                          styles.downloadStatText,
+                          { color: themeColors.textColor, textAlign },
+                        ]}
+                      >
+                        {bulkDownload.completed} / {bulkDownload.total}{" "}
+                        {t("ayahs") || "ayahs"} · {bulkProgressPercent}%
+                      </Text>
+                      <Text
+                        style={[
+                          styles.downloadStatText,
+                          { color: withAlpha(themeColors.textColor, 0.6) },
+                        ]}
+                      >
+                        {formatDownloadBytes(bulkDownload.speed)}/s
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.downloadTrack,
+                        {
+                          backgroundColor: withAlpha(
+                            themeColors.progressColor,
+                            0.14,
+                          ),
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.downloadFill,
+                          {
+                            width: `${bulkProgressPercent}%`,
+                            backgroundColor: themeColors.progressColor,
+                          },
+                        ]}
+                      />
+                    </View>
+
+                    {bulkDownload.failed > 0 && (
+                      <Text
+                        style={[
+                          styles.downloadBytes,
+                          {
+                            color: withAlpha(themeColors.textColor, 0.58),
+                            textAlign,
+                          },
+                        ]}
+                      >
+                        {bulkDownload.failed} {t("failed") || "failed"}
+                      </Text>
+                    )}
+
+                    {activeDownloads
+                      .slice(0, BULK_DOWNLOAD_CONCURRENCY)
+                      .map((item) => (
+                        <View
+                          key={`${item.surah}:${item.ayah}`}
+                          style={[
+                            styles.activeDownloadRow,
+                            { flexDirection: flexDir },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.activeDownloadLabel,
+                              { color: themeColors.textColor, textAlign },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {t("Surah") || "Surah"} {item.surah} ·{" "}
+                            {t("Ayah") || "Ayah"} {item.ayah}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.activeDownloadPercent,
+                              { color: themeColors.progressColor },
+                            ]}
+                          >
+                            {Math.round(item.progress * 100)}%
+                          </Text>
+                        </View>
+                      ))}
+                  </View>
+                )}
+
+              <View
+                style={[styles.downloadActions, { flexDirection: flexDir }]}
+              >
+                {bulkDownload.status === "downloading" ? (
+                  <>
+                    <Pressable
+                      onPress={pauseBulkDownload}
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.downloadAction,
+                        { backgroundColor: themeColors.progressColor },
+                        pressed && styles.pressedOpacity,
+                      ]}
+                    >
+                      <Icon source="pause" size={17} color="#FFF" />
+                      <Text style={styles.downloadActionText}>
+                        {t("Pause") || "Pause"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={cancelBulkDownload}
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.downloadActionSecondary,
+                        {
+                          borderColor: withAlpha(themeColors.textColor, 0.18),
+                        },
+                        pressed && styles.pressedOpacity,
+                      ]}
+                    >
+                      <Icon
+                        source="close"
+                        size={17}
+                        color={themeColors.textColor}
+                      />
+                      <Text
+                        style={[
+                          styles.downloadActionSecondaryText,
+                          { color: themeColors.textColor },
+                        ]}
+                      >
+                        {t("Cancel") || "Cancel"}
+                      </Text>
+                    </Pressable>
+                  </>
+                ) : bulkDownload.status === "preparing" ? (
+                  <View
+                    style={[
+                      styles.downloadComplete,
+                      { flexDirection: flexDir },
+                    ]}
+                  >
+                    <ActivityIndicator color={themeColors.progressColor} />
+                    <Text
+                      style={[
+                        styles.downloadCompleteText,
+                        { color: themeColors.progressColor },
+                      ]}
+                    >
+                      {t("Preparing downloads") || "Preparing downloads"}
+                    </Text>
+                  </View>
+                ) : bulkDownload.status === "paused" ? (
+                  <>
+                    <Pressable
+                      onPress={startBulkDownload}
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.downloadAction,
+                        { backgroundColor: themeColors.progressColor },
+                        pressed && styles.pressedOpacity,
+                      ]}
+                    >
+                      <Icon source="play" size={17} color="#FFF" />
+                      <Text style={styles.downloadActionText}>
+                        {t("Resume") || "Resume"}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={cancelBulkDownload}
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.downloadActionSecondary,
+                        {
+                          borderColor: withAlpha(themeColors.textColor, 0.18),
+                        },
+                        pressed && styles.pressedOpacity,
+                      ]}
+                    >
+                      <Icon
+                        source="close"
+                        size={17}
+                        color={themeColors.textColor}
+                      />
+                      <Text
+                        style={[
+                          styles.downloadActionSecondaryText,
+                          { color: themeColors.textColor },
+                        ]}
+                      >
+                        {t("Cancel") || "Cancel"}
+                      </Text>
+                    </Pressable>
+                  </>
+                ) : bulkDownload.status === "error" ? (
+                  <Pressable
+                    onPress={retryFailedDownloads}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.downloadAction,
+                      styles.downloadActionWide,
+                      { backgroundColor: themeColors.progressColor },
+                      pressed && styles.pressedOpacity,
+                    ]}
+                  >
+                    <Icon source="reload" size={17} color="#FFF" />
+                    <Text style={styles.downloadActionText}>
+                      {t("Retry failed") || "Retry failed"}
+                    </Text>
+                  </Pressable>
+                ) : bulkDownload.status === "complete" ? (
+                  <View
+                    style={[
+                      styles.downloadComplete,
+                      { flexDirection: flexDir },
+                    ]}
+                  >
+                    <Icon
+                      source="check-circle"
+                      size={20}
+                      color={themeColors.progressColor}
+                    />
+                    <Text
+                      style={[
+                        styles.downloadCompleteText,
+                        { color: themeColors.progressColor },
+                      ]}
+                    >
+                      {t("All ayahs downloaded") || "All ayahs downloaded"}
+                    </Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={startBulkDownload}
+                    disabled={visibleDownloadEstimate.status !== "ready"}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.downloadAction,
+                      styles.downloadActionWide,
+                      { backgroundColor: themeColors.progressColor },
+                      visibleDownloadEstimate.status !== "ready" &&
+                        styles.downloadActionDisabled,
+                      pressed && styles.pressedOpacity,
+                    ]}
+                  >
+                    <Icon source="download" size={18} color="#FFF" />
+                    <Text style={styles.downloadActionText}>
+                      {bulkDownload.status === "cancelled"
+                        ? t("Continue download") || "Continue download"
+                        : t("Download all surahs") || "Download all surahs"}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </>
         }
-        initialNumToRender={10}
+        ListEmptyComponent={
+          hasNoResults ? (
+            <EmptySearchState
+              themeColors={themeColors}
+              textAlign={textAlign}
+              writingDir={writingDir}
+              t={t}
+            />
+          ) : null
+        }
+        initialNumToRender={12}
         maxToRenderPerBatch={10}
-        windowSize={7}
+        windowSize={8}
         getItemLayout={getItemLayout}
         removeClippedSubviews={Platform.OS !== "web"}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
@@ -719,35 +1795,237 @@ const ReciterSelectScreen = ({ navigation }) => {
 export default ReciterSelectScreen;
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  searchContainer: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 },
+  root: {
+    flex: 1,
+  },
+
+  // Search
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
   searchBar: {
-    height: 46,
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    height: 48,
+    borderRadius: 14,
+    paddingHorizontal: 14,
     alignItems: "center",
     borderWidth: StyleSheet.hairlineWidth,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    height: "100%",
+    paddingVertical: 0,
+  },
+  clearBtn: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 2,
+  },
+
+  // List
+  listContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 36,
+    paddingTop: 4,
+  },
+  listContainerEmpty: {
+    flexGrow: 1,
+  },
+
+  // Empty state
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
+  // Download panel
+  downloadPanel: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  downloadHeading: {
+    alignItems: "center",
+    gap: 12,
+  },
+  downloadIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  downloadHeadingText: {
+    flex: 1,
+  },
+  downloadTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  downloadSubtitle: {
+    fontSize: 12.5,
+    marginTop: 3,
+  },
+  downloadSizeSummary: {
+    marginTop: 14,
     gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 15, height: "100%" },
-  clearBtn: { justifyContent: "center", alignItems: "center" },
-  listContainer: { paddingHorizontal: 16, paddingBottom: 30, paddingTop: 6 },
+  downloadSizeRow: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  downloadSizeLabel: {
+    flex: 1,
+    fontSize: 12,
+  },
+  downloadSizeValue: {
+    flexShrink: 1,
+    fontSize: 12.5,
+    fontWeight: "700",
+    textAlign: "right",
+  },
+  downloadEstimateRow: {
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+  },
+  downloadEstimateText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  downloadActionDisabled: {
+    opacity: 0.45,
+  },
+  downloadProgressArea: {
+    marginTop: 16,
+    gap: 8,
+  },
+  downloadStats: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  downloadStatText: {
+    fontSize: 12.5,
+    fontWeight: "600",
+  },
+  downloadTrack: {
+    height: 8,
+    borderRadius: 5,
+    overflow: "hidden",
+  },
+  downloadFill: {
+    height: "100%",
+    borderRadius: 5,
+  },
+  downloadBytes: {
+    fontSize: 11.5,
+  },
+  activeDownloadRow: {
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  activeDownloadLabel: {
+    flex: 1,
+    fontSize: 11.5,
+  },
+  activeDownloadPercent: {
+    fontSize: 11.5,
+    fontWeight: "700",
+  },
+  downloadActions: {
+    alignItems: "center",
+    gap: 10,
+    marginTop: 14,
+    flexWrap: "wrap",
+  },
+  downloadAction: {
+    minHeight: 42,
+    paddingHorizontal: 16,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  downloadActionWide: {
+    flex: 1,
+  },
+  downloadActionText: {
+    color: "#FFF",
+    fontSize: 13.5,
+    fontWeight: "700",
+  },
+  downloadActionSecondary: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    borderRadius: 11,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  downloadActionSecondaryText: {
+    fontSize: 13.5,
+    fontWeight: "600",
+  },
+  downloadComplete: {
+    alignItems: "center",
+    gap: 8,
+    minHeight: 42,
+  },
+  downloadCompleteText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
 
-  // Active Reciter Header Styling
+  // Selected header
   headerCard: {
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 18,
+    padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    marginTop: 10,
+    marginTop: 6,
   },
-  headerTopRow: { marginBottom: 8, alignItems: "center" },
+  headerTopRow: {
+    marginBottom: 10,
+    alignItems: "center",
+  },
   activePill: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
     gap: 6,
   },
   activeDot: {
@@ -758,71 +2036,104 @@ const styles = StyleSheet.create({
   },
   activePillText: {
     color: "#FFF",
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: "800",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
   },
-  headerContent: { alignItems: "center", justifyContent: "space-between" },
-  headerReciterName: { fontSize: 17, fontWeight: "700" },
+  headerContent: {
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerReciterName: {
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+  },
   headerPreviewBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  // Reciter Card Styling
+  // Reciter card
   card: {
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 6,
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
       },
-      android: { elevation: 1 },
+      android: {
+        elevation: 1.5,
+      },
     }),
   },
-  cardContent: { alignItems: "center", gap: 12 },
+  cardContent: {
+    alignItems: "center",
+    gap: 12,
+  },
   radioCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
   },
-  textDetails: { flex: 1 },
-  reciterName: { fontSize: 15, fontWeight: "600" },
-  badgeRow: { gap: 6, alignItems: "center" },
+  textDetails: {
+    flex: 1,
+  },
+  reciterName: {
+    fontSize: 15.5,
+    letterSpacing: -0.2,
+  },
+  badgeRow: {
+    gap: 6,
+    alignItems: "center",
+  },
   badge: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 3.5,
+    borderRadius: 7,
     gap: 4,
   },
-  badgeText: { fontSize: 11, fontWeight: "700" },
-
-  // Quality Selector Chips
+  badgeText: {
+    fontSize: 11.5,
+    fontWeight: "700",
+  },
   qualityChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9,
     borderWidth: 1,
   },
-  qualityChipText: { fontSize: 11, fontWeight: "700" },
-
+  qualityChipText: {
+    fontSize: 11.5,
+    fontWeight: "700",
+  },
   previewBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // Shared press feedback
+  pressedScale: {
+    opacity: 0.85,
+    transform: [{ scale: 0.96 }],
+  },
+  pressedOpacity: {
+    opacity: 0.82,
   },
 });
