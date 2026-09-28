@@ -291,15 +291,19 @@ export const SurahAudioToolbar = memo(
     totalVerses = 0,
     downloadedCount = 0,
     isDownloadingAll = false,
+    isPausedDownloadAll = false,
     progress = 0,
     totalBytesLabel,
     colors,
     labels,
     onDownloadAll,
+    onPauseDownloadAll,
+    onResumeDownloadAll,
     onCancelDownloadAll,
   }) => {
     const allDone =
       totalVerses > 0 && downloadedCount >= totalVerses && !isDownloadingAll;
+    const isPaused = isDownloadingAll && isPausedDownloadAll;
 
     return (
       <View
@@ -328,9 +332,11 @@ export const SurahAudioToolbar = memo(
             >
               {allDone
                 ? labels?.allDownloaded || "All ayahs downloaded"
-                : isDownloadingAll
-                  ? labels?.downloadingAll || "Downloading surah…"
-                  : labels?.downloadAll || "Download full surah"}
+                : isPaused
+                  ? labels?.downloadPaused || "Download paused"
+                  : isDownloadingAll
+                    ? labels?.downloadingAll || "Downloading surah…"
+                    : labels?.downloadAll || "Download full surah"}
             </Text>
             <Text
               style={[styles.surahAudioSub, { color: colors.secondary }]}
@@ -349,8 +355,12 @@ export const SurahAudioToolbar = memo(
             safeHaptic(() =>
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
             );
-            if (isDownloadingAll) onCancelDownloadAll?.();
-            else if (!allDone) onDownloadAll?.();
+            if (isDownloadingAll) {
+              if (isPaused) onResumeDownloadAll?.();
+              else onPauseDownloadAll?.();
+              return;
+            }
+            if (!allDone) onDownloadAll?.();
           }}
           disabled={allDone}
           style={({ pressed }) => [
@@ -363,7 +373,7 @@ export const SurahAudioToolbar = memo(
             },
           ]}
         >
-          {isDownloadingAll ? (
+          {isDownloadingAll && !isPaused ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <Text
@@ -374,7 +384,9 @@ export const SurahAudioToolbar = memo(
             >
               {allDone
                 ? labels?.done || "Done"
-                : labels?.download || "Download"}
+                : isPaused
+                  ? labels?.resume || "Resume"
+                  : labels?.download || "Download"}
             </Text>
           )}
         </Pressable>
@@ -411,12 +423,16 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const [positionSec, setPositionSec] = useState(0);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
+  const [bulkPaused, setBulkPaused] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
   const playerRef = useRef(null);
   const playerListenerRef = useRef(null);
   const statusIntervalRef = useRef(null);
   const bulkCancelRef = useRef(false);
+  const bulkPauseRef = useRef(false);
+  const bulkCurrentIndexRef = useRef(0);
+  const bulkResumeIndexRef = useRef(0);
   const downloadAbortRef = useRef(new Map());
   const activeDownloadsRef = useRef(new Map());
   const positionRef = useRef(0);
@@ -1168,38 +1184,102 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const expandPlayer = useCallback((ayah) => setExpandedId(ayah), []);
   const collapsePlayer = useCallback(() => setExpandedId(null), []);
 
-  const downloadAll = useCallback(async () => {
-    if (isDownloadingAll || !ayahList.length) return;
-    bulkCancelRef.current = false;
-    setIsDownloadingAll(true);
-    setBulkProgress(0);
-    setErrorMsg(null);
-    for (let i = 0; i < ayahList.length; i++) {
-      if (bulkCancelRef.current) break;
-      const ayah = ayahList[i];
-      if (!downloadedSet.has(ayah)) {
-        setDownloadingId(ayah);
-        try {
-          await downloadOne(ayah);
-        } catch {
-          // continue remaining ayahs
+  const downloadAll = useCallback(
+    async (startIndex = 0) => {
+      if (!ayahList.length) return;
+      if (isDownloadingAll && !bulkPaused) return;
+
+      bulkCancelRef.current = false;
+      bulkPauseRef.current = false;
+      setBulkPaused(false);
+      setIsDownloadingAll(true);
+      setBulkProgress(startIndex / ayahList.length);
+      setErrorMsg(null);
+
+      for (let i = startIndex; i < ayahList.length; i++) {
+        bulkCurrentIndexRef.current = i;
+
+        if (bulkCancelRef.current) break;
+        if (bulkPauseRef.current) {
+          bulkResumeIndexRef.current = i;
+          setBulkPaused(true);
+          break;
+        }
+
+        const ayah = ayahList[i];
+        if (!downloadedSet.has(ayah)) {
+          setDownloadingId(ayah);
+          try {
+            await downloadOne(ayah);
+          } catch {
+            if (bulkPauseRef.current) {
+              bulkResumeIndexRef.current = i;
+              setBulkPaused(true);
+              break;
+            }
+            if (bulkCancelRef.current) break;
+          }
+        }
+
+        if (bulkPauseRef.current) {
+          bulkResumeIndexRef.current = i;
+          setBulkPaused(true);
+          break;
+        }
+        if (bulkCancelRef.current) break;
+
+        if (isMounted.current) {
+          setBulkProgress((i + 1) / ayahList.length);
         }
       }
-      if (isMounted.current) {
-        setBulkProgress((i + 1) / ayahList.length);
+
+      if (bulkPauseRef.current || bulkCancelRef.current) {
+        setDownloadingId(null);
+        if (bulkPauseRef.current) {
+          setBulkPaused(true);
+        }
+        return;
       }
-    }
-    setDownloadingId(null);
-    setIsDownloadingAll(false);
-    if (!bulkCancelRef.current) {
+
+      setDownloadingId(null);
+      setIsDownloadingAll(false);
+      setBulkPaused(false);
+      if (isMounted.current) {
+        setBulkProgress(1);
+      }
       safeHaptic(() =>
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
       );
+    },
+    [ayahList, downloadedSet, isDownloadingAll, bulkPaused, downloadOne],
+  );
+
+  const pauseDownloadAll = useCallback(() => {
+    if (!isDownloadingAll) return;
+    bulkPauseRef.current = true;
+    bulkResumeIndexRef.current = bulkCurrentIndexRef.current;
+    setBulkPaused(true);
+
+    for (const controller of downloadAbortRef.current.values()) {
+      try {
+        controller?.abort?.();
+      } catch {}
     }
-  }, [ayahList, downloadedSet, isDownloadingAll, downloadOne]);
+    downloadAbortRef.current.clear();
+    setDownloadingId(null);
+  }, [isDownloadingAll]);
+
+  const resumeDownloadAll = useCallback(() => {
+    if (!ayahList.length) return;
+    bulkPauseRef.current = false;
+    setBulkPaused(false);
+    return downloadAll(bulkResumeIndexRef.current);
+  }, [ayahList.length, downloadAll]);
 
   const cancelDownloadAll = useCallback(() => {
     bulkCancelRef.current = true;
+    bulkPauseRef.current = false;
+    setBulkPaused(false);
     for (const controller of downloadAbortRef.current.values()) {
       try {
         controller?.abort?.();
@@ -1263,6 +1343,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     positionSec,
     isDownloadingAll,
     bulkProgress,
+    bulkPaused,
     downloadedCount: downloadedSet.size,
     errorMsg,
     totalBytesLabel: formatBytes(totalKnownBytes),
@@ -1275,6 +1356,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     expandPlayer,
     collapsePlayer,
     downloadAll,
+    pauseDownloadAll,
+    resumeDownloadAll,
     cancelDownloadAll,
     refreshLockScreenControls,
     resetPlaybackState,

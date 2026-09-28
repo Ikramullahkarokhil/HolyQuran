@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { Icon, useTheme } from "react-native-paper";
 import { createAudioPlayer } from "expo-audio";
+import { File, Directory, Paths } from "expo-file-system";
 import { useTranslation } from "react-i18next";
 import { RECITERS, getAyahAudioUrl } from "../../components/reciters.js";
 import { useReciterStore } from "../../components/store/useReciterStore";
@@ -350,6 +351,7 @@ const ReciterSelectScreen = ({ navigation }) => {
   const playerRef = useRef(null);
   const listenerRef = useRef(null);
   const previewRequestRef = useRef(0);
+  const previewTimeoutRef = useRef(null);
 
   const flexDir = getFlexDirection(language);
   const textAlign = getTextAlignment(language);
@@ -401,8 +403,15 @@ const ReciterSelectScreen = ({ navigation }) => {
   }, [reciterId]);
 
   // Safely stop and release active player instance (fixesExpo Audio shared object issue)
-  const stopAudio = useCallback(() => {
-    previewRequestRef.current += 1;
+  const stopAudio = useCallback((preserveRequest = false) => {
+    if (!preserveRequest) {
+      previewRequestRef.current += 1;
+    }
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+
     const activePlayer = playerRef.current;
     const activeListener = listenerRef.current;
 
@@ -452,6 +461,46 @@ const ReciterSelectScreen = ({ navigation }) => {
     [showAlert, t],
   );
 
+  const ensurePreviewFile = useCallback(async (reciterIdValue, previewUrl) => {
+    if (!previewUrl) throw new Error("Invalid reciter preview URL");
+
+    const previewDir = new Directory(Paths.document, "reciter-preview");
+    if (!previewDir.exists) {
+      previewDir.create({ intermediates: true });
+    }
+
+    const previewFile = new File(previewDir, `preview-${reciterIdValue}.mp3`);
+    if (previewFile.exists && (previewFile.size ?? 0) > 512) {
+      return previewFile.uri;
+    }
+
+    const downloaded = await File.downloadFileAsync(previewUrl, previewDir, {
+      idempotent: true,
+    });
+    const finalFile = new File(downloaded.uri);
+    if (!finalFile.exists || (finalFile.size ?? 0) < 512) {
+      throw new Error("Preview audio could not be downloaded");
+    }
+
+    if (downloaded.uri !== previewFile.uri && previewFile.exists) {
+      try {
+        previewFile.delete();
+      } catch {}
+    }
+
+    const renamed = new File(downloaded.uri);
+    if (renamed.exists) {
+      const targetUri = previewFile.uri;
+      const fallback = new File(targetUri);
+      if (!fallback.exists) {
+        renamed.move(previewFile);
+      }
+      return previewFile.uri;
+    }
+
+    return downloaded.uri;
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -468,8 +517,16 @@ const ReciterSelectScreen = ({ navigation }) => {
       }
 
       const requestId = ++previewRequestRef.current;
-      stopAudio();
+      stopAudio(true);
       setLoadingId(id);
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+      previewTimeoutRef.current = setTimeout(() => {
+        if (requestId !== previewRequestRef.current) return;
+        showPreviewError(new Error("Preview timed out"));
+        stopAudio(true);
+      }, 20000);
 
       try {
         const previewUrl = getAyahAudioUrl(id, 1, 1); // Al-Fatiha Ayah 1 preview
@@ -479,37 +536,45 @@ const ReciterSelectScreen = ({ navigation }) => {
         }
         if (requestId !== previewRequestRef.current) return;
 
-        const newPlayer = createAudioPlayer({ uri: previewUrl });
+        const localPreviewUri = await ensurePreviewFile(id, previewUrl);
+        if (requestId !== previewRequestRef.current) return;
+
+        const newPlayer = createAudioPlayer({ uri: localPreviewUri });
         playerRef.current = newPlayer;
 
         const sub = newPlayer.addListener("playbackStatusUpdate", (status) => {
           if (requestId !== previewRequestRef.current) return;
           if (status?.error) {
             showPreviewError(status.error);
-            stopAudio();
+            stopAudio(true);
             return;
           }
-          if (status?.isLoaded) {
-            if (status.isPlaying) {
-              setLoadingId((curr) => (curr === id ? null : curr));
-              setPlayingId(id);
-            }
-            if (status.didJustFinish) {
-              stopAudio();
-            }
+          if (
+            status?.isLoaded ||
+            status?.isPlaying ||
+            status?.currentTime > 0
+          ) {
+            setLoadingId((curr) => (curr === id ? null : curr));
+            setPlayingId(id);
+          }
+          if (status?.didJustFinish) {
+            stopAudio(true);
           }
         });
         listenerRef.current = sub;
 
-        newPlayer.play();
-        setPlayingId(id);
+        await newPlayer.play();
+        if (requestId === previewRequestRef.current) {
+          setLoadingId((curr) => (curr === id ? null : curr));
+          setPlayingId(id);
+        }
       } catch (err) {
         if (requestId !== previewRequestRef.current) return;
         showPreviewError(err);
-        stopAudio();
+        stopAudio(true);
       }
     },
-    [playingId, showPreviewError, stopAudio],
+    [playingId, ensurePreviewFile, showPreviewError, stopAudio],
   );
 
   const handleSelectVariant = useCallback(

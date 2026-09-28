@@ -927,6 +927,7 @@ const SurahDetails = () => {
     positionSec,
     isDownloadingAll,
     bulkProgress,
+    bulkPaused,
     downloadedCount,
     totalBytesLabel,
     reciter,
@@ -935,6 +936,8 @@ const SurahDetails = () => {
     playVerse,
     pauseVerse,
     downloadAll,
+    pauseDownloadAll,
+    resumeDownloadAll,
     cancelDownloadAll,
   } = audioPlayer;
   const activeAudioAyah = audioPlayer.activeAyah;
@@ -1552,11 +1555,14 @@ const SurahDetails = () => {
         totalVerses={verses.length}
         downloadedCount={downloadedCount}
         isDownloadingAll={isDownloadingAll}
+        isPausedDownloadAll={bulkPaused}
         progress={bulkProgress}
         totalBytesLabel={totalBytesLabel}
         colors={colors}
         labels={labels}
         onDownloadAll={downloadAll}
+        onPauseDownloadAll={pauseDownloadAll}
+        onResumeDownloadAll={resumeDownloadAll}
         onCancelDownloadAll={cancelDownloadAll}
       />
     ),
@@ -1564,11 +1570,14 @@ const SurahDetails = () => {
       verses.length,
       downloadedCount,
       isDownloadingAll,
+      bulkPaused,
       bulkProgress,
       totalBytesLabel,
       colors,
       labels,
       downloadAll,
+      pauseDownloadAll,
+      resumeDownloadAll,
       cancelDownloadAll,
     ],
   );
