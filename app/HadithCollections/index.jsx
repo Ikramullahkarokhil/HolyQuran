@@ -249,7 +249,7 @@ const HadithCollections = () => {
         id: "jawami-al-kalim",
         title: t("Jawami al-Kalim"),
         description: t("Explore concise Hadiths with deep meanings"),
-        icon: "book-open-page-variant",
+        icon: "menu-book",
         hadithCount: 100,
         available: true,
         onPress: handleNavigateJawami,
