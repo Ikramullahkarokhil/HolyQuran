@@ -51,6 +51,12 @@
       ],
       "expo-localization",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to calculate the Qibla direction."
+        }
+      ],
+      [
         "expo-audio",
         {
           "enableBackgroundPlayback": true,

@@ -50,6 +50,14 @@ const getCardData = (t) => [
     accent: "#db2777",
   },
   {
+    id: "qibla",
+    title: t("Qibla Compass"),
+    description: t("Find the direction of the Kaaba"),
+    icon: "compass-outline",
+    href: { pathname: "Qibla" },
+    accent: "#12836b",
+  },
+  {
     id: "quiz",
     title: t("Quran Challenge"),
     description: t("Test your Quran knowledge"),
