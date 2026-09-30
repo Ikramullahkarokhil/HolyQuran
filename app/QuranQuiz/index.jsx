@@ -336,19 +336,17 @@ const QuranQuiz = () => {
           setBestStreak((b) => Math.max(b, next));
           return next;
         });
-        cardScale.value = withSequence(
-          withSpring(1.03, { damping: 12 }),
-          withSpring(1),
+        cardScale.set(
+          withSequence(withSpring(1.03, { damping: 12 }), withSpring(1)),
         );
       } else {
         setStreak(0);
-        cardScale.value = withSequence(
-          withTiming(0.97, { duration: 80 }),
-          withSpring(1),
+        cardScale.set(
+          withSequence(withTiming(0.97, { duration: 80 }), withSpring(1)),
         );
       }
 
-      feedbackOpacity.value = withTiming(1, { duration: 250 });
+      feedbackOpacity.set(withTiming(1, { duration: 250 }));
     },
     [cardScale, feedbackOpacity, isAnswered, question, streak],
   );
@@ -359,7 +357,7 @@ const QuranQuiz = () => {
       return;
     }
 
-    feedbackOpacity.value = 0;
+    feedbackOpacity.set(0);
     setQuestion(createQuestion(verses, mode));
     setSelected(null);
     setRound((r) => r + 1);
@@ -374,7 +372,7 @@ const QuranQuiz = () => {
     setRound(1);
     setFinished(false);
     setShowHub(false);
-    progress.value = 0;
+    progress.set(0);
   }, [mode, progress, verses]);
 
   const changeMode = useCallback(
@@ -388,7 +386,7 @@ const QuranQuiz = () => {
       setRound(1);
       setFinished(false);
       setShowHub(false);
-      progress.value = 0;
+      progress.set(0);
     },
     [progress, verses],
   );

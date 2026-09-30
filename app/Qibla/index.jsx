@@ -1175,25 +1175,25 @@ const Qibla = () => {
     return () => clearInterval(id);
   }, []);
 
-  const [skyTick, setSkyTick] = useState(0);
+  const [skyNowMs, setSkyNowMs] = useState(nowMs);
   useEffect(() => {
-    const id = setInterval(() => setSkyTick((n) => n + 1), SKY_TICK_MS);
+    const id = setInterval(() => setSkyNowMs(Date.now()), SKY_TICK_MS);
     return () => clearInterval(id);
   }, []);
 
+  const prayerMinute = Math.floor(nowMs / 60_000);
   const prayers = useMemo(() => {
     if (!location) return null;
     try {
       return computePrayerBundle(
         location.latitude,
         location.longitude,
-        new Date(nowMs),
+        new Date(prayerMinute * 60_000),
       );
     } catch {
       return null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location, skyTick, Math.floor(nowMs / 60_000)]);
+  }, [location, prayerMinute]);
 
   const livePrayers = useMemo(() => {
     if (!prayers || !location) return prayers;
@@ -1210,8 +1210,12 @@ const Qibla = () => {
 
   const sky = useMemo(() => {
     if (!location) return null;
-    return computeSkyBundle(location.latitude, location.longitude, new Date());
-  }, [location, skyTick]);
+    return computeSkyBundle(
+      location.latitude,
+      location.longitude,
+      new Date(skyNowMs),
+    );
+  }, [location, skyNowMs]);
 
   const isAligned = useMemo(() => {
     if (qiblaBearing == null || heading == null) return false;
@@ -1245,7 +1249,7 @@ const Qibla = () => {
       lastRawHeadingRef.current = null;
       unwrappedHeadingRef.current = 0;
       lastAccuracyRef.current = null;
-      hasQiblaSV.value = 0;
+      hasQiblaSV.set(0);
 
       const applyHeading = (trueHeading) => {
         const raw = normalizeDegrees(trueHeading);
@@ -1797,7 +1801,6 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: 26,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -1807,7 +1810,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   headerTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
     letterSpacing: -0.2,
   },
