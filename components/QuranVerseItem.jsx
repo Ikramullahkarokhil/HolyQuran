@@ -25,6 +25,7 @@ import { File, Directory, Paths } from "expo-file-system";
 import {
   getAyahAudioUrl,
   getAyahFileName,
+  getAyahCountForSurah,
   getReciterById,
 } from "../components/reciters";
 import { getSurahByIndex } from "./quranData";
@@ -117,10 +118,23 @@ const isNetworkFailure = (error) => {
 async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const externalSignal = options.signal;
+  const abortFromExternalSignal = () => controller.abort();
+  if (externalSignal?.aborted) {
+    controller.abort();
+  } else {
+    externalSignal?.addEventListener("abort", abortFromExternalSignal, {
+      once: true,
+    });
+  }
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", abortFromExternalSignal);
   }
 }
 
@@ -428,6 +442,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
 
   const playerRef = useRef(null);
   const playerListenerRef = useRef(null);
+  const lockScreenPlayerRef = useRef(null);
   const statusIntervalRef = useRef(null);
   const bulkCancelRef = useRef(false);
   const bulkPauseRef = useRef(false);
@@ -447,6 +462,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const playVerseRef = useRef(null);
   const prefetchingRef = useRef(new Set());
   const sessionIdRef = useRef(0);
+  const playingSessionRef = useRef(null);
+  const finishedSessionRef = useRef(null);
 
   const reciterIdRef = useRef(reciterId);
   useEffect(() => {
@@ -556,6 +573,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         } catch {}
         playerRef.current = null;
       }
+      lockScreenPlayerRef.current = null;
     };
   }, []);
 
@@ -578,7 +596,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
           const file = ayahFileFor(reciterId, surahId, ayah);
           if (file.exists) {
             const size = file.size ?? 0;
-            if (size > 0) {
+            if (size >= 512) {
               next.add(ayah);
               sizes.set(ayah, size);
               const meta = await AsyncStorage.getItem(
@@ -625,6 +643,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       } catch {}
       playerRef.current = null;
     }
+    lockScreenPlayerRef.current = null;
   }, []);
 
   const resetPlaybackState = useCallback(() => {
@@ -658,10 +677,15 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     };
 
     try {
-      player.setActiveForLockScreen(true, metadata, {
-        showSeekBackward: true,
-        showSeekForward: true,
-      });
+      if (lockScreenPlayerRef.current === player) {
+        player.updateLockScreenMetadata(metadata);
+      } else {
+        player.setActiveForLockScreen(true, metadata, {
+          showSeekBackward: true,
+          showSeekForward: true,
+        });
+        lockScreenPlayerRef.current = player;
+      }
       return true;
     } catch {
       return false;
@@ -707,7 +731,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       const url = getAyahAudioUrl(reciterId, surahId, ayah);
       if (!url) throw new Error("Invalid reciter / ayah");
 
-      const pending = activeDownloadsRef.current.get(ayah);
+      const downloadKey = `${reciterId}:${surahId}:${ayah}`;
+      const pending = activeDownloadsRef.current.get(downloadKey);
       if (pending) return pending;
 
       const downloadTask = (async () => {
@@ -720,7 +745,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
 
         const destFile = ayahFileFor(reciterId, surahId, ayah);
 
-        if (destFile.exists && (destFile.size ?? 0) > 1024) {
+        if (destFile.exists && (destFile.size ?? 0) >= 512) {
           await markDownloaded(
             ayah,
             durationMap.get(ayah) || 0,
@@ -750,8 +775,10 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
           });
         }
 
-        const tmpName = `${getAyahFileName(surahId, ayah)}.tmp`;
-        const tmpFile = new File(dir, tmpName);
+        const tmpFile = new File(
+          dir,
+          `${getAyahFileName(surahId, ayah)}.tmp`,
+        );
         if (tmpFile.exists) {
           try {
             tmpFile.delete();
@@ -759,10 +786,10 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         }
 
         const controller = new AbortController();
-        downloadAbortRef.current.set(ayah, controller);
+        downloadAbortRef.current.set(downloadKey, controller);
 
         try {
-          const downloaded = await File.downloadFileAsync(url, dir, {
+          const downloaded = await File.downloadFileAsync(url, tmpFile, {
             idempotent: true,
             signal: controller.signal,
             onProgress: (data) => {
@@ -782,15 +809,11 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
             },
           });
 
-          if (downloaded.uri !== destFile.uri) {
-            if (destFile.exists) {
-              try {
-                destFile.delete();
-              } catch {}
-            }
-            const src = new File(downloaded.uri);
-            src.move(destFile);
+          const downloadedFile = new File(downloaded.uri);
+          if (!downloadedFile.exists || (downloadedFile.size ?? 0) < 512) {
+            throw new Error("Corrupt download");
           }
+          await downloadedFile.move(destFile, { overwrite: true });
 
           onProgress?.(1);
           if (isMounted.current && !silent) {
@@ -802,6 +825,9 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
           }
         } catch (e) {
           if (controller.signal.aborted) throw e;
+          try {
+            if (tmpFile.exists) tmpFile.delete();
+          } catch {}
           const res = await fetchWithTimeout(
             url,
             { signal: controller.signal },
@@ -809,13 +835,13 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
           );
           if (!res.ok) throw new Error("Download failed");
           const bytes = await res.arrayBuffer();
-          if (!destFile.exists) {
-            destFile.create();
-          }
-          destFile.write(new Uint8Array(bytes));
+          tmpFile.create({ intermediates: true, overwrite: true });
+          tmpFile.write(new Uint8Array(bytes));
+          if ((tmpFile.size ?? 0) < 512) throw new Error("Corrupt download");
+          await tmpFile.move(destFile, { overwrite: true });
           onProgress?.(1);
         } finally {
-          downloadAbortRef.current.delete(ayah);
+          downloadAbortRef.current.delete(downloadKey);
           try {
             if (tmpFile.exists) tmpFile.delete();
           } catch {}
@@ -840,11 +866,13 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         return destFile.uri;
       })();
 
-      activeDownloadsRef.current.set(ayah, downloadTask);
+      activeDownloadsRef.current.set(downloadKey, downloadTask);
       try {
         return await downloadTask;
       } finally {
-        activeDownloadsRef.current.delete(ayah);
+        if (activeDownloadsRef.current.get(downloadKey) === downloadTask) {
+          activeDownloadsRef.current.delete(downloadKey);
+        }
       }
     },
     [reciterId, surahId, durationMap, sizeMap, markDownloaded],
@@ -918,9 +946,14 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   }, []);
 
   const handlePlaybackFinished = useCallback(
-    (ayah) => {
-      const activeSession = sessionIdRef.current;
-      if (activeSession !== sessionIdRef.current) return;
+    (ayah, activeSession) => {
+      if (
+        activeSession !== sessionIdRef.current ||
+        finishedSessionRef.current === activeSession
+      ) {
+        return;
+      }
+      finishedSessionRef.current = activeSession;
       if (statusIntervalRef.current) {
         clearInterval(statusIntervalRef.current);
         statusIntervalRef.current = null;
@@ -928,6 +961,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       setPlayingId(null);
       setPlayingSurahId(null);
       playingAyahRef.current = null;
+      playingSessionRef.current = null;
       positionRef.current = 0;
       setPositionSec(0);
 
@@ -940,7 +974,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
 
   const downloadVerse = useCallback(
     async (ayah) => {
-      if (activeDownloadsRef.current.has(ayah)) return;
+      const downloadKey = `${reciterId}:${surahId}:${ayah}`;
+      if (activeDownloadsRef.current.has(downloadKey)) return;
       setErrorMsg(null);
       setDownloadingId(ayah);
       setExpandedId(ayah);
@@ -984,10 +1019,36 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const playVerse = useCallback(
     async (ayah, opts = {}) => {
       const fromAuto = !!opts.fromAutoAdvance;
+      const targetAyah = Number(ayah);
+      if (
+        !Number.isInteger(surahId) ||
+        surahId < 1 ||
+        surahId > 114 ||
+        !Number.isInteger(targetAyah) ||
+        targetAyah < 1 ||
+        targetAyah > getAyahCountForSurah(surahId)
+      ) {
+        setErrorMsg("Invalid surah or ayah");
+        return;
+      }
       const activeSession = ++sessionIdRef.current;
       setErrorMsg(null);
       userPausedRef.current = false;
       autoAdvanceRef.current = true;
+      if (statusIntervalRef.current) {
+        clearInterval(statusIntervalRef.current);
+        statusIntervalRef.current = null;
+      }
+      try {
+        playerRef.current?.pause();
+      } catch {}
+      playingAyahRef.current = null;
+      playingSessionRef.current = null;
+      setPlayingId(null);
+      setPlayingSurahId(null);
+      setDownloadingId(null);
+      positionRef.current = 0;
+      setPositionSec(0);
 
       try {
         const notificationsAllowed = await requestAudioNotificationPermission();
@@ -996,18 +1057,17 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
             "Notification permission is required for playback controls",
           );
         }
+        if (activeSession !== sessionIdRef.current) return;
 
-        const file = ayahFileFor(reciterId, surahId, ayah);
-        const remoteUrl = getAyahAudioUrl(reciterId, surahId, ayah);
+        const file = ayahFileFor(reciterId, surahId, targetAyah);
         let uri = file.uri;
         if (!file.exists || (file.size ?? 0) < 512) {
-          if (remoteUrl && !(await ensureAudioReachable(remoteUrl, 15000))) {
-            throw new Error("Network unavailable");
-          }
-          if (!fromAuto) setDownloadingId(ayah);
-          uri = await downloadOne(ayah);
+          if (!fromAuto) setDownloadingId(targetAyah);
+          uri = await downloadOne(targetAyah);
+          if (activeSession !== sessionIdRef.current) return;
           if (!fromAuto && isMounted.current) setDownloadingId(null);
         }
+        if (activeSession !== sessionIdRef.current) return;
 
         if (statusIntervalRef.current) {
           clearInterval(statusIntervalRef.current);
@@ -1036,51 +1096,79 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
             (status) => {
               const currentPlayer = playerRef.current;
               const currentAyah = playingAyahRef.current;
-              if (activeSession !== sessionIdRef.current) return;
               if (currentPlayer !== player || currentAyah == null) return;
+              const currentSession = playingSessionRef.current;
+              if (
+                currentSession == null ||
+                currentSession !== sessionIdRef.current
+              ) {
+                return;
+              }
+              if (status?.error) {
+                if (statusIntervalRef.current) {
+                  clearInterval(statusIntervalRef.current);
+                  statusIntervalRef.current = null;
+                }
+                try {
+                  player.pause();
+                } catch {}
+                playingAyahRef.current = null;
+                playingSessionRef.current = null;
+                setPlayingId(null);
+                setPlayingSurahId(null);
+                setDownloadingId(null);
+                setErrorMsg(String(status.error));
+                return;
+              }
               if (status?.isLoaded && status.playing) {
                 setPlayingId(currentAyah);
               }
               if (status?.didJustFinish) {
-                handlePlaybackFinished(currentAyah);
+                handlePlaybackFinished(currentAyah, currentSession);
               }
             },
           );
         }
 
-        playingAyahRef.current = ayah;
+        playingAyahRef.current = targetAyah;
+        playingSessionRef.current = activeSession;
         setPlayingSurahId(surahId);
-        setLastActiveAyah(ayah);
+        setLastActiveAyah(targetAyah);
         setLastActiveSurahId(surahId);
-
-        refreshLockScreenControls();
 
         player.play();
         refreshLockScreenControls();
 
-        const knownDur = durationMap.get(ayah);
+        const knownDur = durationMap.get(targetAyah);
         if (knownDur > 0) {
           durationRef.current = knownDur;
         }
 
-        startStatusPolling(player, ayah);
+        startStatusPolling(player, targetAyah);
 
         const tryPersistDuration = () => {
+          if (
+            activeSession !== sessionIdRef.current ||
+            playerRef.current !== player ||
+            playingAyahRef.current !== targetAyah
+          ) {
+            return;
+          }
           try {
             const dur = player.duration;
             if (dur > 0 && isMounted.current) {
               durationRef.current = dur;
               setDurationMap((prev) => {
-                if (prev.get(ayah) === dur) return prev;
+                if (prev.get(targetAyah) === dur) return prev;
                 const n = new Map(prev);
-                n.set(ayah, dur);
+                n.set(targetAyah, dur);
                 return n;
               });
               AsyncStorage.setItem(
-                storageKey(reciterId, surahId, ayah),
+                storageKey(reciterId, surahId, targetAyah),
                 JSON.stringify({
                   duration: dur,
-                  size: sizeMap.get(ayah) || 0,
+                  size: sizeMap.get(targetAyah) || 0,
                 }),
               ).catch(() => {});
             }
@@ -1090,14 +1178,14 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         setTimeout(tryPersistDuration, 1100);
 
         if (isMounted.current) {
-          setPlayingId(ayah);
-          setExpandedId(ayah);
+          setPlayingId(targetAyah);
+          setExpandedId(targetAyah);
           setPositionSec(0);
           positionRef.current = 0;
         }
 
         // Prefetch next ayah while this one plays
-        prefetchNext(ayah);
+        prefetchNext(targetAyah);
 
         if (!fromAuto) {
           safeHaptic(() =>
@@ -1105,10 +1193,26 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
           );
         }
       } catch (e) {
-        if (isMounted.current) setDownloadingId(null);
-        setErrorMsg(
-          isNetworkFailure(e) ? OFFLINE_ERROR : e?.message || "Playback failed",
-        );
+        if (activeSession !== sessionIdRef.current) return;
+        if (isMounted.current) {
+          if (statusIntervalRef.current) {
+            clearInterval(statusIntervalRef.current);
+            statusIntervalRef.current = null;
+          }
+          try {
+            playerRef.current?.pause();
+          } catch {}
+          setDownloadingId(null);
+          playingAyahRef.current = null;
+          playingSessionRef.current = null;
+          setPlayingId(null);
+          setPlayingSurahId(null);
+          setErrorMsg(
+            isNetworkFailure(e)
+              ? OFFLINE_ERROR
+              : e?.message || "Playback failed",
+          );
+        }
         safeHaptic(() =>
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
         );
@@ -1137,6 +1241,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     sessionIdRef.current += 1;
     userPausedRef.current = true;
     autoAdvanceRef.current = false;
+    playingSessionRef.current = null;
+    setDownloadingId(null);
     try {
       if (playerRef.current) {
         playerRef.current.pause();
@@ -1144,6 +1250,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     } catch {}
     const activeAyah = playingAyahRef.current ?? lastActiveAyah;
     playingAyahRef.current = null;
+    playingSessionRef.current = null;
     setPlayingId(null);
     setPlayingSurahId((current) =>
       current != null ? current : lastActiveSurahId,

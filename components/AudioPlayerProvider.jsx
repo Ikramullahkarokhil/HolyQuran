@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,7 +24,7 @@ export const AudioPlayerProvider = ({ children }) => {
   const registry = useSurahAudioRegistry(activeSessionSurahId, ayahList);
   const registryRef = useRef(registry);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     registryRef.current = registry;
   }, [registry]);
 
@@ -85,10 +86,12 @@ export const AudioPlayerProvider = ({ children }) => {
       updateAyahListForSurah(targetSurahId);
       setIsVisible(true);
 
-      const player = registryRef.current;
-      if (!player) return;
       setTimeout(() => {
-        player.playVerse(targetAyah, opts).catch(() => {});
+        registryRef.current
+          ?.playVerse(targetAyah, opts)
+          .catch((error) =>
+            console.error("Unexpected Quran audio playback error:", error),
+          );
       }, 0);
     },
     [routeSurahId, sessionSurahId, updateAyahListForSurah],
