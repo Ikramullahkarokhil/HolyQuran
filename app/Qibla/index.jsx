@@ -1,20 +1,39 @@
+/**
+ * Qibla compass screen
+ * Expo SDK 57 · React Native 0.86 · Reanimated 4.5 · plain JavaScript
+ *
+ * Architecture (why it stays at your display's refresh rate):
+ *  1. Sensor → JS: a One-Euro filter removes jitter at rest and keeps lag low
+ *     while turning. Output is written to a shared value (no React state).
+ *  2. UI thread: a frame callback eases the dial toward the filtered target
+ *     every display frame (60 / 120 Hz), independent of the sensor rate.
+ *  3. Only tiny components (number readout, guidance pill, halo) subscribe to
+ *     heading changes through an external store, throttled to 10 Hz. The
+ *     screen itself never re-renders for a heading tick.
+ *  4. Clocks / timers pause when the screen is unfocused or backgrounded.
+ */
 import React, {
+  createContext,
   memo,
   useCallback,
+  useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
+  AppState,
   Linking,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  Vibration,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -28,7 +47,7 @@ import Animated, {
   cancelAnimation,
   useAnimatedProps,
   useAnimatedStyle,
-  useDerivedValue,
+  useFrameCallback,
   useSharedValue,
   withRepeat,
   withSequence,
@@ -48,25 +67,74 @@ import Svg, {
 import { Icon, useTheme } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
-import { Coordinates, CalculationMethod, PrayerTimes, Prayer } from "adhan";
+import {
+  Coordinates,
+  CalculationMethod,
+  HighLatitudeRule,
+  Madhab,
+  PrayerTimes,
+  Prayer,
+} from "adhan";
 import {
   Observer,
   Body,
   Illumination,
   MakeTime,
+  MoonPhase,
   SearchRiseSet,
 } from "astronomy-engine";
 
 /* ───────────────────────────── constants ───────────────────────────── */
 
-const KAABA = { latitude: 21.4225, longitude: 39.8262 };
+// Kaaba coordinates (same reference point the adhan library uses).
+const KAABA = { latitude: 21.4225241, longitude: 39.8261818 };
 const TICKS = Array.from({ length: 72 }, (_, i) => i);
-const ALIGNMENT_THRESHOLD = 8;
-const NO_HEADING_TIMEOUT = 6000;
-const SKY_TICK_MS = 60_000;
+
+// Visual alignment. Enter/exit differ so the UI never flickers on the edge.
+const ALIGN_ENTER_DEG = 8;
+const ALIGN_EXIT_DEG = 11;
+
+// Haptic alignment (stricter, needs a trustworthy sensor).
+const HAPTIC_ENTER_DEG = 4;
+const HAPTIC_EXIT_DEG = 7;
+const HAPTIC_DWELL_MS = 500;
+const HAPTIC_MIN_ACCURACY = 2;
+
+// Heading pipeline.
+const HEADING_UI_INTERVAL_MS = 100; // max React updates for the number readout
+const DISPLAY_HYSTERESIS_DEG = 0.65; // keeps the integer from flickering at rest
+const NO_HEADING_TIMEOUT_MS = 6000;
+const TRUE_HEADING_GRACE_MS = 2500; // wait for true north before using magnetic
+const VISUAL_TAU_MS = 45; // UI-thread easing time constant (lower = snappier)
+// Tuned by simulation (σ≈1.5° sensor noise): ~2.7× less jitter at rest with
+// ≈45 ms of lag while turning at 90°/s. Raise minCutoff for a snappier needle,
+// lower it for a calmer one.
+const FILTER = {
+  minCutoff: 0.9, // Hz – smoothing at rest
+  minCutoffLowAccuracy: 0.5, // Hz – calmer when the sensor reports low accuracy
+  beta: 0.03, // how quickly smoothing relaxes while turning
+  derivativeCutoff: 0.5, // Hz
+};
+
+// Location.
+const LOCATION_TIMEOUT_MS = 15_000;
+const CACHED_LOCATION_MAX_AGE_MS = 5 * 60_000;
+const FALLBACK_LOCATION_MAX_AGE_MS = 60 * 60_000;
+const RESUME_REFRESH_AFTER_MS = 5_000;
+
+// Time keeping.
+const MOON_BUCKET_MS = 15 * 60_000;
+
+// Sun chart geometry.
 const SUN_CHART_WIDTH = 320;
 const SUN_CHART_HEIGHT = 110;
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Prayer settings. Change these two lines to switch method / madhab.
+// Methods: MuslimWorldLeague, Egyptian, Karachi, UmmAlQura, Dubai, Qatar,
+// Kuwait, MoonsightingCommittee, Singapore, Turkey, Tehran, NorthAmerica.
+const PRAYER_CALCULATION_METHOD = "MuslimWorldLeague";
+const PRAYER_MADHAB = Madhab.Shafi; // Madhab.Hanafi for later Asr
 
 const COMPASS_POINTS = [
   "N",
@@ -103,6 +171,17 @@ const PRAYER_ORDER = [
   { key: "isha", prayer: Prayer.Isha, icon: "moon-waning-crescent" },
 ];
 
+const MOON_PHASE_LABELS = [
+  "New Moon",
+  "Waxing Crescent",
+  "First Quarter",
+  "Waxing Gibbous",
+  "Full Moon",
+  "Waning Gibbous",
+  "Last Quarter",
+  "Waning Crescent",
+];
+
 const DIAL_LIGHT = {
   face: "#fbfcfc",
   rim: "#e2e8e6",
@@ -128,11 +207,43 @@ const DIAL_DARK = {
   soft: "#064e3b",
 };
 
+const EMPTY_SKY_EVENTS = {
+  sunrise: null,
+  sunset: null,
+  moonrise: null,
+  moonset: null,
+};
+const EMPTY_MOON = {
+  moonFraction: null,
+  moonLabel: null,
+  moonWaxing: true,
+  southern: false,
+};
+
 /* ───────────────────────────── math helpers ────────────────────────── */
 
 const toRadians = (d) => (d * Math.PI) / 180;
-const normalizeDegrees = (d) => ((d % 360) + 360) % 360;
-const shortestSignedDelta = (from, to) => ((to - from + 540) % 360) - 180;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+// Marked as worklets so the UI-thread frame callback can use them too.
+const normalizeDegrees = (d) => {
+  "worklet";
+  return ((d % 360) + 360) % 360;
+};
+
+const shortestSignedDelta = (from, to) => {
+  "worklet";
+  return ((((to - from) % 360) + 540) % 360) - 180;
+};
+
+// One UI-frame of easing toward the target heading (frame-rate independent).
+const stepVisualHeading = (current, target, dtMs) => {
+  "worklet";
+  const diff = shortestSignedDelta(current, target);
+  if (Math.abs(diff) < 0.02) return target;
+  const k = 1 - Math.exp(-dtMs / VISUAL_TAU_MS);
+  return normalizeDegrees(current + diff * k);
+};
 
 export const getQiblaBearing = (latitude, longitude) => {
   const φ1 = toRadians(latitude);
@@ -154,10 +265,20 @@ const getCityName = (place) =>
   place?.country ||
   null;
 
+const isValidLocation = (coords) =>
+  Number.isFinite(coords?.latitude) &&
+  coords.latitude >= -90 &&
+  coords.latitude <= 90 &&
+  Number.isFinite(coords?.longitude) &&
+  coords.longitude >= -180 &&
+  coords.longitude <= 180;
+
+const isValidDate = (d) => d instanceof Date && !Number.isNaN(d.getTime());
+
 const pad2 = (n) => String(n).padStart(2, "0");
 
 const formatClock = (date, t) => {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "––:––";
+  if (!isValidDate(date)) return "––:––";
   const hours = date.getHours();
   const hour12 = hours % 12 || 12;
   const period = t(hours < 12 ? "AM" : "PM");
@@ -174,20 +295,12 @@ const formatCountdown = (ms) => {
   return `${pad2(m)}:${pad2(s)}`;
 };
 
-const moonPhaseLabel = (fraction, phaseAngleDeg) => {
-  const f = fraction ?? 0;
-  const a = phaseAngleDeg ?? 0;
-  if (f < 0.03) return "New Moon";
-  if (f > 0.97) return "Full Moon";
-  if (a < 180) {
-    if (f < 0.35) return "Waxing Crescent";
-    if (f < 0.65) return "First Quarter";
-    return "Waxing Gibbous";
-  }
-  if (f < 0.35) return "Waning Crescent";
-  if (f < 0.65) return "Last Quarter";
-  return "Waning Gibbous";
-};
+// Uses the Moon's ecliptic phase (0 new → 180 full), which – unlike the
+// illumination "phase angle" – distinguishes waxing from waning.
+const moonPhaseLabel = (phaseDeg) =>
+  MOON_PHASE_LABELS[
+    Math.floor(((normalizeDegrees(phaseDeg) + 22.5) % 360) / 45)
+  ];
 
 const prayerLabelKey = (prayer) => {
   switch (prayer) {
@@ -208,109 +321,832 @@ const prayerLabelKey = (prayer) => {
   }
 };
 
+const withTimeout = (promise, ms, message) => {
+  let id;
+  const timeout = new Promise((_, reject) => {
+    id = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(id));
+};
+
+const warn = (...args) => {
+  if (__DEV__) console.warn(...args);
+};
+
 /* ───────────────────────────── sky + prayers ───────────────────────── */
 
-function computePrayerBundle(lat, lon, now) {
-  const coords = new Coordinates(lat, lon);
-  const params = CalculationMethod.MuslimWorldLeague();
-  const times = new PrayerTimes(coords, now, params);
-
-  const entries = PRAYER_ORDER.map(({ key, prayer, icon }) => ({
-    key,
-    prayer,
-    icon,
-    label: prayerLabelKey(prayer),
-    time: times.timeForPrayer(prayer),
-  }));
-
-  const next = times.nextPrayer(now);
-  const current = times.currentPrayer(now);
-  const nextTime = next != null ? times.timeForPrayer(next) : null;
-  const currentTime = current != null ? times.timeForPrayer(current) : null;
-
-  let progress = 0;
-  if (currentTime && nextTime) {
-    const span = nextTime.getTime() - currentTime.getTime();
-    if (span > 0) {
-      progress = Math.min(
-        1,
-        Math.max(0, (now.getTime() - currentTime.getTime()) / span),
-      );
-    }
+function buildPrayerParams(coords) {
+  const factory =
+    CalculationMethod[PRAYER_CALCULATION_METHOD] ??
+    CalculationMethod.MuslimWorldLeague;
+  const params = factory();
+  params.madhab = PRAYER_MADHAB;
+  // Without this, Fajr / Isha are wrong or undefined in long summer twilight
+  // at high latitudes (above ~48°).
+  if (typeof HighLatitudeRule?.recommended === "function") {
+    params.highLatitudeRule = HighLatitudeRule.recommended(coords);
   }
+  return params;
+}
 
+/**
+ * One calculation per (location, local day). Also grabs yesterday's Isha and
+ * tomorrow's Fajr so "next prayer" is always defined, even after Isha.
+ */
+function computePrayerSchedule(latitude, longitude, dayStartMs) {
+  const coords = new Coordinates(latitude, longitude);
+  const params = buildPrayerParams(coords);
+  const day = new Date(dayStartMs);
+  const timesFor = (offsetDays) =>
+    new PrayerTimes(
+      coords,
+      new Date(
+        day.getFullYear(),
+        day.getMonth(),
+        day.getDate() + offsetDays,
+        12,
+      ),
+      params,
+    );
+
+  const today = timesFor(0);
   return {
-    entries,
-    next,
-    current,
-    nextTime,
-    currentTime,
-    progress,
-    nextLabel: next != null ? prayerLabelKey(next) : null,
-    currentLabel: current != null ? prayerLabelKey(current) : null,
+    entries: PRAYER_ORDER.map(({ key, prayer, icon }) => ({
+      key,
+      prayer,
+      icon,
+      label: prayerLabelKey(prayer),
+      time: today.timeForPrayer(prayer),
+    })),
+    previousIsha: timesFor(-1).isha,
+    nextFajr: timesFor(1).fajr,
   };
 }
 
-function computeSkyBundle(lat, lon, now) {
+/** Pure: which prayer is current / next at `nowMs`. */
+function derivePrayerPhase(schedule, nowMs) {
+  const timed = schedule.entries.filter((e) => isValidDate(e.time));
+  let currentIndex = -1;
+  timed.forEach((e, i) => {
+    if (e.time.getTime() <= nowMs) currentIndex = i;
+  });
+
+  const current = currentIndex >= 0 ? timed[currentIndex] : null;
+  let next = timed[currentIndex + 1] ?? null;
+  let nextTime = next ? next.time : null;
+  let nextIsTomorrow = false;
+
+  if (!next && isValidDate(schedule.nextFajr)) {
+    next = schedule.entries.find((e) => e.key === "fajr") ?? null;
+    nextTime = schedule.nextFajr;
+    nextIsTomorrow = true;
+  }
+
+  const startTime = current
+    ? current.time
+    : isValidDate(schedule.previousIsha)
+      ? schedule.previousIsha
+      : null;
+
+  return {
+    current: current?.prayer ?? null,
+    currentLabel: current?.label ?? null,
+    next: next?.prayer ?? null,
+    nextLabel: next?.label ?? null,
+    nextTimeMs: nextTime ? nextTime.getTime() : null,
+    nextTime,
+    nextIsTomorrow,
+    startMs: startTime ? startTime.getTime() : null,
+  };
+}
+
+/** Sunrise / sunset / moonrise / moonset that fall on the given local day. */
+function computeSkyEvents(latitude, longitude, dayStartMs) {
   try {
-    const observer = new Observer(lat, lon, 0);
-    const time = MakeTime(now);
+    const observer = new Observer(latitude, longitude, 0);
+    const start = new Date(dayStartMs);
+    const dayEndMs = new Date(
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate() + 1,
+    ).getTime();
+    const startTime = MakeTime(start);
+
+    const find = (body, direction) => {
+      const date = SearchRiseSet(
+        body,
+        observer,
+        direction,
+        startTime,
+        1.5,
+      )?.date;
+      const ms = date?.getTime?.();
+      return ms != null && ms >= dayStartMs && ms < dayEndMs ? date : null;
+    };
+
+    return {
+      sunrise: find(Body.Sun, +1),
+      sunset: find(Body.Sun, -1),
+      moonrise: find(Body.Moon, +1),
+      moonset: find(Body.Moon, -1),
+    };
+  } catch {
+    return EMPTY_SKY_EVENTS;
+  }
+}
+
+function computeMoonState(latitude, nowMs) {
+  try {
+    const time = MakeTime(new Date(nowMs));
     const illum = Illumination(Body.Moon, time);
     const fraction = illum.phase_fraction ?? illum.phaseFraction ?? 0;
-    const phaseAngle = illum.phase_angle ?? illum.phaseAngle ?? 0;
+    const phaseDeg = MoonPhase(time);
+    return {
+      moonFraction: fraction,
+      moonLabel: moonPhaseLabel(phaseDeg),
+      moonWaxing: phaseDeg < 180,
+      southern: latitude < 0,
+    };
+  } catch {
+    return EMPTY_MOON;
+  }
+}
 
-    const localDayStart = new Date(
+/* ───────────────────────── heading pipeline (JS) ───────────────────── */
+
+/**
+ * One-Euro filter on a circular quantity (degrees). Heavy smoothing when the
+ * phone is still, light smoothing when it is turning – so no jitter and no lag.
+ */
+function createHeadingFilter() {
+  let value = null;
+  let lastRaw = null;
+  let lastAt = 0;
+  let rate = 0;
+
+  const alpha = (cutoffHz, dtSec) => {
+    const tau = 1 / (2 * Math.PI * cutoffHz);
+    return 1 / (1 + tau / dtSec);
+  };
+
+  return {
+    reset() {
+      value = null;
+      lastRaw = null;
+      lastAt = 0;
+      rate = 0;
+    },
+    update(raw, nowMs, lowAccuracy) {
+      if (value == null) {
+        value = raw;
+        lastRaw = raw;
+        lastAt = nowMs;
+        rate = 0;
+        return value;
+      }
+      const dt = clamp((nowMs - lastAt) / 1000, 0.008, 0.5);
+      const instantRate = shortestSignedDelta(lastRaw, raw) / dt;
+      lastRaw = raw;
+      lastAt = nowMs;
+      rate += alpha(FILTER.derivativeCutoff, dt) * (instantRate - rate);
+      const cutoff =
+        (lowAccuracy ? FILTER.minCutoffLowAccuracy : FILTER.minCutoff) +
+        FILTER.beta * Math.abs(rate);
+      value = normalizeDegrees(
+        value + alpha(cutoff, dt) * shortestSignedDelta(value, raw),
+      );
+      return value;
+    },
+  };
+}
+
+/* Tiny external store: only components that need the heading subscribe. */
+const INITIAL_COMPASS_STATE = { heading: null, aligned: false };
+
+function createCompassStore() {
+  let state = INITIAL_COMPASS_STATE;
+  const listeners = new Set();
+  return {
+    getState: () => state,
+    setState(patch) {
+      let changed = false;
+      for (const key of Object.keys(patch)) {
+        if (state[key] !== patch[key]) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) return;
+      state = { ...state, ...patch };
+      listeners.forEach((listener) => listener());
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+const selectHeading = (s) => s.heading;
+const selectAligned = (s) => s.aligned;
+
+function useCompassValue(store, selector) {
+  const getSnapshot = () => selector(store.getState());
+  return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
+}
+
+const fireSuccessHaptic = () => {
+  if (Platform.OS === "web") return;
+  try {
+    Promise.resolve(
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
+    ).catch(() => {});
+  } catch {
+    // Haptics are a nicety – never let them break the compass.
+  }
+};
+
+/**
+ * Turns raw sensor readings into: (a) a smooth target for the UI thread,
+ * (b) a throttled integer for the readout, (c) alignment state + haptics.
+ */
+function createHeadingPipeline({
+  store,
+  targetSV,
+  snapSV,
+  onAccuracy,
+  onMode,
+  onFirstReading,
+}) {
+  const filter = createHeadingFilter();
+
+  let running = false;
+  let startedAt = 0;
+  let qibla = null;
+  let accuracy = null;
+  let mode = null;
+  let gotReading = false;
+  let lastHeading = null;
+  let lastReadingAt = 0;
+
+  let shown = null;
+  let shownAt = 0;
+  let pendingShown = null;
+  let shownTimer = null;
+
+  let hapticBaselineSet = false;
+  let hapticLatched = false;
+  let hapticTimer = null;
+
+  const clearShownTimer = () => {
+    if (shownTimer) clearTimeout(shownTimer);
+    shownTimer = null;
+    pendingShown = null;
+  };
+  const clearHapticTimer = () => {
+    if (hapticTimer) clearTimeout(hapticTimer);
+    hapticTimer = null;
+  };
+
+  // True north when available; magnetic north only after a short grace period.
+  const resolveHeading = (reading, now) => {
+    const trueHeading = reading?.trueHeading;
+    const magHeading = reading?.magHeading;
+    if (Number.isFinite(trueHeading) && trueHeading >= 0) {
+      return { value: trueHeading, mode: "true" };
+    }
+    if (
+      Number.isFinite(magHeading) &&
+      magHeading >= 0 &&
+      now - startedAt >= TRUE_HEADING_GRACE_MS
+    ) {
+      return { value: magHeading, mode: "magnetic" };
+    }
+    return null;
+  };
+
+  const commitShown = (rounded, now) => {
+    shown = rounded;
+    shownAt = now;
+    pendingShown = null;
+    store.setState({ heading: rounded });
+  };
+
+  // Leading + trailing throttle so the last value is never dropped.
+  const showHeading = (deg, now) => {
+    if (
+      shown != null &&
+      Math.abs(shortestSignedDelta(shown, deg)) < DISPLAY_HYSTERESIS_DEG
+    ) {
+      pendingShown = null;
+      return;
+    }
+    const rounded = Math.round(deg) % 360;
+    if (rounded === shown) {
+      pendingShown = null;
+      return;
+    }
+    const elapsed = now - shownAt;
+    if (shown == null || elapsed >= HEADING_UI_INTERVAL_MS) {
+      commitShown(rounded, now);
+      return;
+    }
+    pendingShown = rounded;
+    if (!shownTimer) {
+      shownTimer = setTimeout(() => {
+        shownTimer = null;
+        if (running && pendingShown != null && pendingShown !== shown) {
+          commitShown(pendingShown, Date.now());
+        }
+      }, HEADING_UI_INTERVAL_MS - elapsed);
+    }
+  };
+
+  const evaluateHaptics = (delta) => {
+    if (!hapticBaselineSet) {
+      // Don't buzz for a phone that is already aligned when the screen opens.
+      hapticBaselineSet = true;
+      hapticLatched = delta <= HAPTIC_ENTER_DEG;
+      return;
+    }
+    if (delta > HAPTIC_EXIT_DEG) {
+      hapticLatched = false;
+      clearHapticTimer();
+      return;
+    }
+    if (accuracy == null || accuracy < HAPTIC_MIN_ACCURACY) {
+      if (hapticTimer) {
+        clearHapticTimer();
+        hapticLatched = false;
+      }
+      return;
+    }
+    if (delta > HAPTIC_ENTER_DEG || hapticLatched || Platform.OS === "web") {
+      return;
+    }
+
+    hapticLatched = true;
+    hapticTimer = setTimeout(() => {
+      hapticTimer = null;
+      const stillAligned =
+        running &&
+        qibla != null &&
+        lastHeading != null &&
+        accuracy != null &&
+        accuracy >= HAPTIC_MIN_ACCURACY &&
+        Date.now() - lastReadingAt <= 1000 &&
+        Math.abs(shortestSignedDelta(lastHeading, qibla)) <= HAPTIC_ENTER_DEG;
+      if (stillAligned) fireSuccessHaptic();
+      else hapticLatched = false;
+    }, HAPTIC_DWELL_MS);
+  };
+
+  const evaluate = (headingDeg) => {
+    if (qibla == null) return;
+    const delta = Math.abs(shortestSignedDelta(headingDeg, qibla));
+    const wasAligned = store.getState().aligned;
+    store.setState({
+      aligned: wasAligned ? delta <= ALIGN_EXIT_DEG : delta <= ALIGN_ENTER_DEG,
+    });
+    evaluateHaptics(delta);
+  };
+
+  return {
+    start() {
+      running = true;
+      startedAt = Date.now();
+      filter.reset();
+      gotReading = false;
+      lastHeading = null;
+      hapticBaselineSet = false;
+      hapticLatched = false;
+      clearHapticTimer();
+      clearShownTimer();
+    },
+    stop() {
+      running = false;
+      clearHapticTimer();
+      clearShownTimer();
+    },
+    hasReading: () => gotReading,
+    setQibla(value) {
+      qibla = value;
+      if (running && lastHeading != null) evaluate(lastHeading);
+    },
+    push(reading) {
+      if (!running) return;
+      const now = Date.now();
+      const resolved = resolveHeading(reading, now);
+      if (!resolved) return;
+
+      const nextAccuracy = Number.isFinite(reading.accuracy)
+        ? reading.accuracy
+        : null;
+      if (nextAccuracy !== accuracy) {
+        accuracy = nextAccuracy;
+        onAccuracy(nextAccuracy);
+      }
+      if (resolved.mode !== mode) {
+        mode = resolved.mode;
+        onMode(mode);
+      }
+
+      const isFirst = !gotReading;
+      const filtered = filter.update(
+        normalizeDegrees(resolved.value),
+        now,
+        accuracy != null && accuracy < 2,
+      );
+      lastHeading = filtered;
+      lastReadingAt = now;
+
+      // Target first, then snap flag: the first reading must not animate.
+      targetSV.set(filtered);
+      if (isFirst) {
+        snapSV.set(1);
+        gotReading = true;
+        onFirstReading();
+      }
+
+      showHeading(filtered, now);
+      evaluate(filtered);
+    },
+  };
+}
+
+/* ───────────────────────── screen-level hooks ──────────────────────── */
+
+const ActiveContext = createContext(true);
+
+/** True while the screen is focused and the app is not in the background. */
+function useScreenActive() {
+  const [focused, setFocused] = useState(true);
+  const [appActive, setAppActive] = useState(
+    AppState.currentState !== "background",
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      setAppActive(state !== "background");
+    });
+    return () => sub.remove();
+  }, []);
+
+  return focused && appActive;
+}
+
+/** Re-renders only its caller, only while the screen is active. */
+function useClock(intervalMs) {
+  const active = useContext(ActiveContext);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return undefined;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [active, intervalMs]);
+  return now;
+}
+
+const readTimeStamp = () => {
+  const now = new Date();
+  return {
+    dayStartMs: new Date(
       now.getFullYear(),
       now.getMonth(),
       now.getDate(),
-    );
-    const sunrise = SearchRiseSet(
-      Body.Sun,
-      observer,
-      +1,
-      MakeTime(localDayStart),
-      2,
-    );
-    const sunset = SearchRiseSet(
-      Body.Sun,
-      observer,
-      -1,
-      MakeTime(localDayStart),
-      2,
-    );
-    const moonrise = SearchRiseSet(Body.Moon, observer, +1, time, 1);
-    const moonset = SearchRiseSet(Body.Moon, observer, -1, time, 1);
-    const isSameLocalDay = (event) =>
-      event?.date &&
-      event.date.getFullYear() === localDayStart.getFullYear() &&
-      event.date.getMonth() === localDayStart.getMonth() &&
-      event.date.getDate() === localDayStart.getDate();
+    ).getTime(),
+    moonBucket: Math.floor(now.getTime() / MOON_BUCKET_MS),
+  };
+};
 
-    return {
-      moonFraction: fraction,
-      moonLabel: moonPhaseLabel(fraction, phaseAngle),
-      sunrise: isSameLocalDay(sunrise) ? sunrise.date : null,
-      sunset: isSameLocalDay(sunset) ? sunset.date : null,
-      moonrise: moonrise?.date ?? null,
-      moonset: moonset?.date ?? null,
+/** Local-day + 15-minute buckets. State only changes when a bucket changes. */
+function useTimeStamp(active) {
+  const [stamp, setStamp] = useState(readTimeStamp);
+  useEffect(() => {
+    if (!active) return undefined;
+    const refresh = () =>
+      setStamp((prev) => {
+        const next = readTimeStamp();
+        return next.dayStartMs === prev.dayStartMs &&
+          next.moonBucket === prev.moonBucket
+          ? prev
+          : next;
+      });
+    refresh();
+    const id = setInterval(refresh, 30_000);
+    return () => clearInterval(id);
+  }, [active]);
+  return stamp;
+}
+
+/** Current / next prayer; re-derives exactly when the next prayer starts. */
+function usePrayerPhase(schedule, active) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  const phase = useMemo(
+    () => (schedule ? derivePrayerPhase(schedule, nowMs) : null),
+    [schedule, nowMs],
+  );
+  const boundary = phase?.nextTimeMs ?? null;
+
+  useEffect(() => {
+    if (active) setNowMs(Date.now());
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || boundary == null) return undefined;
+    const wait = clamp(boundary - Date.now() + 300, 500, 2 ** 31 - 1);
+    const id = setTimeout(() => setNowMs(Date.now()), wait);
+    return () => clearTimeout(id);
+  }, [active, boundary]);
+
+  return phase;
+}
+
+/** Eases the displayed heading toward the target on the UI thread, per frame. */
+function useHeadingSmoothing({ headingSV, targetSV, snapSV, active }) {
+  const frame = useFrameCallback((info) => {
+    "worklet";
+    if (snapSV.get() === 1) {
+      snapSV.set(0);
+      headingSV.set(targetSV.get());
+      return;
+    }
+    const current = headingSV.get();
+    const dt = Math.min(
+      64,
+      info.timeSincePreviousFrame == null ? 16 : info.timeSincePreviousFrame,
+    );
+    const next = stepVisualHeading(current, targetSV.get(), dt);
+    if (next !== current) headingSV.set(next);
+  }, false);
+
+  useEffect(() => {
+    frame.setActive(active);
+    return () => frame.setActive(false);
+  }, [frame, active]);
+}
+
+/** City name, geocoded only when the position moves by roughly a kilometre. */
+function useCityName(location) {
+  const [cityName, setCityName] = useState(null);
+  const resolvedKeyRef = useRef(null);
+  const lat = location ? Math.round(location.latitude * 100) / 100 : null;
+  const lon = location ? Math.round(location.longitude * 100) / 100 : null;
+
+  useEffect(() => {
+    if (lat == null || lon == null) return undefined;
+    const key = `${lat},${lon}`;
+    if (key === resolvedKeyRef.current) return undefined;
+
+    let cancelled = false;
+    Location.reverseGeocodeAsync({ latitude: lat, longitude: lon })
+      .then((places) => {
+        if (cancelled) return;
+        resolvedKeyRef.current = key;
+        setCityName(getCityName(places?.[0]));
+      })
+      .catch(() => {
+        if (!cancelled) setCityName(null);
+      });
+    return () => {
+      cancelled = true;
     };
-  } catch {
-    return {
-      moonFraction: null,
-      moonLabel: null,
-      sunrise: null,
-      sunset: null,
-      moonrise: null,
-      moonset: null,
-    };
+  }, [lat, lon]);
+
+  return cityName;
+}
+
+/**
+ * Permission → heading subscription + location (in parallel) with cached
+ * position, timeout, last-known fallback, and a full refresh after the app
+ * has been in the background.
+ */
+function useQiblaSensors({ store, targetSV, snapSV, qiblaSV }) {
+  const [location, setLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("loading");
+  const [canAskAgain, setCanAskAgain] = useState(true);
+  const [hasHeading, setHasHeading] = useState(false);
+  const [headingAccuracy, setHeadingAccuracy] = useState(null);
+  const [headingMode, setHeadingMode] = useState("true");
+  const [headingUnavailable, setHeadingUnavailable] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
+
+  const locationRef = useRef(null);
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
+  const pipelineRef = useRef(null);
+  if (pipelineRef.current === null) {
+    pipelineRef.current = createHeadingPipeline({
+      store,
+      targetSV,
+      snapSV,
+      onAccuracy: setHeadingAccuracy,
+      onMode: setHeadingMode,
+      onFirstReading: () => {
+        setHasHeading(true);
+        setHeadingUnavailable(false);
+      },
+    });
   }
+
+  const qiblaBearing = useMemo(
+    () =>
+      location
+        ? Math.round(
+            getQiblaBearing(location.latitude, location.longitude) * 100,
+          ) / 100
+        : null,
+    [location],
+  );
+
+  useLayoutEffect(() => {
+    if (qiblaBearing != null) qiblaSV.set(qiblaBearing);
+    pipelineRef.current.setQibla(qiblaBearing);
+  }, [qiblaBearing, qiblaSV]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const pipeline = pipelineRef.current;
+      let cancelled = false;
+      let headingSub = null;
+      let noHeadingTimer = null;
+      let backgroundedAt = null;
+
+      pipeline.start();
+      setHeadingUnavailable(false);
+      setLocationStatus(locationRef.current ? "refreshing" : "loading");
+
+      const applyLocation = (coords) => {
+        const next = {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          accuracy: coords.accuracy,
+        };
+        setLocation((prev) =>
+          prev &&
+          prev.latitude === next.latitude &&
+          prev.longitude === next.longitude &&
+          prev.accuracy === next.accuracy
+            ? prev
+            : next,
+        );
+      };
+
+      const startHeading = async () => {
+        if (Platform.OS === "web") {
+          setHeadingUnavailable(true);
+          return;
+        }
+        try {
+          const sub = await Location.watchHeadingAsync((reading) => {
+            if (!cancelled) pipeline.push(reading);
+          });
+          if (cancelled) {
+            sub.remove();
+            return;
+          }
+          headingSub = sub;
+          noHeadingTimer = setTimeout(() => {
+            if (!cancelled && !pipeline.hasReading()) {
+              setHeadingUnavailable(true);
+            }
+          }, NO_HEADING_TIMEOUT_MS);
+        } catch (error) {
+          warn("Failed to start heading updates:", error);
+          if (!cancelled) setHeadingUnavailable(true);
+        }
+      };
+
+      const fetchPosition = async () => {
+        try {
+          return await withTimeout(
+            Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            }),
+            LOCATION_TIMEOUT_MS,
+            "Location request timed out",
+          );
+        } catch (error) {
+          const fallback = await Location.getLastKnownPositionAsync({
+            maxAge: FALLBACK_LOCATION_MAX_AGE_MS,
+          }).catch(() => null);
+          if (fallback && isValidLocation(fallback.coords)) return fallback;
+          throw error;
+        }
+      };
+
+      const run = async () => {
+        let hasUsableLocation = locationRef.current != null;
+        try {
+          const permission = await Location.requestForegroundPermissionsAsync();
+          if (cancelled) return;
+          setCanAskAgain(permission.canAskAgain);
+
+          if (!permission.granted) {
+            setLocation(null);
+            setLocationStatus("permission");
+            return;
+          }
+
+          startHeading();
+
+          if (!hasUsableLocation) {
+            let cached = null;
+            try {
+              cached = await Location.getLastKnownPositionAsync({
+                maxAge: CACHED_LOCATION_MAX_AGE_MS,
+                requiredAccuracy: 1000,
+              });
+            } catch (error) {
+              warn("Failed to read cached Qibla location:", error);
+            }
+            if (cancelled) return;
+            if (cached && isValidLocation(cached.coords)) {
+              hasUsableLocation = true;
+              applyLocation(cached.coords);
+              setLocationStatus("refreshing");
+            }
+          }
+
+          const servicesEnabled = await Location.hasServicesEnabledAsync();
+          if (cancelled) return;
+          if (!servicesEnabled) {
+            setLocationStatus(hasUsableLocation ? "ready" : "error");
+            return;
+          }
+
+          const position = await fetchPosition();
+          if (cancelled) return;
+          if (!isValidLocation(position.coords)) {
+            throw new Error("Invalid location coordinates");
+          }
+          hasUsableLocation = true;
+          applyLocation(position.coords);
+          setLocationStatus("ready");
+        } catch (error) {
+          warn("Failed to update Qibla location:", error);
+          if (!cancelled) {
+            setLocationStatus(hasUsableLocation ? "ready" : "error");
+          }
+        }
+      };
+
+      run();
+
+      // Sensors can go stale after a long time in the background: restart.
+      const appStateSub = AppState.addEventListener("change", (state) => {
+        if (state === "background") {
+          backgroundedAt = Date.now();
+        } else if (state === "active" && backgroundedAt != null) {
+          const away = Date.now() - backgroundedAt;
+          backgroundedAt = null;
+          if (away >= RESUME_REFRESH_AFTER_MS) setRetryToken((v) => v + 1);
+        }
+      });
+
+      return () => {
+        cancelled = true;
+        appStateSub.remove();
+        headingSub?.remove();
+        if (noHeadingTimer) clearTimeout(noHeadingTimer);
+        pipeline.stop();
+      };
+    }, [retryToken]),
+  );
+
+  const retry = useCallback(() => setRetryToken((v) => v + 1), []);
+
+  return {
+    location,
+    qiblaBearing,
+    locationStatus,
+    canAskAgain,
+    hasHeading,
+    headingAccuracy,
+    headingMode,
+    headingUnavailable,
+    retry,
+  };
 }
 
 /* ───────────────────────────── compass ─────────────────────────────── */
 
-const CompassRing = memo(({ size, rotation, qiblaAngle, dial }) => {
+const CompassRing = memo(({ size, headingSV, qiblaAngle, dial }) => {
   const spin = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
+    transform: [{ rotate: `${-headingSV.get()}deg` }],
   }));
 
   const c = size / 2;
@@ -345,8 +1181,12 @@ const CompassRing = memo(({ size, rotation, qiblaAngle, dial }) => {
 
   return (
     <Animated.View
-      pointerEvents="none"
-      style={[StyleSheet.absoluteFill, styles.centerContent, spin]}
+      style={[
+        StyleSheet.absoluteFill,
+        styles.centerContent,
+        styles.passive,
+        spin,
+      ]}
     >
       <Svg width={size} height={size}>
         <Circle
@@ -442,9 +1282,10 @@ const CompassRing = memo(({ size, rotation, qiblaAngle, dial }) => {
 });
 CompassRing.displayName = "CompassRing";
 
-const QiblaNeedle = memo(({ size, rotation, dial, isAligned }) => {
+const QiblaNeedle = memo(({ size, headingSV, qiblaSV, dial, store }) => {
+  const isAligned = useCompassValue(store, selectAligned);
   const spin = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
+    transform: [{ rotate: `${qiblaSV.get() - headingSV.get()}deg` }],
   }));
   const c = size / 2;
   const len = c - 80;
@@ -453,9 +1294,13 @@ const QiblaNeedle = memo(({ size, rotation, dial, isAligned }) => {
 
   return (
     <Animated.View
-      pointerEvents="none"
       entering={FadeIn.duration(280)}
-      style={[StyleSheet.absoluteFill, styles.centerContent, spin]}
+      style={[
+        StyleSheet.absoluteFill,
+        styles.centerContent,
+        styles.passive,
+        spin,
+      ]}
     >
       <Svg width={size} height={size}>
         <Path
@@ -481,36 +1326,40 @@ const QiblaNeedle = memo(({ size, rotation, dial, isAligned }) => {
 });
 QiblaNeedle.displayName = "QiblaNeedle";
 
-const AlignmentHalo = memo(({ size, isAligned, dial }) => {
+const AlignmentHalo = memo(({ size, store, dial }) => {
+  const active = useContext(ActiveContext);
+  const isAligned = useCompassValue(store, selectAligned);
   const pulse = useSharedValue(0);
+  const pulsing = isAligned && active;
 
   useEffect(() => {
-    if (isAligned) {
-      pulse.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 700, easing: Easing.inOut(Easing.quad) }),
-          withTiming(0.4, {
-            duration: 700,
-            easing: Easing.inOut(Easing.quad),
-          }),
+    if (pulsing) {
+      pulse.set(
+        withRepeat(
+          withSequence(
+            withTiming(1, { duration: 700, easing: Easing.inOut(Easing.quad) }),
+            withTiming(0.4, {
+              duration: 700,
+              easing: Easing.inOut(Easing.quad),
+            }),
+          ),
+          -1,
+          false,
         ),
-        -1,
-        true,
       );
     } else {
       cancelAnimation(pulse);
-      pulse.value = withTiming(0, { duration: 200 });
+      pulse.set(withTiming(0, { duration: 200 }));
     }
     return () => cancelAnimation(pulse);
-  }, [isAligned, pulse]);
+  }, [pulsing, pulse]);
 
-  const glowStyle = useAnimatedStyle(() => ({ opacity: pulse.value * 0.14 }));
-  const ringStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: pulse.get() * 0.14 }));
+  const ringStyle = useAnimatedStyle(() => ({ opacity: pulse.get() }));
 
   return (
     <>
       <Animated.View
-        pointerEvents="none"
         style={[
           styles.halo,
           {
@@ -523,7 +1372,6 @@ const AlignmentHalo = memo(({ size, isAligned, dial }) => {
         ]}
       />
       <Animated.View
-        pointerEvents="none"
         style={[
           styles.halo,
           styles.haloRing,
@@ -542,13 +1390,129 @@ const AlignmentHalo = memo(({ size, isAligned, dial }) => {
 AlignmentHalo.displayName = "AlignmentHalo";
 
 const TopPointer = memo(({ color }) => (
-  <View pointerEvents="none" style={styles.topPointerWrap}>
+  <View style={styles.topPointerWrap}>
     <View style={[styles.topPointer, { borderTopColor: color }]} />
   </View>
 ));
 TopPointer.displayName = "TopPointer";
 
+const CompassDial = memo(
+  ({ size, headingSV, qiblaSV, qiblaBearing, dial, store, t }) => (
+    <Animated.View
+      entering={FadeInDown.delay(40).duration(420)}
+      style={[styles.dialStage, { width: size, height: size }]}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={
+        qiblaBearing === null
+          ? t("Waiting for compass...")
+          : `${t("Qibla bearing")} ${Math.round(qiblaBearing)}°`
+      }
+    >
+      <AlignmentHalo size={size} store={store} dial={dial} />
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          styles.bezel,
+          {
+            borderRadius: size / 2,
+            backgroundColor: dial.face,
+            borderColor: dial.rim,
+          },
+        ]}
+      />
+      <CompassRing
+        size={size}
+        headingSV={headingSV}
+        qiblaAngle={qiblaBearing}
+        dial={dial}
+      />
+      {qiblaBearing != null && (
+        <QiblaNeedle
+          size={size}
+          headingSV={headingSV}
+          qiblaSV={qiblaSV}
+          dial={dial}
+          store={store}
+        />
+      )}
+      <TopPointer color={dial.gold} />
+    </Animated.View>
+  ),
+);
+CompassDial.displayName = "CompassDial";
+
 /* ───────────────────────────── UI pieces ───────────────────────────── */
+
+const FloatingHeader = memo(
+  ({ topInset, title, subtitle, busy, onBack, onRefresh, colors, t }) => (
+    <View style={[styles.floatingHeader, { paddingTop: topInset + 8 }]}>
+      <View style={styles.floatingHeaderRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Back")}
+          hitSlop={8}
+          onPress={onBack}
+          style={[
+            styles.headerPill,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}
+        >
+          <Icon source="arrow-left" size={20} color={colors.onSurface} />
+        </Pressable>
+
+        <View
+          style={[
+            styles.headerTitlePill,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.headerTitle, { color: colors.onSurface }]}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          <Text
+            style={[styles.headerCity, { color: colors.onSurfaceVariant }]}
+            numberOfLines={1}
+          >
+            {subtitle}
+          </Text>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Refresh location")}
+          accessibilityState={{ busy, disabled: busy }}
+          disabled={busy}
+          hitSlop={8}
+          onPress={onRefresh}
+          style={[
+            styles.headerPill,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.outlineVariant,
+            },
+          ]}
+        >
+          {busy ? (
+            <ActivityIndicator size="small" color={colors.onSurface} />
+          ) : (
+            <Icon source="refresh" size={20} color={colors.onSurface} />
+          )}
+        </Pressable>
+      </View>
+    </View>
+  ),
+);
+FloatingHeader.displayName = "FloatingHeader";
 
 const StatChip = memo(({ icon, label, value, colors }) => (
   <View style={styles.statChip}>
@@ -568,98 +1532,184 @@ const StatChip = memo(({ icon, label, value, colors }) => (
 ));
 StatChip.displayName = "StatChip";
 
-const HeadingReadout = memo(
-  ({ heading, qiblaBearing, isAligned, dial, colors, t }) => {
-    const headingColor = isAligned ? dial.aligned : colors.onSurface;
-    return (
-      <View style={styles.readout}>
-        <View style={styles.readoutRow}>
-          <Text style={[styles.readoutValue, { color: headingColor }]}>
-            {heading === null ? "–––" : heading}
-            <Text style={[styles.readoutUnit, { color: headingColor }]}>°</Text>
-          </Text>
-          <View
+const HeadingReadout = memo(({ store, qiblaBearing, dial, colors, t }) => {
+  const heading = useCompassValue(store, selectHeading);
+  const isAligned = useCompassValue(store, selectAligned);
+  const headingColor = isAligned ? dial.aligned : colors.onSurface;
+
+  return (
+    <View style={styles.readout}>
+      <View style={styles.readoutRow}>
+        <Text style={[styles.readoutValue, { color: headingColor }]}>
+          {heading === null ? "–––" : heading}
+          <Text style={[styles.readoutUnit, { color: headingColor }]}>°</Text>
+        </Text>
+        <View
+          style={[
+            styles.cardinalBadge,
+            {
+              backgroundColor: isAligned
+                ? `${dial.aligned}18`
+                : colors.surfaceVariant || "#eef2f1",
+            },
+          ]}
+        >
+          <Text
             style={[
-              styles.cardinalBadge,
-              {
-                backgroundColor: isAligned
-                  ? `${dial.aligned}18`
-                  : colors.surfaceVariant || "#eef2f1",
-              },
+              styles.cardinalText,
+              { color: isAligned ? dial.aligned : colors.onSurface },
             ]}
           >
-            <Text
-              style={[
-                styles.cardinalText,
-                { color: isAligned ? dial.aligned : colors.onSurface },
-              ]}
-            >
-              {heading === null ? "—" : cardinalOf(heading)}
-            </Text>
-          </View>
+            {heading === null ? "—" : cardinalOf(heading)}
+          </Text>
         </View>
-        <Text
-          style={[styles.readoutCaption, { color: colors.onSurfaceVariant }]}
-        >
-          {qiblaBearing === null
-            ? t("Waiting for location...")
-            : t("Qibla bearing from true north", {
-                bearing: Math.round(qiblaBearing),
-              })}
-        </Text>
       </View>
-    );
-  },
-);
+      <Text style={[styles.readoutCaption, { color: colors.onSurfaceVariant }]}>
+        {qiblaBearing === null
+          ? t("Waiting for location...")
+          : t("Qibla bearing from true north", {
+              bearing: Math.round(qiblaBearing),
+            })}
+      </Text>
+    </View>
+  );
+});
 HeadingReadout.displayName = "HeadingReadout";
 
-const GuidancePill = memo(({ guidance, dial, colors }) => {
-  if (!guidance) return null;
+const GuidancePill = memo(({ store, qiblaBearing, dial, colors, t }) => {
+  const heading = useCompassValue(store, selectHeading);
+  const isAligned = useCompassValue(store, selectAligned);
+
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
+  // Announce alignment once for screen-reader users (not every degree).
+  useEffect(() => {
+    if (isAligned) {
+      AccessibilityInfo.announceForAccessibility(
+        tRef.current("You are facing the Qibla"),
+      );
+    }
+  }, [isAligned]);
+
+  if (qiblaBearing == null || heading == null) return null;
+
+  const delta = shortestSignedDelta(heading, qiblaBearing);
+  const icon = isAligned
+    ? "check-decagram-outline"
+    : delta > 0
+      ? "rotate-right"
+      : "rotate-left";
+  const text = isAligned
+    ? t("You are facing the Qibla")
+    : `${delta > 0 ? t("Turn right") : t("Turn left")} · ${Math.round(Math.abs(delta))}°`;
+
   return (
     <View
       style={[
         styles.guidance,
         {
-          backgroundColor: guidance.aligned
-            ? `${dial.aligned}14`
-            : colors.surface,
-          borderColor: guidance.aligned ? dial.aligned : colors.outlineVariant,
+          backgroundColor: isAligned ? `${dial.aligned}14` : colors.surface,
+          borderColor: isAligned ? dial.aligned : colors.outlineVariant,
         },
       ]}
     >
       <Icon
-        source={guidance.icon}
+        source={icon}
         size={18}
-        color={guidance.aligned ? dial.aligned : colors.onSurfaceVariant}
+        color={isAligned ? dial.aligned : colors.onSurfaceVariant}
       />
       <Text
         style={[
           styles.guidanceText,
-          { color: guidance.aligned ? dial.aligned : colors.onSurface },
+          { color: isAligned ? dial.aligned : colors.onSurface },
         ]}
       >
-        {guidance.text}
+        {text}
       </Text>
     </View>
   );
 });
 GuidancePill.displayName = "GuidancePill";
 
+const StatusCard = memo(({ status, colors, actionLabel, onAction }) => {
+  const toneColor =
+    status.tone === "error"
+      ? colors.error || "#dc2626"
+      : status.tone === "warn"
+        ? "#b45309"
+        : status.tone === "muted"
+          ? colors.onSurfaceVariant
+          : colors.primary;
+
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(300)}
+      style={[
+        styles.statusCard,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.outlineVariant,
+        },
+      ]}
+    >
+      <View style={styles.statusRow}>
+        <View
+          style={[styles.statusIconWrap, { backgroundColor: `${toneColor}18` }]}
+        >
+          <Icon source={status.icon} size={20} color={toneColor} />
+        </View>
+        <View style={styles.statusTexts}>
+          <Text style={[styles.statusTitle, { color: colors.onSurface }]}>
+            {status.title}
+          </Text>
+          {status.description ? (
+            <Text
+              style={[
+                styles.statusDescription,
+                { color: colors.onSurfaceVariant },
+              ]}
+            >
+              {status.description}
+            </Text>
+          ) : null}
+        </View>
+        {status.busy && (
+          <ActivityIndicator color={colors.primary} size="small" />
+        )}
+      </View>
+      {status.action && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onAction}
+          style={({ pressed }) => [
+            styles.actionButton,
+            { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
+          ]}
+        >
+          <Text style={styles.actionText}>{actionLabel}</Text>
+          <Icon
+            source={Platform.OS === "ios" ? "chevron-right" : "arrow-right"}
+            size={18}
+            color="#ffffff"
+          />
+        </Pressable>
+      )}
+    </Animated.View>
+  );
+});
+StatusCard.displayName = "StatusCard";
+
 const CountdownRing = memo(
   ({ progress, size, stroke, track, color, children }) => {
     const r = (size - stroke) / 2;
     const c = 2 * Math.PI * r;
-    const offset = c * (1 - Math.min(1, Math.max(0, progress)));
+    const offset = c * (1 - clamp(progress, 0, 1));
 
     return (
-      <View
-        style={{
-          width: size,
-          height: size,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
+      <View style={[styles.ringBox, { width: size, height: size }]}>
         <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
           <Circle
             cx={size / 2}
@@ -690,32 +1740,34 @@ const CountdownRing = memo(
 );
 CountdownRing.displayName = "CountdownRing";
 
-const NextPrayerCard = memo(({ prayers, nowMs, colors, dial, t }) => {
-  if (!prayers?.nextLabel || !prayers.nextTime) return null;
-  const remain = prayers.nextTime.getTime() - nowMs;
-  const progress = prayers.progress ?? 0;
+// Owns its own 1 s clock, so only this card re-renders every second.
+const NextPrayerCard = memo(({ phase, colors, dial, t }) => {
+  const nowMs = useClock(1000);
+  if (!phase?.nextLabel || phase.nextTimeMs == null) return null;
+
+  const remain = Math.max(0, phase.nextTimeMs - nowMs);
+  const span = phase.startMs != null ? phase.nextTimeMs - phase.startMs : 0;
+  const progress = span > 0 ? clamp((nowMs - phase.startMs) / span, 0, 1) : 0;
+  const clock = formatClock(phase.nextTime, t);
 
   return (
     <View
       style={[
         styles.nextCard,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.outlineVariant,
-        },
+        { backgroundColor: colors.surface, borderColor: colors.outlineVariant },
       ]}
     >
       <View style={styles.nextLeft}>
         <Text style={[styles.nextEyebrow, { color: colors.primary }]}>
-          {prayers.currentLabel
-            ? `${t("Now")}: ${t(prayers.currentLabel)}`
+          {phase.currentLabel
+            ? `${t("Now")}: ${t(phase.currentLabel)}`
             : t("Next prayer")}
         </Text>
         <Text style={[styles.nextName, { color: colors.onSurface }]}>
-          {t(prayers.nextLabel)}
+          {t(phase.nextLabel)}
         </Text>
         <Text style={[styles.nextClock, { color: colors.onSurfaceVariant }]}>
-          {formatClock(prayers.nextTime, t)}
+          {phase.nextIsTomorrow ? `${t("Tomorrow")} · ${clock}` : clock}
         </Text>
       </View>
       <CountdownRing
@@ -734,25 +1786,28 @@ const NextPrayerCard = memo(({ prayers, nowMs, colors, dial, t }) => {
 });
 NextPrayerCard.displayName = "NextPrayerCard";
 
-const PrayerStrip = memo(({ prayers, colors, dial, t }) => {
-  if (!prayers?.entries?.length) return null;
+const PrayerStrip = memo(({ schedule, phase, colors, dial, t }) => {
+  if (!schedule?.entries?.length) return null;
   return (
     <View
       style={[
         styles.prayerStrip,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.outlineVariant,
-        },
+        { backgroundColor: colors.surface, borderColor: colors.outlineVariant },
       ]}
     >
       <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>
         {t("Today")}
       </Text>
       <View style={styles.prayerGrid}>
-        {prayers.entries.map((p) => {
-          const isNext = p.prayer === prayers.next;
-          const isCurrent = p.prayer === prayers.current;
+        {schedule.entries.map((p) => {
+          const isNext =
+            !!phase && !phase.nextIsTomorrow && p.prayer === phase.next;
+          const isCurrent = !!phase && p.prayer === phase.current;
+          const accent = isNext
+            ? dial.aligned
+            : isCurrent
+              ? colors.primary
+              : colors.onSurfaceVariant;
           return (
             <View
               key={p.key}
@@ -769,41 +1824,14 @@ const PrayerStrip = memo(({ prayers, colors, dial, t }) => {
                   },
               ]}
             >
-              <Icon
-                source={p.icon}
-                size={15}
-                color={
-                  isNext
-                    ? dial.aligned
-                    : isCurrent
-                      ? colors.primary
-                      : colors.onSurfaceVariant
-                }
-              />
-              <Text
-                style={[
-                  styles.prayerName,
-                  {
-                    color: isNext
-                      ? dial.aligned
-                      : isCurrent
-                        ? colors.primary
-                        : colors.onSurfaceVariant,
-                  },
-                ]}
-              >
+              <Icon source={p.icon} size={15} color={accent} />
+              <Text style={[styles.prayerName, { color: accent }]}>
                 {t(p.label)}
               </Text>
               <Text
                 style={[
                   styles.prayerTime,
-                  {
-                    color: isNext
-                      ? dial.aligned
-                      : isCurrent
-                        ? colors.onSurface
-                        : colors.onSurface,
-                  },
+                  { color: isNext ? dial.aligned : colors.onSurface },
                 ]}
               >
                 {formatClock(p.time, t)}
@@ -817,29 +1845,42 @@ const PrayerStrip = memo(({ prayers, colors, dial, t }) => {
 });
 PrayerStrip.displayName = "PrayerStrip";
 
-const MoonGlyph = memo(({ fraction, size, color, track }) => {
-  const f = Math.max(0, Math.min(1, fraction ?? 0));
-  const r = size / 2;
-  const offset = (1 - f * 2) * r;
+/**
+ * Moon with the correct lit shape: a half-circle on the lit side plus an
+ * elliptical terminator. Mirrored in the southern hemisphere.
+ */
+const MoonGlyph = memo(({ fraction, waxing, southern, size, color, track }) => {
+  const f = clamp(fraction ?? 0, 0, 1);
+  const cx = size / 2;
+  const cy = size / 2;
+  const R = size / 2 - 1;
+
+  let lit = null;
+  if (f > 0.985) {
+    lit = <Circle cx={cx} cy={cy} r={R} fill={color} opacity={0.9} />;
+  } else if (f > 0.015) {
+    const litRight = waxing !== southern;
+    const outerSweep = litRight ? 1 : 0;
+    const innerSweep = f < 0.5 === litRight ? 0 : 1;
+    const rx = R * Math.abs(1 - 2 * f);
+    lit = (
+      <Path
+        d={`M ${cx} ${cy - R} A ${R} ${R} 0 0 ${outerSweep} ${cx} ${cy + R} A ${rx} ${R} 0 0 ${innerSweep} ${cx} ${cy - R} Z`}
+        fill={color}
+        opacity={0.9}
+      />
+    );
+  }
+
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
-        <Circle cx={r} cy={r} r={r - 1} fill={track} />
-        <Circle cx={r} cy={r} r={r - 1} fill={color} opacity={0.16} />
+        <Circle cx={cx} cy={cy} r={R} fill={track} />
+        {lit}
         <Circle
-          cx={r + offset * 0.55}
-          cy={r}
-          r={r - 2}
-          fill={color}
-          opacity={0.88}
-        />
-        {f < 0.5 && (
-          <Circle cx={r} cy={r} r={r - 1} fill={track} opacity={0.5} />
-        )}
-        <Circle
-          cx={r}
-          cy={r}
-          r={r - 1}
+          cx={cx}
+          cy={cy}
+          r={R}
           stroke={color}
           strokeWidth={1.5}
           fill="none"
@@ -851,57 +1892,50 @@ const MoonGlyph = memo(({ fraction, size, color, track }) => {
 });
 MoonGlyph.displayName = "MoonGlyph";
 
-/* ───── NEW: Elegant Sun Path Card (inspired by your screenshot) ───── */
+const SunPathCard = memo(({ sky, colors, dial, t }) => {
+  const nowMs = useClock(60_000);
 
-const SunPathCard = memo(({ sky, nowMs, colors, dial, t }) => {
   const sunriseMs = sky?.sunrise?.getTime() ?? 0;
   const sunsetMs = sky?.sunset?.getTime() ?? 0;
   const dayLengthMs = sunsetMs - sunriseMs;
-  const remainingMs = Math.max(0, sunsetMs - nowMs);
-  const progress =
-    sky?.sunrise && sky?.sunset && dayLengthMs > 0
-      ? Math.min(1, Math.max(0, (nowMs - sunriseMs) / dayLengthMs))
-      : 0;
+  const valid = dayLengthMs > 0;
+  const isDay = valid && nowMs >= sunriseMs && nowMs <= sunsetMs;
+  const progress = valid ? clamp((nowMs - sunriseMs) / dayLengthMs, 0, 1) : 0;
+  const remainingMs = isDay ? sunsetMs - nowMs : 0;
 
   const animatedProgress = useSharedValue(progress);
   useEffect(() => {
-    animatedProgress.value = withTiming(progress, {
-      duration: 900,
-      easing: Easing.linear,
-    });
+    animatedProgress.set(
+      withTiming(progress, { duration: 900, easing: Easing.linear }),
+    );
   }, [animatedProgress, progress]);
 
   const animatedMarkerProps = useAnimatedProps(() => {
-    const point = animatedProgress.value;
-    const x = 12 + point * (SUN_CHART_WIDTH - 24);
-    const y =
-      SUN_CHART_HEIGHT - 8 - 2 * point * (1 - point) * (SUN_CHART_HEIGHT - 16);
-    return { cx: x, cy: y };
+    const p = animatedProgress.get();
+    return {
+      cx: 12 + p * (SUN_CHART_WIDTH - 24),
+      cy: SUN_CHART_HEIGHT - 8 - 2 * p * (1 - p) * (SUN_CHART_HEIGHT - 16),
+    };
   });
 
-  if (!sky?.sunrise || !sky?.sunset || dayLengthMs <= 0) return null;
+  if (!valid) return null;
 
   const dayH = Math.floor(dayLengthMs / 3_600_000);
   const dayM = Math.floor((dayLengthMs % 3_600_000) / 60_000);
   const remH = Math.floor(remainingMs / 3_600_000);
   const remM = Math.floor((remainingMs % 3_600_000) / 60_000);
 
-  // SVG path for a soft parabolic arc
   const W = SUN_CHART_WIDTH;
   const H = SUN_CHART_HEIGHT;
-  const path = `M 12 ${H - 8} Q ${W / 2} 8 ${W - 12} ${H - 8}`;
+  const arc = `M 12 ${H - 8} Q ${W / 2} 8 ${W - 12} ${H - 8}`;
 
   return (
     <View
       style={[
         styles.sunCard,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.outlineVariant,
-        },
+        { backgroundColor: colors.surface, borderColor: colors.outlineVariant },
       ]}
     >
-      {/* Endpoint labels and local times */}
       <View style={styles.sunLabels}>
         <View>
           <Text style={[styles.sunLabel, { color: dial.gold }]}>
@@ -921,7 +1955,6 @@ const SunPathCard = memo(({ sky, nowMs, colors, dial, t }) => {
         </View>
       </View>
 
-      {/* Arc */}
       <View style={styles.sunArcWrap}>
         <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
           <Defs>
@@ -930,34 +1963,32 @@ const SunPathCard = memo(({ sky, nowMs, colors, dial, t }) => {
               <Stop offset="100%" stopColor="#93c5fd" stopOpacity="0.02" />
             </LinearGradient>
           </Defs>
-          {/* filled portion under the arc up to current progress */}
           <Path
-            d={`M 12 ${H - 8} Q ${W / 2} 8 ${W - 12} ${H - 8} L ${W - 12} ${H} L 12 ${H} Z`}
+            d={`${arc} L ${W - 12} ${H} L 12 ${H} Z`}
             fill="url(#skyFill)"
           />
           <Path
-            d={path}
+            d={arc}
             stroke={colors.outlineVariant}
             strokeWidth={1.5}
             fill="none"
             strokeLinecap="round"
           />
-          {/* progress marker (sun) */}
-          <AnimatedCircle
-            animatedProps={animatedMarkerProps}
-            r={9}
-            fill={dial.gold}
-          />
           <AnimatedCircle
             animatedProps={animatedMarkerProps}
             r={14}
             fill={dial.gold}
-            opacity={0.18}
+            opacity={isDay ? 0.18 : 0.06}
+          />
+          <AnimatedCircle
+            animatedProps={animatedMarkerProps}
+            r={9}
+            fill={dial.gold}
+            opacity={isDay ? 1 : 0.35}
           />
         </Svg>
       </View>
 
-      {/* Stats row */}
       <View style={styles.sunStats}>
         <Text style={[styles.sunStat, { color: colors.onSurfaceVariant }]}>
           {t("Day length")}:{" "}
@@ -982,24 +2013,30 @@ SunPathCard.displayName = "SunPathCard";
 
 const SkyCard = memo(({ sky, colors, dial, t }) => {
   if (!sky) return null;
+  const items = [
+    { icon: "weather-sunset-up", label: "Sunrise", time: sky.sunrise },
+    { icon: "weather-sunset", label: "Sunset", time: sky.sunset },
+    { icon: "moon-waxing-crescent", label: "Moonrise", time: sky.moonrise },
+    { icon: "moon-waning-crescent", label: "Moonset", time: sky.moonset },
+  ];
+
   return (
     <View
       style={[
         styles.skyCard,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.outlineVariant,
-        },
+        { backgroundColor: colors.surface, borderColor: colors.outlineVariant },
       ]}
     >
       <View style={styles.skyMoon}>
         <MoonGlyph
           fraction={sky.moonFraction ?? 0}
+          waxing={sky.moonWaxing}
+          southern={sky.southern}
           size={52}
           color={dial.gold}
           track={colors.surfaceVariant || "#eef2f1"}
         />
-        <View style={{ flex: 1, marginLeft: 14 }}>
+        <View style={styles.skyMoonText}>
           <Text style={[styles.skyTitle, { color: colors.onSurface }]}>
             {t(sky.moonLabel ?? "Moon")}
           </Text>
@@ -1012,68 +2049,32 @@ const SkyCard = memo(({ sky, colors, dial, t }) => {
       </View>
 
       <View style={styles.skyGrid}>
-        <View style={styles.skyChip}>
-          <Icon source="weather-sunset-up" size={15} color={dial.gold} />
-          <Text
-            style={[styles.skyChipLabel, { color: colors.onSurfaceVariant }]}
-          >
-            {t("Sunrise")}
-          </Text>
-          <Text style={[styles.skyChipValue, { color: colors.onSurface }]}>
-            {formatClock(sky.sunrise, t)}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.skyDivider,
-            { backgroundColor: colors.outlineVariant },
-          ]}
-        />
-        <View style={styles.skyChip}>
-          <Icon source="weather-sunset" size={15} color={dial.gold} />
-          <Text
-            style={[styles.skyChipLabel, { color: colors.onSurfaceVariant }]}
-          >
-            {t("Sunset")}
-          </Text>
-          <Text style={[styles.skyChipValue, { color: colors.onSurface }]}>
-            {formatClock(sky.sunset, t)}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.skyDivider,
-            { backgroundColor: colors.outlineVariant },
-          ]}
-        />
-        <View style={styles.skyChip}>
-          <Icon source="moon-waxing-crescent" size={15} color={dial.gold} />
-          <Text
-            style={[styles.skyChipLabel, { color: colors.onSurfaceVariant }]}
-          >
-            {t("Moonrise")}
-          </Text>
-          <Text style={[styles.skyChipValue, { color: colors.onSurface }]}>
-            {formatClock(sky.moonrise, t)}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.skyDivider,
-            { backgroundColor: colors.outlineVariant },
-          ]}
-        />
-        <View style={styles.skyChip}>
-          <Icon source="moon-waning-crescent" size={15} color={dial.gold} />
-          <Text
-            style={[styles.skyChipLabel, { color: colors.onSurfaceVariant }]}
-          >
-            {t("Moonset")}
-          </Text>
-          <Text style={[styles.skyChipValue, { color: colors.onSurface }]}>
-            {formatClock(sky.moonset, t)}
-          </Text>
-        </View>
+        {items.map((item, index) => (
+          <React.Fragment key={item.label}>
+            {index > 0 && (
+              <View
+                style={[
+                  styles.skyDivider,
+                  { backgroundColor: colors.outlineVariant },
+                ]}
+              />
+            )}
+            <View style={styles.skyChip}>
+              <Icon source={item.icon} size={15} color={dial.gold} />
+              <Text
+                style={[
+                  styles.skyChipLabel,
+                  { color: colors.onSurfaceVariant },
+                ]}
+              >
+                {t(item.label)}
+              </Text>
+              <Text style={[styles.skyChipValue, { color: colors.onSurface }]}>
+                {formatClock(item.time, t)}
+              </Text>
+            </View>
+          </React.Fragment>
+        ))}
       </View>
     </View>
   );
@@ -1089,275 +2090,76 @@ const Qibla = () => {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const active = useScreenActive();
 
   const colors = theme.colors;
   const dial = useMemo(
     () => (theme.dark ? DIAL_DARK : DIAL_LIGHT),
     [theme.dark],
   );
-  const compassSize = Math.min(width - 56, 300);
+  const compassSize = Math.max(220, Math.min(width - 56, 300));
 
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, [navigation]);
+
+  // Heading plumbing: JS writes target, UI thread eases `headingSV` per frame.
+  const [store] = useState(createCompassStore);
   const headingSV = useSharedValue(0);
+  const targetSV = useSharedValue(0);
+  const snapSV = useSharedValue(0);
   const qiblaSV = useSharedValue(0);
-  const hasQiblaSV = useSharedValue(0);
+  useHeadingSmoothing({ headingSV, targetSV, snapSV, active });
 
-  const ringRotation = useDerivedValue(() => -headingSV.value);
-  const needleRotation = useDerivedValue(() => {
-    if (hasQiblaSV.value < 0.5) return 0;
-    return qiblaSV.value - headingSV.value;
-  });
+  const {
+    location,
+    qiblaBearing,
+    locationStatus,
+    canAskAgain,
+    hasHeading,
+    headingAccuracy,
+    headingMode,
+    headingUnavailable,
+    retry,
+  } = useQiblaSensors({ store, targetSV, snapSV, qiblaSV });
 
-  const lastRawHeadingRef = useRef(null);
-  const unwrappedHeadingRef = useRef(0);
-  const gotHeadingRef = useRef(false);
-  const lastDisplayedHeading = useRef(null);
-  const wasAlignedRef = useRef(false);
-  const lastAccuracyRef = useRef(null);
+  const cityName = useCityName(location);
 
-  const [location, setLocation] = useState(null);
-  const [cityName, setCityName] = useState(null);
-  const [heading, setHeading] = useState(null);
-  const [headingAccuracy, setHeadingAccuracy] = useState(null);
-  const [headingUnavailable, setHeadingUnavailable] = useState(false);
-  const [locationStatus, setLocationStatus] = useState("loading");
-  const [canAskAgain, setCanAskAgain] = useState(true);
-  const [retryToken, setRetryToken] = useState(0);
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  // ~110 m precision is plenty for sky / prayer maths and keeps memos stable.
+  const lat = location ? Math.round(location.latitude * 1000) / 1000 : null;
+  const lon = location ? Math.round(location.longitude * 1000) / 1000 : null;
+  const stamp = useTimeStamp(active);
 
-  useFocusEffect(
-    useCallback(() => {
-      navigation.setOptions({ headerShown: false });
-      setCityName(null);
-    }, [navigation]),
-  );
-
-  useEffect(() => {
-    let active = true;
-    if (!location) {
-      return () => {
-        active = false;
-      };
-    }
-
-    Location.reverseGeocodeAsync({
-      latitude: location.latitude,
-      longitude: location.longitude,
-    })
-      .then(([place]) => {
-        if (active) setCityName(getCityName(place));
-      })
-      .catch(() => {
-        if (active) setCityName(null);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [location]);
-
-  const qiblaBearing = useMemo(
-    () =>
-      location ? getQiblaBearing(location.latitude, location.longitude) : null,
-    [location],
-  );
-
-  useEffect(() => {
-    if (qiblaBearing != null) {
-      qiblaSV.value = qiblaBearing;
-      hasQiblaSV.value = 1;
-    } else {
-      hasQiblaSV.value = 0;
-    }
-  }, [qiblaBearing, qiblaSV, hasQiblaSV]);
-
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const [skyNowMs, setSkyNowMs] = useState(nowMs);
-  useEffect(() => {
-    const id = setInterval(() => setSkyNowMs(Date.now()), SKY_TICK_MS);
-    return () => clearInterval(id);
-  }, []);
-
-  const prayerMinute = Math.floor(nowMs / 60_000);
-  const prayers = useMemo(() => {
-    if (!location) return null;
+  const schedule = useMemo(() => {
+    if (lat == null || lon == null) return null;
     try {
-      return computePrayerBundle(
-        location.latitude,
-        location.longitude,
-        new Date(prayerMinute * 60_000),
-      );
-    } catch {
+      return computePrayerSchedule(lat, lon, stamp.dayStartMs);
+    } catch (error) {
+      warn("Prayer calculation failed:", error);
       return null;
     }
-  }, [location, prayerMinute]);
+  }, [lat, lon, stamp.dayStartMs]);
+  const phase = usePrayerPhase(schedule, active);
 
-  const livePrayers = useMemo(() => {
-    if (!prayers || !location) return prayers;
-    try {
-      return computePrayerBundle(
-        location.latitude,
-        location.longitude,
-        new Date(nowMs),
-      );
-    } catch {
-      return prayers;
-    }
-  }, [prayers, location, nowMs]);
-
-  const sky = useMemo(() => {
-    if (!location) return null;
-    return computeSkyBundle(
-      location.latitude,
-      location.longitude,
-      new Date(skyNowMs),
-    );
-  }, [location, skyNowMs]);
-
-  const isAligned = useMemo(() => {
-    if (qiblaBearing == null || heading == null) return false;
-    return (
-      Math.abs(shortestSignedDelta(heading, qiblaBearing)) <=
-      ALIGNMENT_THRESHOLD
-    );
-  }, [qiblaBearing, heading]);
-
-  useEffect(() => {
-    if (isAligned && !wasAlignedRef.current && Platform.OS !== "web") {
-      Vibration.vibrate(60);
-    }
-    wasAlignedRef.current = isAligned;
-  }, [isAligned]);
-
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      let headingSubscription;
-      let noHeadingTimer;
-
-      setLocationStatus(retryToken > 0 ? "refreshing" : "loading");
-      setLocation(null);
-      setCityName(null);
-      setHeading(null);
-      setHeadingAccuracy(null);
-      setHeadingUnavailable(false);
-      gotHeadingRef.current = false;
-      lastDisplayedHeading.current = null;
-      lastRawHeadingRef.current = null;
-      unwrappedHeadingRef.current = 0;
-      lastAccuracyRef.current = null;
-      hasQiblaSV.set(0);
-
-      const applyHeading = (trueHeading) => {
-        const raw = normalizeDegrees(trueHeading);
-        if (lastRawHeadingRef.current == null) {
-          unwrappedHeadingRef.current = raw;
-        } else {
-          unwrappedHeadingRef.current += shortestSignedDelta(
-            lastRawHeadingRef.current,
-            raw,
-          );
-        }
-        lastRawHeadingRef.current = raw;
-        headingSV.value = unwrappedHeadingRef.current;
-
-        const rounded = Math.round(raw) % 360;
-        if (rounded !== lastDisplayedHeading.current) {
-          const previous = lastDisplayedHeading.current;
-          lastDisplayedHeading.current = rounded;
-          setHeading(rounded);
-          if (previous !== null) {
-            Haptics.selectionAsync().catch(() => {});
-          }
-        }
-      };
-
-      const startCompass = async () => {
-        try {
-          const permission = await Location.requestForegroundPermissionsAsync();
-          if (!active) return;
-          setCanAskAgain(permission.canAskAgain);
-
-          if (!permission.granted) {
-            setLocationStatus("permission");
-            return;
-          }
-
-          if (Platform.OS === "web") {
-            setHeadingUnavailable(true);
-          } else {
-            try {
-              headingSubscription = await Location.watchHeadingAsync(
-                (reading) => {
-                  if (!active) return;
-                  const h =
-                    reading.trueHeading >= 0
-                      ? reading.trueHeading
-                      : reading.magHeading;
-                  if (h == null || h < 0) return;
-                  gotHeadingRef.current = true;
-                  applyHeading(h);
-                  const acc = reading.accuracy;
-                  if (acc !== lastAccuracyRef.current) {
-                    lastAccuracyRef.current = acc;
-                    setHeadingAccuracy(acc);
-                    setHeadingUnavailable(false);
-                  }
-                },
-              );
-              noHeadingTimer = setTimeout(() => {
-                if (active && !gotHeadingRef.current) {
-                  setHeadingUnavailable(true);
-                }
-              }, NO_HEADING_TIMEOUT);
-            } catch {
-              if (active) setHeadingUnavailable(true);
-            }
-          }
-
-          if (!active) {
-            headingSubscription?.remove();
-            return;
-          }
-
-          const cached = await Location.getLastKnownPositionAsync();
-          if (cached && active) {
-            setCityName(null);
-            setLocation({
-              latitude: cached.coords.latitude,
-              longitude: cached.coords.longitude,
-              accuracy: cached.coords.accuracy,
-            });
-            setLocationStatus("ready");
-          }
-
-          const position = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          if (!active) return;
-          setCityName(null);
-          setLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-          });
-          setLocationStatus("ready");
-        } catch {
-          if (active) setLocationStatus("error");
-        }
-      };
-
-      startCompass();
-      return () => {
-        active = false;
-        headingSubscription?.remove();
-        if (noHeadingTimer) clearTimeout(noHeadingTimer);
-      };
-    }, [retryToken, headingSV, hasQiblaSV]),
+  const skyEvents = useMemo(
+    () =>
+      lat == null || lon == null
+        ? null
+        : computeSkyEvents(lat, lon, stamp.dayStartMs),
+    [lat, lon, stamp.dayStartMs],
   );
+  const moon = useMemo(
+    () =>
+      lat == null
+        ? null
+        : computeMoonState(lat, stamp.moonBucket * MOON_BUCKET_MS),
+    [lat, stamp.moonBucket],
+  );
+  const sky = useMemo(
+    () => (skyEvents && moon ? { ...skyEvents, ...moon } : null),
+    [skyEvents, moon],
+  );
+  const hasSunArc = !!(sky?.sunrise && sky?.sunset);
 
   const accuracyLabel =
     headingAccuracy === 3
@@ -1370,39 +2172,23 @@ const Qibla = () => {
             ? t("Unreliable")
             : null;
 
-  const retry = useCallback(() => setRetryToken((v) => v + 1), []);
-  const permissionAction = canAskAgain ? retry : () => Linking.openSettings();
-  const handleBack = useCallback(() => router.back(), [router]);
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/");
+  }, [router]);
 
-  const guidance = useMemo(() => {
-    if (qiblaBearing == null || heading == null) return null;
-    const delta = shortestSignedDelta(heading, qiblaBearing);
-    if (Math.abs(delta) <= ALIGNMENT_THRESHOLD) {
-      return {
-        aligned: true,
-        icon: "check-decagram-outline",
-        text: t("You are facing the Qibla"),
-      };
-    }
-    return {
-      aligned: false,
-      icon: delta > 0 ? "rotate-right" : "rotate-left",
-      text: `${delta > 0 ? t("Turn right") : t("Turn left")} · ${Math.round(Math.abs(delta))}°`,
-    };
-  }, [qiblaBearing, heading, t]);
+  const openSettings = useCallback(() => {
+    Linking.openSettings().catch(() => {});
+  }, []);
+
+  const needsSettings = locationStatus === "permission" && !canAskAgain;
+  const busy = locationStatus === "loading" || locationStatus === "refreshing";
 
   const status = useMemo(() => {
     if (locationStatus === "loading")
       return {
         icon: "map-marker-outline",
         title: t("Locating your position..."),
-        busy: true,
-        tone: "info",
-      };
-    if (locationStatus === "refreshing")
-      return {
-        icon: "map-marker-outline",
-        title: t("Updating your position..."),
         busy: true,
         tone: "info",
       };
@@ -1430,7 +2216,7 @@ const Qibla = () => {
         title: t("Compass sensor unavailable on this device."),
         tone: "muted",
       };
-    if (heading === null)
+    if (!hasHeading)
       return {
         icon: "compass-outline",
         title: t("Calibrating compass..."),
@@ -1449,313 +2235,181 @@ const Qibla = () => {
         ),
         tone: "warn",
       };
+    if (headingMode === "magnetic")
+      return {
+        icon: "magnet",
+        title: t("Using magnetic north"),
+        description: t(
+          "True north isn't available yet, so the direction may be off by a few degrees.",
+        ),
+        tone: "warn",
+      };
     return null;
-  }, [locationStatus, headingUnavailable, heading, headingAccuracy, t]);
-
-  const toneColor =
-    status?.tone === "error"
-      ? colors.error || "#dc2626"
-      : status?.tone === "warn"
-        ? "#b45309"
-        : status?.tone === "muted"
-          ? colors.onSurfaceVariant
-          : colors.primary;
+  }, [
+    locationStatus,
+    headingUnavailable,
+    hasHeading,
+    headingAccuracy,
+    headingMode,
+    t,
+  ]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Floating header */}
-      <View style={[styles.floatingHeader, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.floatingHeaderRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("Back")}
-            onPress={handleBack}
-            style={[
-              styles.headerPill,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.outlineVariant,
-              },
-            ]}
-          >
-            <Icon source="arrow-left" size={20} color={colors.onSurface} />
-          </Pressable>
-
-          <View
-            style={[
-              styles.headerTitlePill,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.outlineVariant,
-              },
-            ]}
-          >
-            <Text
-              style={[styles.headerTitle, { color: colors.onSurface }]}
-              numberOfLines={1}
-            >
-              {t("Qibla Compass")}
-            </Text>
-            <Text
-              style={[styles.headerCity, { color: colors.onSurfaceVariant }]}
-              numberOfLines={1}
-            >
-              {cityName ||
-                (location ? t("City unavailable") : t("Locating city..."))}
-            </Text>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("Refresh location")}
-            onPress={retry}
-            style={[
-              styles.headerPill,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.outlineVariant,
-              },
-            ]}
-          >
-            <Icon source="refresh" size={20} color={colors.onSurface} />
-          </Pressable>
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 78, paddingBottom: insets.bottom + 36 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Compass */}
-        <Animated.View
-          entering={FadeInDown.delay(40).duration(420)}
-          style={[
-            styles.dialStage,
-            { width: compassSize, height: compassSize },
-          ]}
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel={
-            qiblaBearing === null
-              ? t("Waiting for compass...")
-              : `${t("Qibla bearing")} ${Math.round(qiblaBearing)}°`
+    <ActiveContext.Provider value={active}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <FloatingHeader
+          topInset={insets.top}
+          title={t("Qibla Compass")}
+          subtitle={
+            cityName ||
+            (location ? t("City unavailable") : t("Locating city..."))
           }
+          busy={busy}
+          onBack={handleBack}
+          onRefresh={retry}
+          colors={colors}
+          t={t}
+        />
+
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 78, paddingBottom: insets.bottom + 36 },
+          ]}
+          showsVerticalScrollIndicator={false}
         >
-          <AlignmentHalo size={compassSize} isAligned={isAligned} dial={dial} />
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              styles.bezel,
-              {
-                borderRadius: compassSize / 2,
-                backgroundColor: dial.face,
-                borderColor: dial.rim,
-              },
-            ]}
-          />
-          <CompassRing
+          <CompassDial
             size={compassSize}
-            rotation={ringRotation}
-            qiblaAngle={qiblaBearing}
+            headingSV={headingSV}
+            qiblaSV={qiblaSV}
+            qiblaBearing={qiblaBearing}
             dial={dial}
+            store={store}
+            t={t}
           />
-          {qiblaBearing != null && (
-            <QiblaNeedle
-              size={compassSize}
-              rotation={needleRotation}
+
+          <Animated.View entering={FadeInDown.delay(80).duration(380)}>
+            <HeadingReadout
+              store={store}
+              qiblaBearing={qiblaBearing}
               dial={dial}
-              isAligned={isAligned}
+              colors={colors}
+              t={t}
+            />
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.duration(240)}>
+            <GuidancePill
+              store={store}
+              qiblaBearing={qiblaBearing}
+              dial={dial}
+              colors={colors}
+              t={t}
+            />
+          </Animated.View>
+
+          {status && (
+            <StatusCard
+              status={status}
+              colors={colors}
+              actionLabel={needsSettings ? t("Open settings") : t("Try again")}
+              onAction={needsSettings ? openSettings : retry}
             />
           )}
-          <TopPointer color={dial.gold} />
-        </Animated.View>
 
-        {/* Heading + guidance */}
-        <Animated.View entering={FadeInDown.delay(80).duration(380)}>
-          <HeadingReadout
-            heading={heading}
-            qiblaBearing={qiblaBearing}
-            isAligned={isAligned}
-            dial={dial}
-            colors={colors}
-            t={t}
-          />
-        </Animated.View>
+          {hasSunArc && (
+            <Animated.View
+              entering={FadeInDown.delay(110).duration(400)}
+              style={styles.blockFirst}
+            >
+              <SunPathCard sky={sky} colors={colors} dial={dial} t={t} />
+            </Animated.View>
+          )}
 
-        <Animated.View entering={FadeInDown.duration(240)}>
-          <GuidancePill guidance={guidance} dial={dial} colors={colors} />
-        </Animated.View>
+          {phase?.nextLabel && (
+            <Animated.View
+              entering={FadeInDown.delay(140).duration(380)}
+              style={hasSunArc ? styles.block : styles.blockFirst}
+            >
+              <NextPrayerCard phase={phase} colors={colors} dial={dial} t={t} />
+            </Animated.View>
+          )}
 
-        {/* Sun path hero card */}
-        <Animated.View
-          entering={FadeInDown.delay(110).duration(400)}
-          style={{ width: "100%", marginTop: 22 }}
-        >
-          <SunPathCard
-            sky={sky}
-            nowMs={nowMs}
-            colors={colors}
-            dial={dial}
-            t={t}
-          />
-        </Animated.View>
+          {schedule && (
+            <Animated.View
+              entering={FadeInDown.delay(170).duration(380)}
+              style={styles.block}
+            >
+              <PrayerStrip
+                schedule={schedule}
+                phase={phase}
+                colors={colors}
+                dial={dial}
+                t={t}
+              />
+            </Animated.View>
+          )}
 
-        {/* Next prayer */}
-        <Animated.View
-          entering={FadeInDown.delay(140).duration(380)}
-          style={{ width: "100%", marginTop: 12 }}
-        >
-          <NextPrayerCard
-            prayers={livePrayers}
-            nowMs={nowMs}
-            colors={colors}
-            dial={dial}
-            t={t}
-          />
-        </Animated.View>
+          {sky && (
+            <Animated.View
+              entering={FadeInDown.delay(200).duration(380)}
+              style={styles.block}
+            >
+              <SkyCard sky={sky} colors={colors} dial={dial} t={t} />
+            </Animated.View>
+          )}
 
-        {/* Prayer grid */}
-        <Animated.View
-          entering={FadeInDown.delay(170).duration(380)}
-          style={{ width: "100%", marginTop: 12 }}
-        >
-          <PrayerStrip
-            prayers={livePrayers}
-            colors={colors}
-            dial={dial}
-            t={t}
-          />
-        </Animated.View>
-
-        {/* Moon + sky times */}
-        <Animated.View
-          entering={FadeInDown.delay(200).duration(380)}
-          style={{ width: "100%", marginTop: 12 }}
-        >
-          <SkyCard sky={sky} colors={colors} dial={dial} t={t} />
-        </Animated.View>
-
-        {/* Stats */}
-        <Animated.View
-          entering={FadeInDown.delay(220).duration(380)}
-          style={[
-            styles.statsCard,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.outlineVariant,
-            },
-          ]}
-        >
-          <StatChip
-            icon="mosque"
-            label={t("Qibla")}
-            value={qiblaBearing === null ? "—" : `${Math.round(qiblaBearing)}°`}
-            colors={colors}
-          />
-          <View
-            style={[
-              styles.statDivider,
-              { backgroundColor: colors.outlineVariant },
-            ]}
-          />
-          <StatChip
-            icon="map-marker-outline"
-            label={t("GPS")}
-            value={
-              location?.accuracy != null
-                ? `±${Math.round(location.accuracy)} m`
-                : "—"
-            }
-            colors={colors}
-          />
-          <View
-            style={[
-              styles.statDivider,
-              { backgroundColor: colors.outlineVariant },
-            ]}
-          />
-          <StatChip
-            icon="gauge"
-            label={t("Sensor")}
-            value={accuracyLabel ?? "—"}
-            colors={colors}
-          />
-        </Animated.View>
-
-        {/* Status / errors */}
-        {status && (
           <Animated.View
-            entering={FadeInDown.delay(40).duration(340)}
+            entering={FadeInDown.delay(220).duration(380)}
             style={[
-              styles.statusCard,
+              styles.statsCard,
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.outlineVariant,
               },
             ]}
           >
-            <View style={styles.statusRow}>
-              <View
-                style={[
-                  styles.statusIconWrap,
-                  { backgroundColor: `${toneColor}18` },
-                ]}
-              >
-                <Icon source={status.icon} size={20} color={toneColor} />
-              </View>
-              <View style={styles.statusTexts}>
-                <Text style={[styles.statusTitle, { color: colors.onSurface }]}>
-                  {status.title}
-                </Text>
-                {status.description ? (
-                  <Text
-                    style={[
-                      styles.statusDescription,
-                      { color: colors.onSurfaceVariant },
-                    ]}
-                  >
-                    {status.description}
-                  </Text>
-                ) : null}
-              </View>
-              {status.busy && (
-                <ActivityIndicator color={colors.primary} size="small" />
-              )}
-            </View>
-            {status.action && (
-              <Pressable
-                accessibilityRole="button"
-                onPress={permissionAction}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  {
-                    backgroundColor: colors.primary,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
-              >
-                <Text style={styles.actionText}>
-                  {locationStatus === "permission" && !canAskAgain
-                    ? t("Open settings")
-                    : t("Try again")}
-                </Text>
-                <Icon
-                  source={
-                    Platform.OS === "ios" ? "chevron-right" : "arrow-right"
-                  }
-                  size={18}
-                  color="#ffffff"
-                />
-              </Pressable>
-            )}
+            <StatChip
+              icon="mosque"
+              label={t("Qibla")}
+              value={
+                qiblaBearing === null ? "—" : `${Math.round(qiblaBearing)}°`
+              }
+              colors={colors}
+            />
+            <View
+              style={[
+                styles.statDivider,
+                { backgroundColor: colors.outlineVariant },
+              ]}
+            />
+            <StatChip
+              icon="map-marker-outline"
+              label={t("GPS")}
+              value={
+                location?.accuracy != null
+                  ? `±${Math.round(location.accuracy)} m`
+                  : "—"
+              }
+              colors={colors}
+            />
+            <View
+              style={[
+                styles.statDivider,
+                { backgroundColor: colors.outlineVariant },
+              ]}
+            />
+            <StatChip
+              icon="gauge"
+              label={t("Sensor")}
+              value={accuracyLabel ?? "—"}
+              colors={colors}
+            />
           </Animated.View>
-        )}
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </ActiveContext.Provider>
   );
 };
 
@@ -1769,6 +2423,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 18,
   },
+  passive: { pointerEvents: "none" },
+  block: { width: "100%", marginTop: 12 },
+  blockFirst: { width: "100%", marginTop: 22 },
 
   floatingHeader: {
     position: "absolute",
@@ -1837,7 +2494,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  halo: { position: "absolute" },
+  halo: { position: "absolute", pointerEvents: "none" },
   haloRing: { borderWidth: 2.5 },
   topPointerWrap: {
     position: "absolute",
@@ -1847,6 +2504,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 4,
     elevation: 4,
+    pointerEvents: "none",
   },
   topPointer: {
     width: 0,
@@ -1887,6 +2545,7 @@ const styles = StyleSheet.create({
   readoutCaption: {
     fontSize: 13,
     marginTop: 4,
+    textAlign: "center",
   },
 
   guidance: {
@@ -1952,6 +2611,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
+  ringBox: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   nextCard: {
     width: "100%",
     flexDirection: "row",
@@ -2041,6 +2704,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
+  skyMoonText: { flex: 1, marginLeft: 14 },
   skyTitle: {
     fontSize: 17,
     fontWeight: "800",

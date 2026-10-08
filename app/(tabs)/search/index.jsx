@@ -98,20 +98,23 @@ const CHIP_TIMING = { duration: 110 };
 
 const SURAH_LIST = getSurahNames();
 const MAX_RESULTS = 80;
-const DEBOUNCE_MS = 90;
+const DEBOUNCE_MS = 120;
 const MIN_QUERY_LENGTH = 2;
 
 const quranSearchIndexCache = new Map();
 const hadithSearchIndexCache = new Map();
+const jawamiSearchIndexCache = new Map();
 
 // Normalize Arabic for better matching
 const normalizeArabic = (text) => {
   if (!text || typeof text !== "string") return "";
   return text
     .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/\u0640/g, "")
     .replace(/[آأإٱ]/g, "ا")
     .replace(/ة/g, "ه")
-    .replace(/ى/g, "ي")
+    .replace(/[ىی]/g, "ي")
+    .replace(/[کك]/g, "ك")
     .replace(/[^\w\u0600-\u06FF\s]/g, " ")
     .toLowerCase()
     .trim();
@@ -121,6 +124,34 @@ const normalizeQuery = (q) => {
   if (!q || typeof q !== "string") return "";
   return normalizeArabic(q).toLowerCase().trim();
 };
+
+const PASHTO_SEARCH_MARKERS = [
+  "او",
+  "په",
+  "چې",
+  "څه",
+  "دوی",
+  "موږ",
+  "له",
+  "ته",
+  "لپاره",
+  "کوم",
+  "دی",
+  "ده",
+].map(normalizeArabic);
+const DARI_SEARCH_MARKERS = [
+  "از",
+  "در",
+  "این",
+  "است",
+  "برای",
+  "به",
+  "با",
+  "را",
+  "من",
+  "ما",
+  "می",
+].map(normalizeArabic);
 
 const getSearchTokens = (text) =>
   normalizeArabic(text).split(/\s+/).filter(Boolean);
@@ -159,8 +190,6 @@ const getMatchScore = (
   queryTokens = getSearchTokens(query),
 ) => {
   if (!searchText || !query) return 0;
-  if (searchText.includes(query)) return 100;
-
   if (!queryTokens.length || !searchTokens.length) return 0;
 
   let score = 0;
@@ -175,26 +204,110 @@ const getMatchScore = (
       continue;
     }
 
-    if (queryToken.length < 4) continue;
+    if (queryToken.length < 4) return 0;
     const maxDistance = queryToken.length < 7 ? 1 : 2;
     if (
-      searchTokens.some(
-        (token) =>
-          getEditDistance(queryToken, token, maxDistance) <= maxDistance,
+      !searchTokens.some(
+        (token) => getEditDistance(queryToken, token, maxDistance) <= maxDistance,
       )
-    ) {
-      score += 10;
-    }
+    )
+      return 0;
+    score += 10;
   }
 
-  return score === queryTokens.length * 30 ? score + 50 : score;
+  if (score === queryTokens.length * 30) score += 50;
+  if (searchText.includes(query)) score += 100;
+  return score;
+};
+
+const createSearchIndex = (items) => {
+  const tokenPostings = new Map();
+  const tokensByLength = new Map();
+
+  items.forEach((item, itemIndex) => {
+    const itemTokens = new Set(item.searchTokens);
+
+    for (const token of itemTokens) {
+      let posting = tokenPostings.get(token);
+      if (!posting) {
+        posting = [];
+        tokenPostings.set(token, posting);
+        const tokens = tokensByLength.get(token.length) || [];
+        tokens.push(token);
+        tokensByLength.set(token.length, tokens);
+      }
+      posting.push(itemIndex);
+    }
+  });
+
+  const sortedTokens = [...tokenPostings.keys()].sort();
+  return { items, tokenPostings, tokensByLength, sortedTokens };
+};
+
+const getCandidatePostings = (index, queryToken) => {
+  let low = 0;
+  let high = index.sortedTokens.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (index.sortedTokens[middle] < queryToken) low = middle + 1;
+    else high = middle;
+  }
+
+  const prefixMatches = new Set();
+  for (let tokenIndex = low; tokenIndex < index.sortedTokens.length; tokenIndex++) {
+    const token = index.sortedTokens[tokenIndex];
+    if (!token.startsWith(queryToken)) break;
+    for (const itemIndex of index.tokenPostings.get(token)) {
+      prefixMatches.add(itemIndex);
+    }
+  }
+  if (prefixMatches.size) return [...prefixMatches].sort((a, b) => a - b);
+  if (queryToken.length < 4) return [];
+
+  const maxDistance = queryToken.length < 7 ? 1 : 2;
+  const matchingItems = new Set();
+  for (
+    let tokenLength = Math.max(1, queryToken.length - maxDistance);
+    tokenLength <= queryToken.length + maxDistance;
+    tokenLength++
+  ) {
+    for (const token of index.tokensByLength.get(tokenLength) || []) {
+      if (getEditDistance(queryToken, token, maxDistance) <= maxDistance) {
+        for (const itemIndex of index.tokenPostings.get(token)) {
+          matchingItems.add(itemIndex);
+        }
+      }
+    }
+  }
+  return [...matchingItems].sort((a, b) => a - b);
+};
+
+const postingContains = (posting, itemIndex) => {
+  let low = 0;
+  let high = posting.length - 1;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    if (posting[middle] === itemIndex) return true;
+    if (posting[middle] < itemIndex) low = middle + 1;
+    else high = middle - 1;
+  }
+  return false;
 };
 
 const searchIndex = (index, query) => {
-  const queryTokens = getSearchTokens(query);
+  const queryTokens = [...new Set(getSearchTokens(query))];
+  if (!queryTokens.length) return [];
+
+  const postings = queryTokens
+    .map((token) => getCandidatePostings(index, token))
+    .sort((a, b) => a.length - b.length);
+  if (postings.some((posting) => posting.length === 0)) return [];
+
   const scored = [];
-  for (let i = 0; i < index.length; i++) {
-    const item = index[i];
+  for (const itemIndex of postings[0]) {
+    if (!postings.every((posting) => postingContains(posting, itemIndex)))
+      continue;
+    const item = index.items[itemIndex];
     const score = getMatchScore(
       item.searchText,
       query,
@@ -202,10 +315,10 @@ const searchIndex = (index, query) => {
       queryTokens,
     );
     if (score > 0) {
-      scored.push({ item, score });
+      scored.push({ item, score, itemIndex });
     }
   }
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => b.score - a.score || a.itemIndex - b.itemIndex);
   return scored.slice(0, MAX_RESULTS).map(({ item }) => item);
 };
 
@@ -218,7 +331,7 @@ const buildQuranSearchIndex = (translationLanguage) => {
   }
 
   const arabicById = getArabicVersesById();
-  const index = getQuranVerses(translationLanguage).map((item) => {
+  const items = getQuranVerses(translationLanguage).map((item) => {
     const arabic = arabicById.get(item.id);
     const surahMeta =
       getSurahByIndex(item.surah) ||
@@ -245,6 +358,7 @@ const buildQuranSearchIndex = (translationLanguage) => {
     };
   });
 
+  const index = createSearchIndex(items);
   quranSearchIndexCache.set(cacheKey, index);
   return index;
 };
@@ -255,13 +369,44 @@ const searchQuran = (query, translationLanguage) => {
   return searchIndex(buildQuranSearchIndex(translationLanguage), q);
 };
 
+const getJawamiLanguages = (query, appLanguage, hadithLanguage) => {
+  if (/[a-z]/i.test(query)) return ["english"];
+
+  const queryTokens = getSearchTokens(query);
+  const pashtoScore =
+    (query.match(/[ټځڅډړږښڼۍېګ]/g)?.length || 0) +
+    queryTokens.filter((token) =>
+      PASHTO_SEARCH_MARKERS.some((word) => word.startsWith(token)),
+    ).length;
+  const dariScore =
+    (query.match(/گ/g)?.length || 0) +
+    queryTokens.filter((token) =>
+      DARI_SEARCH_MARKERS.some((word) => word.startsWith(token)),
+    ).length;
+  if (pashtoScore > dariScore) return ["pashto"];
+  if (dariScore > pashtoScore) return ["dari"];
+
+  const normalizedAppLanguage = String(appLanguage || "").toLowerCase();
+  if (normalizedAppLanguage === "pa" || normalizedAppLanguage === "pashto")
+    return ["pashto"];
+  if (
+    normalizedAppLanguage === "da" ||
+    normalizedAppLanguage === "dari" ||
+    normalizedAppLanguage === "fa" ||
+    normalizedAppLanguage === "persian"
+  )
+    return ["dari"];
+  if (hadithLanguage === "arabic") return ["arabic"];
+  return ["pashto", "dari"];
+};
+
 const buildHadithSearchIndex = (hadithLanguage) => {
   const cacheKey = String(hadithLanguage || "english");
   if (hadithSearchIndexCache.has(cacheKey)) {
     return hadithSearchIndexCache.get(cacheKey);
   }
 
-  const index = [];
+  const items = [];
   for (const collection of ["bukhari", "muslim"]) {
     for (const [hadithIndex, hadith] of getAllHadiths(
       collection,
@@ -272,7 +417,7 @@ const buildHadithSearchIndex = (hadithLanguage) => {
       const searchText = normalizeArabic(
         `${hadith.text || ""} ${id} ${hadith.reference?.book || ""} ${hadith.reference?.hadith || ""}`,
       );
-      index.push({
+      items.push({
         type: "hadith",
         id: `hadith-${collection}-${bookNumber}-${id}-${hadithIndex}`,
         collection,
@@ -286,44 +431,66 @@ const buildHadithSearchIndex = (hadithLanguage) => {
     }
   }
 
-  if (Array.isArray(jawamiHadiths)) {
-    for (const [itemIndex, item] of jawamiHadiths.entries()) {
-      const textParts = [
-        item.arabic,
-        item.english,
-        item.pashto,
-        item.dari,
-        item.title?.english,
-        item.title?.pashto,
-        item.title?.dari,
-        item.source?.english,
-      ]
-        .filter(Boolean)
-        .join(" ");
-      const searchText = normalizeArabic(textParts);
-      index.push({
-        type: "hadith",
-        id: `jawami-${item.id}-${itemIndex}`,
-        collection: "jawami_al_kalim",
-        bookNumber: null,
-        hadithId: String(item.id),
-        text: item.english || item.pashto || item.dari || item.arabic || "",
-        arabic: item.arabic,
-        bookName: "Jawami al-Kalim",
-        searchText,
-        searchTokens: getSearchTokens(searchText),
-      });
-    }
-  }
-
+  const index = createSearchIndex(items);
   hadithSearchIndexCache.set(cacheKey, index);
   return index;
 };
 
-const searchHadiths = (query, hadithLanguage) => {
+const buildJawamiSearchIndex = (language) => {
+  if (jawamiSearchIndexCache.has(language)) {
+    return jawamiSearchIndexCache.get(language);
+  }
+
+  const items = Array.isArray(jawamiHadiths)
+    ? jawamiHadiths.map((item, itemIndex) => {
+        const text = item[language] || "";
+        const title = item.title?.[language] || "";
+        const source = item.source?.[language] || "";
+        const searchText = normalizeArabic(
+          [text, title, source, item.id].filter(Boolean).join(" "),
+        );
+        return {
+          type: "hadith",
+          id: `jawami-${item.id}-${itemIndex}`,
+          collection: "jawami_al_kalim",
+          bookNumber: null,
+          hadithId: String(item.id),
+          text,
+          bookName: "Jawami al-Kalim",
+          contentLanguage: language,
+          searchText,
+          searchTokens: getSearchTokens(searchText),
+        };
+      })
+    : [];
+
+  const index = createSearchIndex(items);
+  jawamiSearchIndexCache.set(language, index);
+  return index;
+};
+
+const searchHadiths = (query, hadithLanguage, appLanguage) => {
   const q = normalizeQuery(query);
   if (!q || q.length < MIN_QUERY_LENGTH) return [];
-  return searchIndex(buildHadithSearchIndex(hadithLanguage), q);
+  const jawamiLanguages = getJawamiLanguages(
+    query,
+    appLanguage,
+    hadithLanguage,
+  );
+  const standardResults = searchIndex(
+    buildHadithSearchIndex(hadithLanguage),
+    q,
+  );
+  const jawamiResults = [];
+  const seenJawamiIds = new Set();
+  for (const language of jawamiLanguages) {
+    for (const item of searchIndex(buildJawamiSearchIndex(language), q)) {
+      if (seenJawamiIds.has(item.id)) continue;
+      seenJawamiIds.add(item.id);
+      jawamiResults.push(item);
+    }
+  }
+  return mergeSearchResults(standardResults, jawamiResults);
 };
 
 const mergeSearchResults = (quranResults, hadithResults) => {
@@ -513,6 +680,10 @@ QuranResultCard.displayName = "QuranResultCard";
 const HadithResultCard = memo(
   ({ item, colors, onPress, textAlign, writingDirection, t, index }) => {
     const scale = useSharedValue(1);
+    const bookName =
+      item.collection === "jawami_al_kalim"
+        ? t("Jawami al-Kalim")
+        : item.bookName;
 
     const pressStyle = useAnimatedStyle(() => ({
       transform: [{ scale: scale.value }],
@@ -541,7 +712,7 @@ const HadithResultCard = memo(
             },
           ]}
           accessibilityRole="button"
-          accessibilityLabel={`${t("Hadith")} ${item.bookName} ${item.hadithId || ""}`}
+          accessibilityLabel={`${t("Hadith")} ${bookName} ${item.hadithId || ""}`}
         >
           <View style={styles.resultBadgeRow}>
             <View
@@ -559,7 +730,7 @@ const HadithResultCard = memo(
               style={[styles.metaText, { color: colors.secondary }]}
               numberOfLines={1}
             >
-              {item.bookName}
+              {bookName}
               {item.hadithId ? ` · #${item.hadithId}` : ""}
             </Text>
           </View>
@@ -626,8 +797,8 @@ const EmptyState = memo(({ colors, rtl, textAlign, writingDirection, t }) => (
         { color: colors.secondary, textAlign, writingDirection },
       ]}
     >
-      {t("Type at least 2 characters to search verses and hadiths.") ||
-        "Type at least 2 characters to search verses and hadiths."}
+      {t("Search multiple words or part of a word. Type at least 2 characters.") ||
+        "Search multiple words or part of a word. Type at least 2 characters."}
     </Text>
   </Animated.View>
 ));
@@ -666,6 +837,37 @@ const NoResultsState = memo(
 );
 NoResultsState.displayName = "NoResultsState";
 
+const SearchErrorState = memo(({ colors, textAlign, writingDirection, t }) => (
+  <Animated.View entering={FadeIn.duration(280)} style={styles.emptyState}>
+    <View
+      style={[
+        styles.emptyIconWrap,
+        { backgroundColor: withAlpha(colors.error, 0.1) },
+      ]}
+    >
+      <MaterialIcons name="error-outline" size={42} color={colors.error} />
+    </View>
+    <Text
+      style={[
+        styles.emptyTitle,
+        { color: colors.text, textAlign, writingDirection },
+      ]}
+    >
+      {t("Search unavailable") || "Search unavailable"}
+    </Text>
+    <Text
+      style={[
+        styles.emptyDesc,
+        { color: colors.secondary, textAlign, writingDirection },
+      ]}
+    >
+      {t("Search could not be completed. Try changing your search.") ||
+        "Search could not be completed. Try changing your search."}
+    </Text>
+  </Animated.View>
+));
+SearchErrorState.displayName = "SearchErrorState";
+
 const LoadingState = memo(({ colors, t }) => (
   <Animated.View entering={FadeIn.duration(200)} style={styles.loadingState}>
     <ActivityIndicator size="large" color={colors.accent} />
@@ -689,7 +891,6 @@ const Search = () => {
 
   const rtl = isRTL(language);
   const quranRtl = isRTL(quranLang);
-  const hadithRtl = isRTL(hadithLang);
   const textAlign = getTextAlignment(language);
   const writingDirection = getWritingDirection(language);
 
@@ -698,7 +899,11 @@ const Search = () => {
   const [filter, setFilter] = useState("all"); // all | quran | hadith
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState([]);
+  const [searchError, setSearchError] = useState(null);
   const [isFocused, setIsFocused] = useState(false);
+  const normalizedQuery = normalizeQuery(query);
+  const normalizedDebouncedQuery = normalizeQuery(debouncedQuery);
+  const isQueryPending = query.trim() !== debouncedQuery;
 
   const inputRef = useRef(null);
   const debounceTimer = useRef(null);
@@ -751,15 +956,18 @@ const Search = () => {
   // Search Quran first so all-mode queries can render before the larger Hadith index finishes.
   useEffect(() => {
     const q = debouncedQuery;
-    if (!q || q.length < MIN_QUERY_LENGTH) {
+    if (normalizeQuery(q).length < MIN_QUERY_LENGTH) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       setIsSearching(false);
+      setSearchError(null);
       return;
     }
 
     const gen = ++searchGen.current;
+    setResults([]);
     setIsSearching(true);
+    setSearchError(null);
 
     let hadithTimer;
     const timer = setTimeout(() => {
@@ -773,7 +981,7 @@ const Search = () => {
           quranResults = searchQuran(q, quranLang);
           primaryResults = quranResults;
         } else {
-          primaryResults = searchHadiths(q, hadithLang);
+          primaryResults = searchHadiths(q, hadithLang, language);
         }
 
         if (gen === searchGen.current && isMounted.current) {
@@ -787,7 +995,7 @@ const Search = () => {
           if (gen !== searchGen.current || !isMounted.current) return;
 
           try {
-            const hadithResults = searchHadiths(q, hadithLang);
+            const hadithResults = searchHadiths(q, hadithLang, language);
             if (gen === searchGen.current && isMounted.current) {
               setResults(mergeSearchResults(quranResults, hadithResults));
               setIsSearching(false);
@@ -796,6 +1004,7 @@ const Search = () => {
             if (gen === searchGen.current && isMounted.current) {
               console.warn("[Search] hadith search failed", err);
               setResults(quranResults.slice(0, MAX_RESULTS));
+              setSearchError("partial");
               setIsSearching(false);
             }
           }
@@ -804,6 +1013,7 @@ const Search = () => {
         if (gen === searchGen.current && isMounted.current) {
           console.warn("[Search] search failed", err);
           setResults([]);
+          setSearchError("failed");
           setIsSearching(false);
         }
       }
@@ -813,7 +1023,7 @@ const Search = () => {
       clearTimeout(timer);
       if (hadithTimer) clearTimeout(hadithTimer);
     };
-  }, [debouncedQuery, filter, quranLang, hadithLang]);
+  }, [debouncedQuery, filter, quranLang, hadithLang, language]);
 
   useFocusEffect(
     useCallback(() => {
@@ -830,6 +1040,7 @@ const Search = () => {
     setQuery("");
     setDebouncedQuery("");
     setResults([]);
+    setSearchError(null);
     inputRef.current?.focus();
   }, []);
 
@@ -903,26 +1114,38 @@ const Search = () => {
           item={item}
           colors={colors}
           onPress={handleHadithPress}
-          textAlign={hadithRtl ? "right" : "left"}
-          writingDirection={hadithRtl ? "rtl" : "ltr"}
+          textAlign={
+            isRTL(item.contentLanguage || hadithLang) ? "right" : "left"
+          }
+          writingDirection={
+            isRTL(item.contentLanguage || hadithLang) ? "rtl" : "ltr"
+          }
           t={t}
           index={index}
         />
       );
     },
-    [colors, handleQuranPress, handleHadithPress, quranRtl, hadithRtl, t],
+    [colors, handleQuranPress, handleHadithPress, quranRtl, hadithLang, t],
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
   const getItemType = useCallback((item) => item.type, []);
 
-  const showEmptyState =
-    !debouncedQuery || debouncedQuery.length < MIN_QUERY_LENGTH;
+  const showEmptyState = normalizedQuery.length < MIN_QUERY_LENGTH;
   const showNoResults =
+    !isQueryPending &&
     !isSearching &&
-    debouncedQuery.length >= MIN_QUERY_LENGTH &&
-    results.length === 0;
-  const showLoading = isSearching && results.length === 0;
+    normalizedDebouncedQuery.length >= MIN_QUERY_LENGTH &&
+    results.length === 0 &&
+    searchError !== "failed";
+  const showSearchError =
+    !isQueryPending &&
+    !isSearching &&
+    (searchError === "failed" ||
+      (searchError === "partial" && results.length === 0));
+  const showLoading =
+    normalizedQuery.length >= MIN_QUERY_LENGTH &&
+    (isQueryPending || (isSearching && results.length === 0));
 
   const searchBarBorderColor = isFocused
     ? withAlpha(colors.accent, 0.55)
@@ -1041,6 +1264,13 @@ const Search = () => {
         />
       ) : showLoading ? (
         <LoadingState colors={colors} t={t} />
+      ) : showSearchError ? (
+        <SearchErrorState
+          colors={colors}
+          textAlign={textAlign}
+          writingDirection={writingDirection}
+          t={t}
+        />
       ) : showNoResults ? (
         <NoResultsState
           colors={colors}
@@ -1067,6 +1297,21 @@ const Search = () => {
           ]}
           ListHeaderComponent={
             <Animated.View entering={FadeInUp.duration(80)}>
+              {searchError === "partial" ? (
+                <Text
+                  style={[
+                    styles.searchWarning,
+                    {
+                      color: colors.error,
+                      textAlign,
+                      writingDirection,
+                    },
+                  ]}
+                >
+                  {t("Hadith search failed; showing Quran results only.") ||
+                    "Hadith search failed; showing Quran results only."}
+                </Text>
+              ) : null}
               <Text
                 style={[
                   styles.resultCount,
@@ -1167,6 +1412,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     opacity: 0.8,
     letterSpacing: 0.2,
+  },
+  searchWarning: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 8,
   },
 
   resultCard: {
