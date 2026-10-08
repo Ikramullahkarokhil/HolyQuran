@@ -22,8 +22,6 @@ import {
   getFlexDirection,
 } from "../../../components/utils/rtlUtils";
 
-// ─── Card config (icon name only – no JSX in data) ──────────────────────────
-
 const getCardData = (t) => [
   {
     id: "hadith",
@@ -40,6 +38,14 @@ const getCardData = (t) => [
     icon: "lightbulb-outline",
     href: { pathname: "IslamicHistory" },
     accent: "#16a34a",
+  },
+  {
+    id: "quranic-duas",
+    title: t("Quranic duas"),
+    description: t("Explore prayers from the Quran"),
+    icon: "hands-pray",
+    href: { pathname: "QuranicDuas" },
+    accent: "#12836b",
   },
   {
     id: "tasbih",
@@ -66,8 +72,6 @@ const getCardData = (t) => [
     accent: "#7c3aed",
   },
 ];
-
-// ─── Memoized tool card ─────────────────────────────────────────────────────
 
 const ToolCard = memo(
   ({ card, flexDir, textAlign, writingDir }) => {
@@ -180,8 +184,6 @@ const ToolCard = memo(
 );
 ToolCard.displayName = "ToolCard";
 
-// ─── Main screen ────────────────────────────────────────────────────────────
-
 const Tools = () => {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -190,13 +192,12 @@ const Tools = () => {
   const flexDir = getFlexDirection(language);
   const textAlign = getTextAlignment(language);
   const writingDir = getWritingDirection(language);
-
   const cards = useMemo(() => getCardData(t), [t]);
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, styles.contentGrow]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.grid}>
@@ -216,8 +217,6 @@ const Tools = () => {
 
 export default Tools;
 
-// ─── Styles (aligned with Home / Settings cards) ────────────────────────────
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -226,6 +225,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 32,
+  },
+  contentGrow: {
+    flexGrow: 1,
   },
   grid: {
     flexDirection: "column",

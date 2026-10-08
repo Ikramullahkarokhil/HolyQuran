@@ -365,6 +365,12 @@ const AppStack = React.memo(({ bookName }) => {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="QuranicDuas/index"
+        options={{
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 });
