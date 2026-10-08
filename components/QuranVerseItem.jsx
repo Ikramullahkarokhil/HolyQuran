@@ -210,6 +210,7 @@ export const VerseAudioButton = memo(
     durationSec = 0,
     sizeLabel,
     progress,
+    accessibilityLabel,
     onPressDownload,
     onPressPlay,
     onPressPause,
@@ -259,6 +260,12 @@ export const VerseAudioButton = memo(
           onPress={handlePress}
           disabled={isDownloading}
           hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel}
+          accessibilityState={{
+            disabled: isDownloading,
+            selected: isPlaying,
+          }}
           style={({ pressed }) => [
             styles.audioBtn,
             {
@@ -687,7 +694,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         lockScreenPlayerRef.current = player;
       }
       return true;
-    } catch {
+    } catch (error) {
+      console.warn("Failed to activate Quran audio media controls:", error);
       return false;
     }
   }, [reciterId, surahId]);
@@ -922,7 +930,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     if (statusIntervalRef.current) {
       clearInterval(statusIntervalRef.current);
     }
-    // ~10fps UI updates for a smooth progress line
+    // Keep the progress UI smooth without forcing excessive screen renders.
     statusIntervalRef.current = setInterval(() => {
       if (!playerRef.current || !isMounted.current) return;
       try {
@@ -942,7 +950,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
           });
         }
       } catch {}
-    }, 100);
+    }, 250);
   }, []);
 
   const handlePlaybackFinished = useCallback(
@@ -1051,21 +1059,30 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       setPositionSec(0);
 
       try {
-        const notificationsAllowed = await requestAudioNotificationPermission();
-        if (!notificationsAllowed && Platform.OS === "android") {
-          throw new Error(
-            "Notification permission is required for playback controls",
-          );
+        if (!fromAuto) {
+          const notificationsAllowed =
+            await requestAudioNotificationPermission();
+          if (!notificationsAllowed && Platform.OS === "android") {
+            throw new Error(
+              "Notification permission is required for playback controls",
+            );
+          }
         }
         if (activeSession !== sessionIdRef.current) return;
 
         const file = ayahFileFor(reciterId, surahId, targetAyah);
         let uri = file.uri;
         if (!file.exists || (file.size ?? 0) < 512) {
-          if (!fromAuto) setDownloadingId(targetAyah);
-          uri = await downloadOne(targetAyah);
-          if (activeSession !== sessionIdRef.current) return;
-          if (!fromAuto && isMounted.current) setDownloadingId(null);
+          if (fromAuto) {
+            uri = getAyahAudioUrl(reciterId, surahId, targetAyah);
+            if (!uri) throw new Error("Invalid reciter / ayah");
+            downloadOne(targetAyah, { silent: true }).catch(() => {});
+          } else {
+            setDownloadingId(targetAyah);
+            uri = await downloadOne(targetAyah);
+            if (activeSession !== sessionIdRef.current) return;
+            if (isMounted.current) setDownloadingId(null);
+          }
         }
         if (activeSession !== sessionIdRef.current) return;
 
@@ -1088,7 +1105,11 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         if (!player) {
           player = createAudioPlayer(
             { uri },
-            { updateInterval: 100, preferredForwardBufferDuration: 30 },
+            {
+              updateInterval: 100,
+              preferredForwardBufferDuration: 30,
+              keepAudioSessionActive: true,
+            },
           );
           playerRef.current = player;
           playerListenerRef.current = player.addListener?.(
@@ -1136,8 +1157,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         setLastActiveAyah(targetAyah);
         setLastActiveSurahId(surahId);
 
-        player.play();
         refreshLockScreenControls();
+        player.play();
 
         const knownDur = durationMap.get(targetAyah);
         if (knownDur > 0) {
@@ -1496,6 +1517,7 @@ export const VerseItem = memo(
     audioDurationSec,
     audioSizeLabel,
     audioDownloadProgress,
+    audioAccessibilityLabel,
     onAudioDownload,
     onAudioPlay,
     onAudioPause,
@@ -1597,6 +1619,7 @@ export const VerseItem = memo(
                 durationSec={audioDurationSec}
                 sizeLabel={audioSizeLabel}
                 progress={audioDownloadProgress}
+                accessibilityLabel={audioAccessibilityLabel}
                 onPressDownload={() => onAudioDownload?.(item.ayah)}
                 onPressPlay={() => onAudioPlay?.(item.ayah)}
                 onPressPause={onAudioPause}
@@ -1704,6 +1727,7 @@ export const VerseItem = memo(
     prev.audioDurationSec === next.audioDurationSec &&
     prev.audioSizeLabel === next.audioSizeLabel &&
     prev.audioDownloadProgress === next.audioDownloadProgress &&
+    prev.audioAccessibilityLabel === next.audioAccessibilityLabel &&
     prev.surahId === next.surahId,
 );
 VerseItem.displayName = "VerseItem";

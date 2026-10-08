@@ -3,7 +3,7 @@ import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
 import { initI18n, i18n } from "../components/i18n";
 import { I18nextProvider, useTranslation } from "react-i18next";
 import { StatusBar } from "expo-status-bar";
-import { AppState, View, useColorScheme, Text, StyleSheet } from "react-native";
+import { View, useColorScheme, Text, StyleSheet } from "react-native";
 import * as Notifications from "expo-notifications";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -23,8 +23,16 @@ import {
   useAudioPlayer,
 } from "../components/AudioPlayerProvider";
 import GlobalAudioPlayer from "../components/GlobalAudioPlayer";
-import { requestAudioNotificationPermission } from "../components/requestAudioNotificationPermission";
 import { getSurahByIndex } from "../components/quranData";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -68,6 +76,8 @@ const RootLayout = () => {
             ayahId: ayahId ? String(ayahId) : undefined,
           },
         });
+      } else if (screen === "IslamicHistory") {
+        router.push("/IslamicHistory");
       }
     },
     [router],
@@ -103,20 +113,6 @@ const RootLayout = () => {
     // Intentionally run once on mount.
     // colorScheme is only used as the *initial* value for theme init.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ---- Audio notification permission (non-blocking) ----
-  useEffect(() => {
-    requestAudioNotificationPermission();
-
-    const onChange = (nextState) => {
-      if (nextState === "active") {
-        requestAudioNotificationPermission();
-      }
-    };
-
-    const subscription = AppState.addEventListener("change", onChange);
-    return () => subscription.remove();
   }, []);
 
   useEffect(() => {

@@ -7,9 +7,14 @@ export async function requestAudioNotificationPermission() {
   if (Platform.OS !== "android") return true;
   if (permissionRequest) return permissionRequest;
 
-  permissionRequest = requestNotificationPermissionsAsync()
-    .then((permission) => permission?.granted === true)
-    .catch(() => false);
-
-  return permissionRequest;
+  permissionRequest = requestNotificationPermissionsAsync();
+  try {
+    const permission = await permissionRequest;
+    return permission?.granted === true;
+  } catch (error) {
+    console.warn("Audio notification permission request failed:", error);
+    return false;
+  } finally {
+    permissionRequest = undefined;
+  }
 }

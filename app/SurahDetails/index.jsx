@@ -788,6 +788,9 @@ const SurahDetails = () => {
       ayahs: t("ayahs") || "ayahs",
       ayah: t("Ayah") || "Ayah",
       quranAudio: t("Quran Audio") || "Quran Audio",
+      playAudioForAyah: t("Play audio for Ayah"),
+      pauseAudioForAyah: t("Pause audio for Ayah"),
+      downloadAudioForAyah: t("Download audio for Ayah"),
     }),
     [t],
   );
@@ -924,7 +927,6 @@ const SurahDetails = () => {
     playingId,
     playingSurahId,
     expandedId,
-    positionSec,
     isDownloadingAll,
     bulkProgress,
     bulkPaused,
@@ -944,7 +946,7 @@ const SurahDetails = () => {
   const isPlayingInThisSurah =
     playingSurahId === surahId &&
     playingId != null &&
-    verses.some((v) => v.ayah === playingId);
+    playingId <= verses.length;
   const audioPlayerVisible = Boolean(
     audioPlayer.isVisible && activeAudioAyah != null,
   );
@@ -1245,15 +1247,10 @@ const SurahDetails = () => {
   );
 
   const goToVersePin = useCallback((pin) => {
-    try {
-      listRef.current?.scrollToIndex?.({
-        index: pin.index,
-        animated: true,
-        viewPosition: 0.28,
-      });
-    } catch {}
+    const index = verses.findIndex((verse) => verse.ayah === pin.ayah);
+    if (index >= 0) scrollToVerse(index, 0.28, true);
     setPinsVisible(false);
-  }, []);
+  }, [scrollToVerse, verses]);
 
   const pinnedVerseIds = useMemo(() => new Set(pins.map((p) => p.id)), [pins]);
   const pinnedLabel = t("Pinned");
@@ -1402,6 +1399,7 @@ const SurahDetails = () => {
           audioDownloadProgress={
             typeof dlProgress === "number" ? dlProgress : 0
           }
+          audioAccessibilityLabel={`${isPlayingInThisSurah && playingId === item.ayah ? labels.pauseAudioForAyah : downloadedSet.has(item.ayah) ? labels.playAudioForAyah : labels.downloadAudioForAyah} ${item.ayah}`}
           onAudioDownload={downloadVerse}
           onAudioPlay={playVerse}
           onAudioPause={pauseVerse}
@@ -1415,6 +1413,7 @@ const SurahDetails = () => {
       pinnedVerseIds,
       highlightProgress,
       colors,
+      labels,
       pinnedLabel,
       handleLongPress,
       tafseerByAyah,
@@ -1467,13 +1466,13 @@ const SurahDetails = () => {
     ({ viewableItems }) => {
       if (!viewableItems || viewableItems.length === 0) return;
 
-      let topIndex = viewableItems[0]?.index;
+      let topIndex = Infinity;
       for (const v of viewableItems) {
         if (typeof v.index === "number" && v.index < topIndex) {
           topIndex = v.index;
         }
       }
-      if (typeof topIndex !== "number") return;
+      if (!Number.isFinite(topIndex)) return;
 
       currentTopIndexRef.current = topIndex;
 
@@ -1531,10 +1530,26 @@ const SurahDetails = () => {
   }, [displayedLastPlayedAyah, playVerse]);
 
   const listTopPadding = insets.top + 8 + HEADER_EXPANDED + 14;
+  const listContentContainerStyle = useMemo(
+    () => [
+      styles.listContent,
+      {
+        paddingTop: audioPlayerVisible
+          ? listTopPadding + 110
+          : listTopPadding,
+        paddingBottom: insets.bottom + 72,
+      },
+    ],
+    [audioPlayerVisible, insets.bottom, listTopPadding],
+  );
+  const listSharedValues = useMemo(
+    () => ({ scrollOffset: scrollY }),
+    [scrollY],
+  );
 
   const listExtraData = useMemo(
     () =>
-      `${translationLanguage}|${highlightedAyahId ?? ""}|${pins.length}|${expandedTafseerIds.size}|${downloadedCount}|${playingId ?? ""}|${expandedId ?? ""}|${Math.floor(positionSec)}|${downloadingId ?? ""}|${bulkProgress.toFixed(2)}`,
+      `${translationLanguage}|${highlightedAyahId ?? ""}|${pins.length}|${expandedTafseerIds.size}|${downloadedCount}|${playingId ?? ""}|${expandedId ?? ""}|${downloadingId ?? ""}|${bulkProgress.toFixed(2)}`,
     [
       translationLanguage,
       highlightedAyahId,
@@ -1543,7 +1558,6 @@ const SurahDetails = () => {
       downloadedCount,
       playingId,
       expandedId,
-      positionSec,
       downloadingId,
       bulkProgress,
     ],
@@ -1657,25 +1671,17 @@ const SurahDetails = () => {
               keyExtractor={keyExtractor}
               ListHeaderComponent={ListHeader}
               recycleItems
-              estimatedItemSize={160}
+              estimatedItemSize={220}
               drawDistance={480}
               showsVerticalScrollIndicator={false}
               onScroll={onScroll}
-              scrollEventThrottle={16}
+              scrollEventThrottle={32}
               onViewableItemsChanged={handleViewableItemsChanged}
               viewabilityConfig={viewabilityConfig}
-              contentContainerStyle={[
-                styles.listContent,
-                {
-                  paddingTop: audioPlayerVisible
-                    ? listTopPadding + 110
-                    : listTopPadding,
-                  paddingBottom: insets.bottom + 72,
-                },
-              ]}
+              contentContainerStyle={listContentContainerStyle}
               removeClippedSubviews={Platform.OS === "android"}
               maintainVisibleContentPosition
-              sharedValues={{ scrollOffset: scrollY }}
+              sharedValues={listSharedValues}
             />
           </View>
         </FlingGestureHandler>

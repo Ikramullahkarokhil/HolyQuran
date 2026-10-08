@@ -14,6 +14,7 @@ import {
   Text,
   View,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
@@ -35,6 +36,8 @@ const DAILY_REMINDER_KEY = "daily_wisdom_notification_time";
 const DAILY_LANGUAGE_KEY = "daily_wisdom_notification_language";
 const DAILY_ENABLED_KEY = "daily_wisdom_notification_enabled";
 const DAILY_REMINDER_CHANNEL_ID = "daily-wisdom-reminders";
+const DAILY_REMINDER_PREFIX = "daily-wisdom-reminder-";
+const DAILY_REMINDER_DAYS = 30;
 const DEFAULT_REMINDER_TIME = { hour: 8, minute: 0 };
 const DEFAULT_LANGUAGE = "english";
 const REMINDER_MINUTE_STEP = 5;
@@ -50,30 +53,28 @@ const REMINDER_TEXT = {
   english: {
     title: "✨ Your Daily Reflection",
     body: "Take a moment to connect with today's Ayah and Hadith.",
+    ayahLabel: "Ayah",
+    hadithLabel: "Hadith",
   },
   pashto: {
     title: "✨ د نن ورځې حکمت",
     body: "یو شیبه وخت واخلئ او د نن ورځې له ایات او حدیث سره وصل شئ.",
+    ayahLabel: "آیت",
+    hadithLabel: "حدیث",
   },
   dari: {
     title: "✨ حکمت امروز",
     body: "لحظه‌ای تأمل کنید و با آیه و حدیث امروز همراه شوید.",
+    ayahLabel: "آیه",
+    hadithLabel: "حدیث",
   },
   arabic: {
     title: "✨ نورُ اليوم",
     body: "خُذ لحظة للتفكُّر في آيةِ ومالامحِ حديثِ اليوم.",
+    ayahLabel: "آية",
+    hadithLabel: "حديث",
   },
 };
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 const hashString = (value) => {
   let hash = 2166136261;
@@ -85,7 +86,8 @@ const hashString = (value) => {
   return hash >>> 0;
 };
 
-const getTodayKey = () => new Date().toISOString().slice(0, 10);
+const getDateKey = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const readStorageReminderTime = async () => {
   try {
@@ -158,12 +160,11 @@ const formatReminderTime = ({ hour, minute }) => {
   });
 };
 
-const buildDailyVerse = (language, refreshSeed = 0) => {
+const buildDailyVerse = (language, refreshSeed = 0, dayKey = getDateKey()) => {
   const verses = getQuranVerses(language);
   const surahNames = getSurahNames();
-  const todayKey = getTodayKey();
   const index =
-    hashString(`${todayKey}-${language}-${refreshSeed}`) % verses.length;
+    hashString(`${dayKey}-${language}-${refreshSeed}`) % verses.length;
   const verse = verses[index] || verses[0];
   const surah = surahNames.find((entry) => entry.index === verse.surah) || {
     tname: `Surah ${verse.surah}`,
@@ -178,11 +179,10 @@ const buildDailyVerse = (language, refreshSeed = 0) => {
   };
 };
 
-const buildDailyHadith = (language, refreshSeed = 0) => {
-  const todayKey = getTodayKey();
+const buildDailyHadith = (language, refreshSeed = 0, dayKey = getDateKey()) => {
   const collections = ["bukhari", "muslim"];
   const collectionIndex =
-    hashString(`${todayKey}-hadith-collection-${language}-${refreshSeed}`) %
+    hashString(`${dayKey}-hadith-collection-${language}-${refreshSeed}`) %
     collections.length;
   const collection = collections[collectionIndex] || "bukhari";
   const dataset = getAllHadiths(
@@ -191,7 +191,7 @@ const buildDailyHadith = (language, refreshSeed = 0) => {
   );
 
   const itemIndex =
-    hashString(`${todayKey}-hadith-${collection}-${language}-${refreshSeed}`) %
+    hashString(`${dayKey}-hadith-${collection}-${language}-${refreshSeed}`) %
     Math.max(dataset.length, 1);
   const item = dataset[itemIndex] || dataset[0];
 
@@ -236,23 +236,33 @@ const wrapDirectionalText = (value, language) => {
   return `\u2066${text}\u2069`;
 };
 
-const buildDailyNotificationContent = (language) => {
-  const verse = buildDailyVerse(language);
-  const hadith = buildDailyHadith(language);
+const truncateNotificationText = (value, maxLength = 54) => {
+  const characters = Array.from(String(value || "").replace(/\s+/g, " ").trim());
+  if (characters.length <= maxLength) return characters.join("");
+  return `${characters.slice(0, maxLength - 1).join("").trimEnd()}…`;
+};
+
+const buildDailyNotificationContent = (language, dayKey) => {
+  const verse = buildDailyVerse(language, 0, dayKey);
+  const hadith = buildDailyHadith(language, 0, dayKey);
   const title = REMINDER_TEXT[language] || REMINDER_TEXT.english;
 
   return {
     title: wrapDirectionalText(title.title, language),
+    subtitle: `${verse.surah} · ${hadith.title}`,
     body: [
-      wrapDirectionalText(verse.text, language),
-      wrapDirectionalText(`${verse.surah} ${verse.reference}`, language),
-      "",
-      wrapDirectionalText(hadith.text, language),
-      wrapDirectionalText(`${hadith.title} • ${hadith.source}`, language),
+      wrapDirectionalText(
+        `${title.ayahLabel} ${verse.reference}: ${truncateNotificationText(verse.text)}`,
+        language,
+      ),
+      wrapDirectionalText(
+        `${title.hadithLabel} #${hadith.id}: ${truncateNotificationText(hadith.text)}`,
+        language,
+      ),
     ].join("\n"),
     data: {
-      screen: "SurahDetails",
-      type: "daily-verse",
+      screen: "IslamicHistory",
+      type: "daily-wisdom",
       language,
       textAlign: getTextAlignment(language),
       writingDirection: getWritingDirection(language),
@@ -260,33 +270,43 @@ const buildDailyNotificationContent = (language) => {
       verseSurah: verse.surah,
       surahId: verse.surahId,
       ayahId: verse.ayah,
+      hadithCollection: hadith.collection,
+      hadithBookNumber: hadith.bookNumber,
+      hadithNumber: hadith.id,
     },
   };
 };
 
 const ensureDailyReminderChannel = async () => {
-  try {
+  if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID, {
       name: "Daily wisdom reminders",
       importance: Notifications.AndroidImportance.HIGH,
+      sound: "default",
       enableVibrate: true,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
       showBadge: true,
     });
-  } catch {
-    // Android channel setup is optional on unsupported devices.
   }
 };
 
-const cancelExistingReminder = async () => {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(
-      "daily-wisdom-reminder",
-    );
-  } catch {
-    // Ignore missing reminder
-  }
+const cancelExistingReminder = async (exceptIds = new Set()) => {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  const reminderIds = scheduled
+    .filter(
+      (request) =>
+        !exceptIds.has(request.identifier) &&
+        (request.identifier === "daily-wisdom-reminder" ||
+          request.identifier.startsWith(DAILY_REMINDER_PREFIX) ||
+          request.content.data?.type === "daily-wisdom"),
+    )
+    .map((request) => request.identifier);
+  await Promise.all(
+    reminderIds.map((identifier) =>
+      Notifications.cancelScheduledNotificationAsync(identifier),
+    ),
+  );
 };
 
 const scheduleReminder = async ({
@@ -305,18 +325,18 @@ const scheduleReminder = async ({
     ? language
     : DEFAULT_LANGUAGE;
 
-  await persistReminderSettings({
-    hour: normalizedTime.hour,
-    minute: normalizedTime.minute,
-    language: safeLanguage,
-    enabled,
-  });
-
   if (!enabled) {
     await cancelExistingReminder();
+    await persistReminderSettings({
+      hour: normalizedTime.hour,
+      minute: normalizedTime.minute,
+      language: safeLanguage,
+      enabled,
+    });
     return true;
   }
 
+  let newReminderIds = [];
   try {
     await ensureDailyReminderChannel();
 
@@ -344,28 +364,59 @@ const scheduleReminder = async ({
       return false;
     }
 
-    const reminderCopy = buildDailyNotificationContent(safeLanguage);
+    const firstReminder = new Date();
+    firstReminder.setHours(normalizedTime.hour, normalizedTime.minute, 0, 0);
+    if (firstReminder.getTime() <= Date.now()) {
+      firstReminder.setDate(firstReminder.getDate() + 1);
+    }
 
-    await cancelExistingReminder();
+    const scheduleGeneration = Date.now();
+    for (let offset = 0; offset < DAILY_REMINDER_DAYS; offset += 1) {
+      const date = new Date(firstReminder);
+      date.setDate(firstReminder.getDate() + offset);
+      const dayKey = getDateKey(date);
+      const reminderCopy = buildDailyNotificationContent(safeLanguage, dayKey);
+      const identifier = `${DAILY_REMINDER_PREFIX}${dayKey}-${scheduleGeneration}-${offset}`;
+      await Notifications.scheduleNotificationAsync({
+        identifier,
+        content: {
+          title: reminderCopy.title,
+          subtitle: reminderCopy.subtitle,
+          body: reminderCopy.body,
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          interruptionLevel: "active",
+          data: reminderCopy.data,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date,
+          channelId: DAILY_REMINDER_CHANNEL_ID,
+        },
+      });
+      newReminderIds.push(identifier);
+    }
 
-    await Notifications.scheduleNotificationAsync({
-      identifier: "daily-wisdom-reminder",
-      content: {
-        title: reminderCopy.title,
-        body: reminderCopy.body,
-        sound: true,
-        data: reminderCopy.data,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: normalizedTime.hour,
-        minute: normalizedTime.minute,
-        channelId: DAILY_REMINDER_CHANNEL_ID,
-      },
+    await cancelExistingReminder(new Set(newReminderIds));
+    await persistReminderSettings({
+      hour: normalizedTime.hour,
+      minute: normalizedTime.minute,
+      language: safeLanguage,
+      enabled,
     });
 
     return true;
   } catch (error) {
+    const cleanupResults = await Promise.allSettled(
+      newReminderIds.map((identifier) =>
+        Notifications.cancelScheduledNotificationAsync(identifier),
+      ),
+    );
+    cleanupResults.forEach((result) => {
+      if (result.status === "rejected") {
+        console.warn("Failed to clean up a partial daily reminder:", result.reason);
+      }
+    });
     console.warn("Reminder scheduling failed:", error);
     if (showAlert) {
       Alert.alert(
