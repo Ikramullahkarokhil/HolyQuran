@@ -89,6 +89,8 @@ function ensureDir(dir) {
 const storageKey = (reciterId, surahId, ayah) =>
   `quran_audio_v2_${reciterId}_${surahId}_${ayah}`;
 
+const SURAH_DOWNLOAD_CONCURRENCY = 4;
+
 const formatTime = (seconds) => {
   if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
   const s = Math.floor(seconds % 60);
@@ -453,8 +455,6 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const statusIntervalRef = useRef(null);
   const bulkCancelRef = useRef(false);
   const bulkPauseRef = useRef(false);
-  const bulkCurrentIndexRef = useRef(0);
-  const bulkResumeIndexRef = useRef(0);
   const downloadAbortRef = useRef(new Map());
   const activeDownloadsRef = useRef(new Map());
   const positionRef = useRef(0);
@@ -735,7 +735,10 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   );
 
   const downloadOne = useCallback(
-    async (ayah, { onProgress, silent } = {}) => {
+    async (
+      ayah,
+      { onProgress, silent, skipReachability = false, skipSizeLookup = false } = {},
+    ) => {
       const url = getAyahAudioUrl(reciterId, surahId, ayah);
       if (!url) throw new Error("Invalid reciter / ayah");
 
@@ -744,7 +747,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       if (pending) return pending;
 
       const downloadTask = (async () => {
-        if (!(await ensureAudioReachable(url, 15000))) {
+        if (!skipReachability && !(await ensureAudioReachable(url, 15000))) {
           throw new Error("Network unavailable");
         }
 
@@ -763,7 +766,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
         }
 
         let remoteSize = sizeMap.get(ayah);
-        if (!remoteSize) {
+        if (!remoteSize && !skipSizeLookup) {
           remoteSize = await fetchRemoteSize(url);
           if (remoteSize && isMounted.current) {
             setSizeMap((prev) => {
@@ -1313,7 +1316,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const collapsePlayer = useCallback(() => setExpandedId(null), []);
 
   const downloadAll = useCallback(
-    async (startIndex = 0) => {
+    async () => {
       if (!ayahList.length) return;
       if (isDownloadingAll && !bulkPaused) return;
 
@@ -1321,45 +1324,65 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       bulkPauseRef.current = false;
       setBulkPaused(false);
       setIsDownloadingAll(true);
-      setBulkProgress(startIndex / ayahList.length);
+      const pendingAyahs = ayahList.filter((ayah) => !downloadedSet.has(ayah));
+      let nextIndex = 0;
+      let completedCount = ayahList.length - pendingAyahs.length;
+      const progressByAyah = new Map();
+      let failureReported = false;
+      setBulkProgress(completedCount / ayahList.length);
       setErrorMsg(null);
 
-      for (let i = startIndex; i < ayahList.length; i++) {
-        bulkCurrentIndexRef.current = i;
-
-        if (bulkCancelRef.current) break;
-        if (bulkPauseRef.current) {
-          bulkResumeIndexRef.current = i;
-          setBulkPaused(true);
-          break;
+      const refreshBulkProgress = () => {
+        const inProgress = Array.from(progressByAyah.values()).reduce(
+          (sum, value) => sum + value,
+          0,
+        );
+        if (isMounted.current) {
+          setBulkProgress(
+            Math.min(1, (completedCount + inProgress) / ayahList.length),
+          );
         }
+      };
 
-        const ayah = ayahList[i];
-        if (!downloadedSet.has(ayah)) {
+      const updateBulkProgress = (ayah, progress) => {
+        progressByAyah.set(ayah, Math.max(0, Math.min(1, progress || 0)));
+        refreshBulkProgress();
+      };
+
+      const worker = async () => {
+        while (!bulkCancelRef.current && !bulkPauseRef.current) {
+          const index = nextIndex;
+          const ayah = pendingAyahs[index];
+          if (ayah === undefined) return;
+          nextIndex += 1;
           setDownloadingId(ayah);
           try {
-            await downloadOne(ayah);
-          } catch {
-            if (bulkPauseRef.current) {
-              bulkResumeIndexRef.current = i;
-              setBulkPaused(true);
-              break;
+            await downloadOne(ayah, {
+              silent: true,
+              skipReachability: true,
+              skipSizeLookup: true,
+              onProgress: (progress) => updateBulkProgress(ayah, progress),
+            });
+          } catch (error) {
+            if (!bulkPauseRef.current && !bulkCancelRef.current && !failureReported) {
+              failureReported = true;
+              setErrorMsg(
+                isNetworkFailure(error)
+                  ? OFFLINE_ERROR
+                  : error?.message || "Download failed",
+              );
             }
-            if (bulkCancelRef.current) break;
           }
+          progressByAyah.delete(ayah);
+          if (bulkCancelRef.current || bulkPauseRef.current) return;
+          completedCount += 1;
+          refreshBulkProgress();
         }
+      };
 
-        if (bulkPauseRef.current) {
-          bulkResumeIndexRef.current = i;
-          setBulkPaused(true);
-          break;
-        }
-        if (bulkCancelRef.current) break;
-
-        if (isMounted.current) {
-          setBulkProgress((i + 1) / ayahList.length);
-        }
-      }
+      await Promise.all(
+        Array.from({ length: SURAH_DOWNLOAD_CONCURRENCY }, () => worker()),
+      );
 
       if (bulkPauseRef.current || bulkCancelRef.current) {
         setDownloadingId(null);
@@ -1385,8 +1408,6 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const pauseDownloadAll = useCallback(() => {
     if (!isDownloadingAll) return;
     bulkPauseRef.current = true;
-    bulkResumeIndexRef.current = bulkCurrentIndexRef.current;
-    setBulkPaused(true);
 
     for (const controller of downloadAbortRef.current.values()) {
       try {
@@ -1401,7 +1422,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     if (!ayahList.length) return;
     bulkPauseRef.current = false;
     setBulkPaused(false);
-    return downloadAll(bulkResumeIndexRef.current);
+    return downloadAll();
   }, [ayahList.length, downloadAll]);
 
   const cancelDownloadAll = useCallback(() => {
