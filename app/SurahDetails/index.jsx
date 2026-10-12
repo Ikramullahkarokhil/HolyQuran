@@ -785,6 +785,13 @@ const SurahDetails = () => {
       download: t("Download") || "Download",
       done: t("Done") || "Done",
       cancel: t("Cancel") || "Cancel",
+      pause: t("Pause") || "Pause",
+      resume: t("Resume") || "Resume",
+      retry: t("Retry") || "Retry",
+      failed: t("failed") || "failed",
+      tapToRetry: t("Tap to retry") || "Tap to retry",
+      downloading: t("Downloading") || "Downloading",
+      sizeUnknown: t("size unknown") || "size unknown",
       ayahs: t("ayahs") || "ayahs",
       ayah: t("Ayah") || "Ayah",
       quranAudio: t("Quran Audio") || "Quran Audio",
@@ -930,6 +937,11 @@ const SurahDetails = () => {
     isDownloadingAll,
     bulkProgress,
     bulkPaused,
+    bulkActiveDownloads,
+    singleDownloadMetrics,
+    bulkDownloadedBytes,
+    bulkTotalBytes,
+    bulkFailedCount,
     downloadedCount,
     totalBytesLabel,
     reciter,
@@ -1549,7 +1561,7 @@ const SurahDetails = () => {
 
   const listExtraData = useMemo(
     () =>
-      `${translationLanguage}|${highlightedAyahId ?? ""}|${pins.length}|${expandedTafseerIds.size}|${downloadedCount}|${playingId ?? ""}|${expandedId ?? ""}|${downloadingId ?? ""}|${bulkProgress.toFixed(2)}`,
+      `${translationLanguage}|${highlightedAyahId ?? ""}|${pins.length}|${expandedTafseerIds.size}|${downloadedCount}|${playingId ?? ""}|${expandedId ?? ""}|${downloadingId ?? ""}|${bulkProgress.toFixed(2)}|${singleDownloadMetrics?.bytesWritten ?? ""}|${bulkDownloadedBytes}`,
     [
       translationLanguage,
       highlightedAyahId,
@@ -1560,6 +1572,8 @@ const SurahDetails = () => {
       expandedId,
       downloadingId,
       bulkProgress,
+      singleDownloadMetrics?.bytesWritten,
+      bulkDownloadedBytes,
     ],
   );
 
@@ -1571,6 +1585,12 @@ const SurahDetails = () => {
         isDownloadingAll={isDownloadingAll}
         isPausedDownloadAll={bulkPaused}
         progress={bulkProgress}
+        activeDownloads={bulkActiveDownloads}
+        singleProgress={downloadProgressMap.get(downloadingId) || 0}
+        singleDownloadMetrics={singleDownloadMetrics}
+        bulkDownloadedBytes={bulkDownloadedBytes}
+        bulkTotalBytes={bulkTotalBytes}
+        failedCount={bulkFailedCount}
         totalBytesLabel={totalBytesLabel}
         colors={colors}
         labels={labels}
@@ -1586,13 +1606,20 @@ const SurahDetails = () => {
       isDownloadingAll,
       bulkPaused,
       bulkProgress,
+      bulkActiveDownloads,
+      singleDownloadMetrics,
+      bulkDownloadedBytes,
+      bulkTotalBytes,
+      bulkFailedCount,
       totalBytesLabel,
       colors,
       labels,
       downloadAll,
+      downloadProgressMap,
       pauseDownloadAll,
       resumeDownloadAll,
       cancelDownloadAll,
+      downloadingId,
     ],
   );
 

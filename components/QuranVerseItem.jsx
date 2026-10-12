@@ -140,32 +140,6 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
   }
 }
 
-async function ensureAudioReachable(url, timeoutMs = 15000) {
-  if (!url) return false;
-  try {
-    const headRes = await fetchWithTimeout(url, { method: "HEAD" }, timeoutMs);
-    if (headRes.ok) return true;
-    if (
-      headRes.status === 405 ||
-      headRes.status === 403 ||
-      headRes.status === 501
-    ) {
-      const rangeRes = await fetchWithTimeout(
-        url,
-        {
-          method: "GET",
-          headers: { Range: "bytes=0-0" },
-        },
-        timeoutMs,
-      );
-      return Boolean(rangeRes.ok || rangeRes.status === 206);
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
 /** HEAD request for Content-Length (best-effort). */
 async function fetchRemoteSize(url) {
   try {
@@ -200,6 +174,23 @@ async function fetchRemoteSize(url) {
     return null;
   }
 }
+
+const waitBeforeRetry = (delayMs, signal) =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("Download cancelled"));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, delayMs);
+    const abort = () => {
+      clearTimeout(timer);
+      reject(new Error("Download cancelled"));
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+  });
 
 // ─── Compact chip ───────────────────────────────────────────────────────────
 export const VerseAudioButton = memo(
@@ -316,6 +307,12 @@ export const SurahAudioToolbar = memo(
     isDownloadingAll = false,
     isPausedDownloadAll = false,
     progress = 0,
+    activeDownloads = [],
+    singleProgress = 0,
+    singleDownloadMetrics = null,
+    bulkDownloadedBytes = 0,
+    bulkTotalBytes = null,
+    failedCount = 0,
     totalBytesLabel,
     colors,
     labels,
@@ -327,6 +324,24 @@ export const SurahAudioToolbar = memo(
     const allDone =
       totalVerses > 0 && downloadedCount >= totalVerses && !isDownloadingAll;
     const isPaused = isDownloadingAll && isPausedDownloadAll;
+    const isSingleDownloading = !isDownloadingAll && singleDownloadMetrics;
+    const shownProgress =
+      isDownloadingAll || isPaused ? progress : singleProgress;
+    const progressPercent = Math.round(
+      Math.max(0, Math.min(1, shownProgress)) * 100,
+    );
+    const displayedBytes = isDownloadingAll
+      ? bulkDownloadedBytes
+      : singleDownloadMetrics?.bytesWritten;
+    const displayedTotalBytes = isDownloadingAll
+      ? bulkTotalBytes
+      : singleDownloadMetrics?.totalBytes;
+    const activeLabel = activeDownloads
+      .map(
+        (download) =>
+          `${labels?.ayah || "Ayah"} ${download.ayah} · ${Math.round(download.progress * 100)}%`,
+      )
+      .join("  ·  ");
 
     return (
       <View
@@ -335,84 +350,168 @@ export const SurahAudioToolbar = memo(
           { backgroundColor: colors.surface, borderColor: colors.border },
         ]}
       >
-        <View style={styles.surahAudioLeft}>
-          <View
-            style={[
-              styles.surahAudioIconWrap,
-              { backgroundColor: withAlpha(colors.accent, 0.12) },
-            ]}
-          >
-            <Icon
-              source={allDone ? "check-circle" : "cloud-download-outline"}
-              size={18}
-              color={colors.accent}
-            />
+        <View style={styles.surahAudioContent}>
+          <View style={styles.surahAudioTopRow}>
+            <View style={styles.surahAudioLeft}>
+              <View
+                style={[
+                  styles.surahAudioIconWrap,
+                  { backgroundColor: withAlpha(colors.accent, 0.12) },
+                ]}
+              >
+                <Icon
+                  source={allDone ? "check-circle" : "cloud-download-outline"}
+                  size={18}
+                  color={colors.accent}
+                />
+              </View>
+              <View style={styles.surahAudioTextCol}>
+                <Text
+                  style={[styles.surahAudioTitle, { color: colors.text }]}
+                  numberOfLines={1}
+                >
+                  {allDone
+                    ? labels?.allDownloaded || "All ayahs downloaded"
+                    : isPaused
+                      ? labels?.downloadPaused || "Download paused"
+                      : isDownloadingAll
+                        ? labels?.downloadingAll || "Downloading surah…"
+                        : failedCount > 0
+                          ? `${failedCount} ${labels?.failed || "failed"} · ${labels?.tapToRetry || "Tap to retry"}`
+                          : labels?.downloadAll || "Download full surah"}
+                </Text>
+                <Text
+                  style={[styles.surahAudioSub, { color: colors.secondary }]}
+                  numberOfLines={1}
+                >
+                  {isDownloadingAll || isPaused
+                    ? `${downloadedCount}/${totalVerses} ${labels?.ayahs || "ayahs"} · ${progressPercent}%`
+                    : isSingleDownloading
+                      ? `${labels?.downloading || "Downloading"} ${labels?.ayah || "Ayah"} ${singleDownloadMetrics.ayah} · ${progressPercent}%`
+                      : totalBytesLabel && !allDone
+                        ? `${downloadedCount}/${totalVerses} ${labels?.ayahs || "ayahs"} · ~${totalBytesLabel}`
+                        : `${downloadedCount}/${totalVerses} ${labels?.ayahs || "ayahs"}`}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.surahAudioActions}>
+              {!allDone && isDownloadingAll ? (
+                <>
+                  <Pressable
+                    onPress={() =>
+                      isPaused
+                        ? onResumeDownloadAll?.()
+                        : onPauseDownloadAll?.()
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isPaused
+                        ? labels?.resume || "Resume"
+                        : labels?.pause || "Pause"
+                    }
+                    hitSlop={6}
+                    style={({ pressed }) => [
+                      styles.surahAudioIconAction,
+                      {
+                        backgroundColor: withAlpha(colors.accent, 0.12),
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Icon
+                      source={isPaused ? "play" : "pause"}
+                      size={18}
+                      color={colors.accent}
+                    />
+                  </Pressable>
+                  <Pressable
+                    onPress={onCancelDownloadAll}
+                    accessibilityRole="button"
+                    accessibilityLabel={labels?.cancel || "Cancel"}
+                    hitSlop={6}
+                    style={({ pressed }) => [
+                      styles.surahAudioIconAction,
+                      {
+                        backgroundColor: withAlpha(colors.text, 0.07),
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Icon source="close" size={18} color={colors.secondary} />
+                  </Pressable>
+                </>
+              ) : !allDone ? (
+                <Pressable
+                  onPress={() => {
+                    safeHaptic(() =>
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+                    );
+                    onDownloadAll?.();
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    failedCount > 0
+                      ? labels?.retry || "Retry"
+                      : labels?.download || "Download"
+                  }
+                  style={({ pressed }) => [
+                    styles.surahAudioIconAction,
+                    {
+                      backgroundColor: colors.accent,
+                      opacity: pressed ? 0.86 : 1,
+                    },
+                  ]}
+                >
+                  <Icon source="download" size={16} color="#fff" />
+                </Pressable>
+              ) : (
+                <View
+                  style={[
+                    styles.surahAudioDone,
+                    { backgroundColor: withAlpha(colors.accent, 0.12) },
+                  ]}
+                >
+                  <Icon source="check" size={17} color={colors.accent} />
+                </View>
+              )}
+            </View>
           </View>
-          <View style={styles.surahAudioTextCol}>
-            <Text
-              style={[styles.surahAudioTitle, { color: colors.text }]}
-              numberOfLines={1}
-            >
-              {allDone
-                ? labels?.allDownloaded || "All ayahs downloaded"
-                : isPaused
-                  ? labels?.downloadPaused || "Download paused"
-                  : isDownloadingAll
-                    ? labels?.downloadingAll || "Downloading surah…"
-                    : labels?.downloadAll || "Download full surah"}
-            </Text>
-            <Text
-              style={[styles.surahAudioSub, { color: colors.secondary }]}
-              numberOfLines={1}
-            >
-              {isDownloadingAll
-                ? `${Math.round((progress || 0) * 100)}% · ${downloadedCount}/${totalVerses}`
-                : totalBytesLabel
-                  ? `${downloadedCount} / ${totalVerses} · ~${totalBytesLabel}`
-                  : `${downloadedCount} / ${totalVerses} ${labels?.ayahs || "ayahs"}`}
-            </Text>
-          </View>
-        </View>
-        <Pressable
-          onPress={() => {
-            safeHaptic(() =>
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-            );
-            if (isDownloadingAll) {
-              if (isPaused) onResumeDownloadAll?.();
-              else onPauseDownloadAll?.();
-              return;
-            }
-            if (!allDone) onDownloadAll?.();
-          }}
-          disabled={allDone}
-          style={({ pressed }) => [
-            styles.surahAudioAction,
-            {
-              backgroundColor: allDone
-                ? withAlpha(colors.accent, 0.12)
-                : colors.accent,
-              opacity: pressed && !allDone ? 0.88 : 1,
-            },
-          ]}
-        >
-          {isDownloadingAll && !isPaused ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text
+          {(isDownloadingAll || isPaused || isSingleDownloading) && (
+            <View
+              accessibilityRole="progressbar"
+              accessibilityValue={{
+                min: 0,
+                max: 100,
+                now: progressPercent,
+              }}
               style={[
-                styles.surahAudioActionText,
-                { color: allDone ? colors.accent : "#fff" },
+                styles.surahProgressTrack,
+                { backgroundColor: withAlpha(colors.accent, 0.14) },
               ]}
             >
-              {allDone
-                ? labels?.done || "Done"
-                : isPaused
-                  ? labels?.resume || "Resume"
-                  : labels?.download || "Download"}
-            </Text>
+              <View
+                style={[
+                  styles.surahProgressFill,
+                  {
+                    width: `${progressPercent}%`,
+                    backgroundColor: colors.accent,
+                  },
+                ]}
+              />
+            </View>
           )}
-        </Pressable>
+          {isDownloadingAll || isSingleDownloading ? (
+            <Text
+              style={[styles.surahActiveDownloads, { color: colors.secondary }]}
+              numberOfLines={1}
+            >
+              {formatBytes(displayedBytes) || "0 B"} /{" "}
+              {displayedTotalBytes
+                ? `${isDownloadingAll ? "~" : ""}${formatBytes(displayedTotalBytes)}`
+                : labels?.sizeUnknown || "size unknown"}
+            </Text>
+          ) : null}
+        </View>
       </View>
     );
   },
@@ -438,6 +537,9 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const [downloadProgressMap, setDownloadProgressMap] = useState(
     () => new Map(),
   );
+  const [singleDownloadMetrics, setSingleDownloadMetrics] = useState(null);
+  const [bulkDownloadedBytes, setBulkDownloadedBytes] = useState(0);
+  const [bulkTotalBytes, setBulkTotalBytes] = useState(null);
   const [playingId, setPlayingId] = useState(null);
   const [playingSurahId, setPlayingSurahId] = useState(null);
   const [lastActiveAyah, setLastActiveAyah] = useState(null);
@@ -447,6 +549,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   const [bulkProgress, setBulkProgress] = useState(0);
   const [bulkPaused, setBulkPaused] = useState(false);
+  const [bulkActiveDownloads, setBulkActiveDownloads] = useState([]);
+  const [bulkFailedCount, setBulkFailedCount] = useState(0);
   const [errorMsg, setErrorMsg] = useState(null);
 
   const playerRef = useRef(null);
@@ -468,6 +572,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const downloadedSetRef = useRef(downloadedSet);
   const playVerseRef = useRef(null);
   const prefetchingRef = useRef(new Set());
+  const bulkActiveBytesRef = useRef(new Map());
+  const bulkCompletedBytesRef = useRef(0);
   const sessionIdRef = useRef(0);
   const playingSessionRef = useRef(null);
   const finishedSessionRef = useRef(null);
@@ -735,10 +841,7 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   );
 
   const downloadOne = useCallback(
-    async (
-      ayah,
-      { onProgress, silent, skipReachability = false, skipSizeLookup = false } = {},
-    ) => {
+    async (ayah, { onProgress, onBytesProgress, silent } = {}) => {
       const url = getAyahAudioUrl(reciterId, surahId, ayah);
       if (!url) throw new Error("Invalid reciter / ayah");
 
@@ -747,10 +850,6 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       if (pending) return pending;
 
       const downloadTask = (async () => {
-        if (!skipReachability && !(await ensureAudioReachable(url, 15000))) {
-          throw new Error("Network unavailable");
-        }
-
         const dir = ayahDirFor(reciterId, surahId);
         ensureDir(dir);
 
@@ -765,31 +864,21 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
           return destFile.uri;
         }
 
-        let remoteSize = sizeMap.get(ayah);
-        if (!remoteSize && !skipSizeLookup) {
-          remoteSize = await fetchRemoteSize(url);
-          if (remoteSize && isMounted.current) {
-            setSizeMap((prev) => {
-              const n = new Map(prev);
-              n.set(ayah, remoteSize);
-              return n;
-            });
-          }
-        }
-
-        onProgress?.(0.04);
+        const remoteSize = sizeMap.get(ayah) || 0;
         if (isMounted.current && !silent) {
           setDownloadProgressMap((prev) => {
             const n = new Map(prev);
-            n.set(ayah, 0.04);
+            n.set(ayah, 0);
             return n;
+          });
+          setSingleDownloadMetrics({
+            ayah,
+            bytesWritten: 0,
+            totalBytes: remoteSize,
           });
         }
 
-        const tmpFile = new File(
-          dir,
-          `${getAyahFileName(surahId, ayah)}.tmp`,
-        );
+        const tmpFile = new File(dir, `${getAyahFileName(surahId, ayah)}.tmp`);
         if (tmpFile.exists) {
           try {
             tmpFile.delete();
@@ -798,59 +887,86 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
 
         const controller = new AbortController();
         downloadAbortRef.current.set(downloadKey, controller);
+        let lastProgressUpdateAt = 0;
 
         try {
-          const downloaded = await File.downloadFileAsync(url, tmpFile, {
-            idempotent: true,
-            signal: controller.signal,
-            onProgress: (data) => {
-              const total = data?.totalBytes ?? remoteSize ?? 0;
-              const written = data?.bytesWritten ?? 0;
-              if (total > 0) {
-                const p = Math.min(0.98, written / total);
-                onProgress?.(p);
-                if (isMounted.current && !silent) {
-                  setDownloadProgressMap((prev) => {
-                    const n = new Map(prev);
-                    n.set(ayah, p);
-                    return n;
+          let downloadedFile = null;
+          let lastError = null;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            if (controller.signal.aborted)
+              throw new Error("Download cancelled");
+            try {
+              const downloaded = await File.downloadFileAsync(url, tmpFile, {
+                idempotent: true,
+                signal: controller.signal,
+                onProgress: (data) => {
+                  const total = data?.totalBytes ?? remoteSize;
+                  const written = data?.bytesWritten ?? 0;
+                  const now = Date.now();
+                  if (
+                    now - lastProgressUpdateAt < 120 &&
+                    !(total > 0 && written >= total)
+                  ) {
+                    return;
+                  }
+                  lastProgressUpdateAt = now;
+                  onBytesProgress?.({
+                    bytesWritten: written,
+                    totalBytes: total || 0,
                   });
-                }
+                  if (isMounted.current && !silent) {
+                    setSingleDownloadMetrics({
+                      ayah,
+                      bytesWritten: written,
+                      totalBytes: total || 0,
+                    });
+                  }
+                  const p = total > 0 ? Math.min(0.99, written / total) : 0;
+                  onProgress?.(p);
+                  if (isMounted.current && !silent) {
+                    setDownloadProgressMap((prev) => {
+                      const n = new Map(prev);
+                      n.set(ayah, p);
+                      return n;
+                    });
+                  }
+                },
+              });
+
+              downloadedFile = new File(downloaded.uri);
+              if (!downloadedFile.exists || (downloadedFile.size ?? 0) < 512) {
+                throw new Error("Corrupt download");
               }
-            },
-          });
-
-          const downloadedFile = new File(downloaded.uri);
-          if (!downloadedFile.exists || (downloadedFile.size ?? 0) < 512) {
-            throw new Error("Corrupt download");
+              await downloadedFile.move(destFile, { overwrite: true });
+              lastError = null;
+              break;
+            } catch (error) {
+              lastError = error;
+              if (controller.signal.aborted) throw error;
+              try {
+                if (tmpFile.exists) tmpFile.delete();
+              } catch {}
+              if (attempt < 2) {
+                await waitBeforeRetry(500 * 2 ** attempt, controller.signal);
+              }
+            }
           }
-          await downloadedFile.move(destFile, { overwrite: true });
-
+          if (lastError) throw lastError;
+          const finalSize = destFile.size ?? 0;
+          onBytesProgress?.({ bytesWritten: finalSize, totalBytes: finalSize });
           onProgress?.(1);
           if (isMounted.current && !silent) {
+            setSingleDownloadMetrics({
+              ayah,
+              bytesWritten: finalSize,
+              totalBytes: finalSize,
+            });
             setDownloadProgressMap((prev) => {
               const n = new Map(prev);
               n.set(ayah, 1);
               return n;
             });
           }
-        } catch (e) {
-          if (controller.signal.aborted) throw e;
-          try {
-            if (tmpFile.exists) tmpFile.delete();
-          } catch {}
-          const res = await fetchWithTimeout(
-            url,
-            { signal: controller.signal },
-            20000,
-          );
-          if (!res.ok) throw new Error("Download failed");
-          const bytes = await res.arrayBuffer();
-          tmpFile.create({ intermediates: true, overwrite: true });
-          tmpFile.write(new Uint8Array(bytes));
-          if ((tmpFile.size ?? 0) < 512) throw new Error("Corrupt download");
-          await tmpFile.move(destFile, { overwrite: true });
-          onProgress?.(1);
         } finally {
           downloadAbortRef.current.delete(downloadKey);
           try {
@@ -991,13 +1107,6 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
       setDownloadingId(ayah);
       setExpandedId(ayah);
       try {
-        const url = getAyahAudioUrl(reciterId, surahId, ayah);
-        if (url && !sizeMap.has(ayah)) {
-          const s = await fetchRemoteSize(url);
-          if (s && isMounted.current) {
-            setSizeMap((prev) => new Map(prev).set(ayah, s));
-          }
-        }
         await downloadOne(ayah);
         safeHaptic(() =>
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
@@ -1021,10 +1130,11 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
             n.delete(ayah);
             return n;
           });
+          setSingleDownloadMetrics(null);
         }
       }
     },
-    [downloadOne, reciterId, surahId, sizeMap],
+    [downloadOne, reciterId, surahId],
   );
 
   const playVerse = useCallback(
@@ -1315,95 +1425,163 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
   const expandPlayer = useCallback((ayah) => setExpandedId(ayah), []);
   const collapsePlayer = useCallback(() => setExpandedId(null), []);
 
-  const downloadAll = useCallback(
-    async () => {
-      if (!ayahList.length) return;
-      if (isDownloadingAll && !bulkPaused) return;
-
-      bulkCancelRef.current = false;
-      bulkPauseRef.current = false;
-      setBulkPaused(false);
-      setIsDownloadingAll(true);
-      const pendingAyahs = ayahList.filter((ayah) => !downloadedSet.has(ayah));
-      let nextIndex = 0;
-      let completedCount = ayahList.length - pendingAyahs.length;
-      const progressByAyah = new Map();
-      let failureReported = false;
-      setBulkProgress(completedCount / ayahList.length);
-      setErrorMsg(null);
-
-      const refreshBulkProgress = () => {
-        const inProgress = Array.from(progressByAyah.values()).reduce(
-          (sum, value) => sum + value,
-          0,
-        );
-        if (isMounted.current) {
-          setBulkProgress(
-            Math.min(1, (completedCount + inProgress) / ayahList.length),
-          );
-        }
-      };
-
-      const updateBulkProgress = (ayah, progress) => {
-        progressByAyah.set(ayah, Math.max(0, Math.min(1, progress || 0)));
-        refreshBulkProgress();
-      };
-
-      const worker = async () => {
-        while (!bulkCancelRef.current && !bulkPauseRef.current) {
-          const index = nextIndex;
-          const ayah = pendingAyahs[index];
-          if (ayah === undefined) return;
-          nextIndex += 1;
-          setDownloadingId(ayah);
-          try {
-            await downloadOne(ayah, {
-              silent: true,
-              skipReachability: true,
-              skipSizeLookup: true,
-              onProgress: (progress) => updateBulkProgress(ayah, progress),
-            });
-          } catch (error) {
-            if (!bulkPauseRef.current && !bulkCancelRef.current && !failureReported) {
-              failureReported = true;
-              setErrorMsg(
-                isNetworkFailure(error)
-                  ? OFFLINE_ERROR
-                  : error?.message || "Download failed",
-              );
-            }
-          }
-          progressByAyah.delete(ayah);
-          if (bulkCancelRef.current || bulkPauseRef.current) return;
-          completedCount += 1;
-          refreshBulkProgress();
-        }
-      };
-
-      await Promise.all(
-        Array.from({ length: SURAH_DOWNLOAD_CONCURRENCY }, () => worker()),
-      );
-
-      if (bulkPauseRef.current || bulkCancelRef.current) {
-        setDownloadingId(null);
-        if (bulkPauseRef.current) {
-          setBulkPaused(true);
-        }
-        return;
+  const totalKnownBytes = useMemo(() => {
+    let sum = 0;
+    let count = 0;
+    for (const ayah of ayahList) {
+      const size = sizeMap.get(ayah);
+      if (size) {
+        sum += size;
+        count += 1;
       }
+    }
+    if (count === 0) return null;
+    return (sum / count) * ayahList.length;
+  }, [ayahList, sizeMap]);
 
-      setDownloadingId(null);
-      setIsDownloadingAll(false);
-      setBulkPaused(false);
+  const downloadAll = useCallback(async () => {
+    if (!ayahList.length) return;
+    if (isDownloadingAll && !bulkPaused) return;
+
+    bulkCancelRef.current = false;
+    bulkPauseRef.current = false;
+    setBulkPaused(false);
+    setIsDownloadingAll(true);
+    const pendingAyahs = ayahList.filter((ayah) => !downloadedSet.has(ayah));
+    let nextIndex = 0;
+    let completedCount = ayahList.length - pendingAyahs.length;
+    const progressByAyah = new Map();
+    let failedCount = 0;
+    let stopWorkers = false;
+    bulkCompletedBytesRef.current = ayahList.reduce(
+      (sum, ayah) =>
+        sum + (downloadedSet.has(ayah) ? sizeMap.get(ayah) || 0 : 0),
+      0,
+    );
+    bulkActiveBytesRef.current = new Map();
+    setBulkDownloadedBytes(bulkCompletedBytesRef.current);
+    setBulkTotalBytes(totalKnownBytes);
+    setBulkFailedCount(0);
+    setBulkProgress(completedCount / ayahList.length);
+    setErrorMsg(null);
+
+    const syncActiveDownloads = () => {
       if (isMounted.current) {
-        setBulkProgress(1);
+        setBulkActiveDownloads(
+          Array.from(progressByAyah, ([ayah, value]) => ({
+            ayah,
+            progress: value,
+          })),
+        );
       }
+    };
+
+    const syncBulkBytes = () => {
+      const activeBytes = Array.from(
+        bulkActiveBytesRef.current.values(),
+      ).reduce((sum, value) => sum + value, 0);
+      if (isMounted.current) {
+        setBulkDownloadedBytes(bulkCompletedBytesRef.current + activeBytes);
+        setBulkTotalBytes(totalKnownBytes);
+      }
+    };
+
+    const refreshBulkProgress = () => {
+      const inProgress = Array.from(progressByAyah.values()).reduce(
+        (sum, value) => sum + value,
+        0,
+      );
+      if (isMounted.current) {
+        setBulkProgress(
+          Math.min(1, (completedCount + inProgress) / ayahList.length),
+        );
+      }
+    };
+
+    const updateBulkProgress = (ayah, progress) => {
+      progressByAyah.set(ayah, Math.max(0, Math.min(1, progress || 0)));
+      refreshBulkProgress();
+      syncActiveDownloads();
+    };
+
+    const worker = async () => {
+      while (!bulkCancelRef.current && !bulkPauseRef.current && !stopWorkers) {
+        const index = nextIndex;
+        const ayah = pendingAyahs[index];
+        if (ayah === undefined) return;
+        nextIndex += 1;
+        progressByAyah.set(ayah, 0);
+        bulkActiveBytesRef.current.set(ayah, 0);
+        syncActiveDownloads();
+        syncBulkBytes();
+        setDownloadingId(ayah);
+        let succeeded = false;
+        try {
+          await downloadOne(ayah, {
+            silent: true,
+            onProgress: (progress) => updateBulkProgress(ayah, progress),
+            onBytesProgress: ({ bytesWritten }) => {
+              bulkActiveBytesRef.current.set(ayah, bytesWritten || 0);
+              syncBulkBytes();
+            },
+          });
+          succeeded = true;
+        } catch (error) {
+          if (!bulkPauseRef.current && !bulkCancelRef.current) {
+            failedCount += 1;
+            if (isNetworkFailure(error)) stopWorkers = true;
+          }
+        }
+        progressByAyah.delete(ayah);
+        const ayahBytes = bulkActiveBytesRef.current.get(ayah) || 0;
+        if (succeeded) bulkCompletedBytesRef.current += ayahBytes;
+        bulkActiveBytesRef.current.delete(ayah);
+        syncActiveDownloads();
+        syncBulkBytes();
+        if (succeeded) completedCount += 1;
+        refreshBulkProgress();
+        if (bulkCancelRef.current || bulkPauseRef.current || stopWorkers)
+          return;
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: SURAH_DOWNLOAD_CONCURRENCY }, () => worker()),
+    );
+
+    setBulkActiveDownloads([]);
+    if (!bulkPauseRef.current && !bulkCancelRef.current) {
+      setBulkFailedCount(failedCount);
+    }
+    if (stopWorkers) {
+      setErrorMsg(OFFLINE_ERROR);
+      setBulkProgress(completedCount / ayahList.length);
+    }
+    if (bulkPauseRef.current || bulkCancelRef.current) {
+      setDownloadingId(null);
+      if (bulkPauseRef.current) {
+        setBulkPaused(true);
+      }
+      return;
+    }
+
+    setDownloadingId(null);
+    setIsDownloadingAll(false);
+    setBulkPaused(false);
+    if (failedCount === 0) {
       safeHaptic(() =>
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
       );
-    },
-    [ayahList, downloadedSet, isDownloadingAll, bulkPaused, downloadOne],
-  );
+    }
+  }, [
+    ayahList,
+    downloadedSet,
+    sizeMap,
+    totalKnownBytes,
+    isDownloadingAll,
+    bulkPaused,
+    downloadOne,
+  ]);
 
   const pauseDownloadAll = useCallback(() => {
     if (!isDownloadingAll) return;
@@ -1429,6 +1607,8 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     bulkCancelRef.current = true;
     bulkPauseRef.current = false;
     setBulkPaused(false);
+    setBulkActiveDownloads([]);
+    bulkActiveBytesRef.current.clear();
     for (const controller of downloadAbortRef.current.values()) {
       try {
         controller?.abort?.();
@@ -1463,21 +1643,6 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     };
   }, [surahId, ayahList, reciterId, downloadedSet, sizeMap]);
 
-  const totalKnownBytes = useMemo(() => {
-    let sum = 0;
-    let n = 0;
-    for (const a of ayahList) {
-      const s = sizeMap.get(a);
-      if (s) {
-        sum += s;
-        n += 1;
-      }
-    }
-    if (n === 0) return null;
-    const avg = sum / n;
-    return avg * ayahList.length;
-  }, [ayahList, sizeMap]);
-
   return {
     downloadedSet,
     durationMap,
@@ -1493,6 +1658,11 @@ export function useSurahAudioRegistry(surahId, ayahList = [], customReciterId) {
     isDownloadingAll,
     bulkProgress,
     bulkPaused,
+    bulkActiveDownloads,
+    singleDownloadMetrics,
+    bulkDownloadedBytes,
+    bulkTotalBytes,
+    bulkFailedCount,
     downloadedCount: downloadedSet.size,
     errorMsg,
     totalBytesLabel: formatBytes(totalKnownBytes),
@@ -1775,15 +1945,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   surahAudioBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     marginBottom: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
-    gap: 10,
+    overflow: "hidden",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -1793,6 +1959,13 @@ const styles = StyleSheet.create({
       },
       android: { elevation: 1 },
     }),
+  },
+  surahAudioContent: { gap: 10 },
+  surahAudioTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
   },
   surahAudioLeft: {
     flexDirection: "row",
@@ -1811,15 +1984,31 @@ const styles = StyleSheet.create({
   surahAudioTextCol: { flex: 1, minWidth: 0 },
   surahAudioTitle: { fontSize: 14, fontWeight: "700", letterSpacing: 0.15 },
   surahAudioSub: { fontSize: 12, fontWeight: "500", marginTop: 1 },
-  surahAudioAction: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    minWidth: 88,
+  surahAudioActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  surahAudioIconAction: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  surahAudioActionText: { fontSize: 13, fontWeight: "700", letterSpacing: 0.2 },
+  surahAudioDone: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  surahProgressTrack: {
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  surahProgressFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  surahActiveDownloads: { fontSize: 11, fontWeight: "600" },
   verseOuter: {
     borderRadius: 16,
     overflow: "hidden",
