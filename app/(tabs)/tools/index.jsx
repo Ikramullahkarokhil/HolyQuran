@@ -30,6 +30,7 @@ const getCardData = (t) => [
     icon: "book-open-variant",
     href: { pathname: "HadithCollections" },
     accent: "#2563eb",
+    accentBackground: "rgba(37, 99, 235, 0.12)",
   },
   {
     id: "daily",
@@ -38,22 +39,25 @@ const getCardData = (t) => [
     icon: "lightbulb-outline",
     href: { pathname: "IslamicHistory" },
     accent: "#16a34a",
+    accentBackground: "rgba(22, 163, 74, 0.12)",
   },
   {
-    id: "quranic-duas",
-    title: t("Quranic duas"),
-    description: t("Explore prayers from the Quran"),
+    id: "duas",
+    title: t("Islamic duas"),
+    description: t("Explore supplications from the Quran and Hadith"),
     icon: "hands-pray",
     href: { pathname: "QuranicDuas" },
     accent: "#12836b",
+    accentBackground: "rgba(18, 131, 107, 0.12)",
   },
   {
     id: "tasbih",
     title: t("Tasbih"),
     description: t("Practice remembrance"),
-    icon: "hands-pray",
+    icon: "counter",
     href: { pathname: "Tazbih" },
     accent: "#db2777",
+    accentBackground: "rgba(219, 39, 119, 0.12)",
   },
   {
     id: "qibla",
@@ -62,6 +66,7 @@ const getCardData = (t) => [
     icon: "compass-outline",
     href: { pathname: "Qibla" },
     accent: "#12836b",
+    accentBackground: "rgba(18, 131, 107, 0.12)",
   },
   {
     id: "quiz",
@@ -70,11 +75,12 @@ const getCardData = (t) => [
     icon: "brain",
     href: { pathname: "QuranQuiz" },
     accent: "#7c3aed",
+    accentBackground: "rgba(124, 58, 237, 0.12)",
   },
 ];
 
 const ToolCard = memo(
-  ({ card, flexDir, textAlign, writingDir }) => {
+  ({ card, flexDir, textAlign, writingDir, theme }) => {
     const scale = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
@@ -110,7 +116,7 @@ const ToolCard = memo(
           onPressIn={onPressIn}
           onPressOut={onPressOut}
           android_ripple={{
-            color: "rgba(255,255,255,0.18)",
+            color: theme.colors.riple,
             borderless: false,
             foreground: true,
           }}
@@ -119,14 +125,20 @@ const ToolCard = memo(
             style={[
               styles.card,
               {
-                backgroundColor: card.accent,
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outlineVariant,
                 flexDirection: flexDir,
               },
               animatedStyle,
             ]}
           >
-            <View style={styles.iconWrap}>
-              <Icon source={card.icon} size={28} color="#ffffff" />
+            <View
+              style={[
+                styles.iconWrap,
+                { backgroundColor: card.accentBackground },
+              ]}
+            >
+              <Icon source={card.icon} size={25} color={card.accent} />
             </View>
 
             <View
@@ -139,6 +151,7 @@ const ToolCard = memo(
                 style={[
                   styles.cardTitle,
                   {
+                    color: theme.colors.onSurface,
                     textAlign,
                     writingDirection: writingDir,
                   },
@@ -151,6 +164,7 @@ const ToolCard = memo(
                 style={[
                   styles.cardDescription,
                   {
+                    color: theme.colors.onSurfaceVariant,
                     textAlign,
                     writingDirection: writingDir,
                   },
@@ -167,7 +181,7 @@ const ToolCard = memo(
                   textAlign === "right" ? "chevron-left" : "chevron-right"
                 }
                 size={22}
-                color="rgba(255,255,255,0.75)"
+                color={theme.colors.inactiveColor}
               />
             </View>
           </Animated.View>
@@ -180,7 +194,9 @@ const ToolCard = memo(
     prev.card.title === next.card.title &&
     prev.card.description === next.card.description &&
     prev.flexDir === next.flexDir &&
-    prev.textAlign === next.textAlign,
+    prev.textAlign === next.textAlign &&
+    prev.writingDir === next.writingDir &&
+    prev.theme === next.theme,
 );
 ToolCard.displayName = "ToolCard";
 
@@ -193,7 +209,6 @@ const Tools = () => {
   const textAlign = getTextAlignment(language);
   const writingDir = getWritingDirection(language);
   const cards = useMemo(() => getCardData(t), [t]);
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -208,6 +223,7 @@ const Tools = () => {
             flexDir={flexDir}
             textAlign={textAlign}
             writingDir={writingDir}
+            theme={theme}
           />
         ))}
       </View>
@@ -223,7 +239,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 18,
     paddingBottom: 32,
   },
   contentGrow: {
@@ -231,35 +247,60 @@ const styles = StyleSheet.create({
   },
   grid: {
     flexDirection: "column",
-    gap: 12,
+    gap: 10,
+  },
+  intro: {
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 18,
+    marginBottom: 18,
+  },
+  introIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  introTitle: {
+    fontSize: 21,
+    lineHeight: 28,
+    fontWeight: "800",
+    letterSpacing: 0.1,
+  },
+  introDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 5,
   },
   card: {
     width: "100%",
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 96,
-    gap: 14,
+    minHeight: 84,
+    gap: 13,
     overflow: "hidden",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.05,
+        shadowRadius: 9,
       },
       android: {
-        elevation: 3,
+        elevation: 1,
       },
     }),
   },
   iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    width: 48,
+    height: 48,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -272,16 +313,14 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   cardTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
-    letterSpacing: 0.2,
-    color: "#ffffff",
+    letterSpacing: 0.1,
   },
   cardDescription: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: "400",
-    lineHeight: 19,
-    color: "rgba(255, 255, 255, 0.82)",
+    lineHeight: 18,
   },
   chevronWrap: {
     opacity: 0.9,

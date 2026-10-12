@@ -6,15 +6,18 @@ import {
   StyleSheet,
   Text,
   View,
+  ScrollView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { Snackbar, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import GeneralModal from "../../components/GeneralModal";
 import {
   useAppLanguageStore,
+  useHadithTranslationStore,
   useQuranTranslationStore,
 } from "../../components/store/store";
 import FloatingLanguagePickerModal from "../../components/FloatingLanguagePickerModal";
@@ -23,38 +26,52 @@ import {
   getWritingDirection,
 } from "../../components/utils/rtlUtils";
 import quranicDuas from "../../assets/Dua/QuranicDuas.json";
+import duaInfo from "../../assets/Dua/DuaInfo.json";
 
 const COPY_LABELS = {
   en: {
-    title: "Quranic Duas",
-    eyebrow: "PRAYERS FROM THE QURAN",
-    description: "Explore heartfelt supplications from the Quran.",
-    copied: "Dua copied",
+    title: "Duas",
+    info: "About this dua collection",
+    quran: "Quran",
+    hadith: "Hadith",
+    noResults: "No duas available in this category",
     copy: "Copy dua",
     count: "duas",
     back: "Back",
     translate: "Choose translation language",
   },
   pa: {
-    title: "قرآني دعاګانې",
-    eyebrow: "له قرآن څخه دعاګانې",
-    description: "د قرآن کریم دعاګانې ولولئ.",
-    copied: "دعا کاپي شوه",
+    title: "دعاګانې",
+    info: "د دې دعاګانو ټولګې په اړه",
+    quran: "قرآن",
+    hadith: "حديث",
+    noResults: "په دې برخه کې دعا نشته",
     copy: "دعا کاپي کړئ",
     count: "دعاګانې",
     back: "شاته",
     translate: "د ژباړې ژبه وټاکئ",
   },
   da: {
-    title: "دعاهای قرآنی",
-    eyebrow: "دعاهایی از قرآن",
-    description: "دعاهای قرآن کریم را بخوانید.",
-    copied: "دعا کپی شد",
+    title: "دعاها",
+    info: "درباره این مجموعه دعا",
+    quran: "قرآن",
+    hadith: "حدیث",
+    noResults: "در این دسته دعایی موجود نیست",
     copy: "کپی دعا",
     count: "دعا",
     back: "بازگشت",
     translate: "انتخاب زبان ترجمه",
   },
+};
+
+const getLocalizedInfo = (item, field, language) => {
+  const languageName =
+    language === "pa" || language === "pashto"
+      ? "pashto"
+      : language === "da" || language === "dari"
+        ? "dari"
+        : "english";
+  return item?.[`${field}_${languageName}`] || item?.[`${field}_english`] || "";
 };
 
 const HeaderPill = memo(({ onPress, icon, label, theme, children, isAction }) => (
@@ -120,7 +137,9 @@ const DuaCard = memo(
               },
             ]}
           >
-            {dua.surah} · {dua.ayah}
+            {dua.source === "hadith"
+              ? dua.reference
+              : `${dua.surah} · ${dua.ayah}`}
           </Text>
         </View>
         <Pressable
@@ -174,20 +193,54 @@ const QuranicDuas = () => {
     translationLanguage: contentLanguage,
     setTranslationLanguage,
   } = useQuranTranslationStore();
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const {
+    translationLanguage: hadithContentLanguage,
+    setTranslationLanguage: setHadithTranslationLanguage,
+  } = useHadithTranslationStore();
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [infoVisible, setInfoVisible] = useState(false);
+  const [selectedSource, setSelectedSource] = useState("quran");
 
   const labels = COPY_LABELS[language] || COPY_LABELS.en;
+  const isHadith = selectedSource === "hadith";
+  const activeContentLanguage = isHadith
+    ? hadithContentLanguage
+    : contentLanguage;
+  const activeSetTranslationLanguage = isHadith
+    ? setHadithTranslationLanguage
+    : setTranslationLanguage;
+  const sourceInfo = duaInfo.find(
+    (item) => item.id === (isHadith ? 1 : 3),
+  );
+  const sourceTitle = getLocalizedInfo(
+    sourceInfo,
+    "title",
+    activeContentLanguage,
+  );
+  const sourceDescription = getLocalizedInfo(
+    sourceInfo,
+    "content",
+    activeContentLanguage,
+  );
   const textAlign = getTextAlignment(language);
   const writingDir = getWritingDirection(language);
-  const translationTextAlign = getTextAlignment(contentLanguage);
-  const translationWritingDir = getWritingDirection(contentLanguage);
+  const translationTextAlign = getTextAlignment(activeContentLanguage);
+  const translationWritingDir = getWritingDirection(activeContentLanguage);
   const translationField =
-    contentLanguage === "pashto"
+    activeContentLanguage === "pashto"
       ? "pashto"
-      : contentLanguage === "dari"
+      : activeContentLanguage === "dari"
         ? "dari"
         : "english";
+  const sourceDuas = useMemo(
+    () => quranicDuas.filter((dua) => dua.source === selectedSource),
+    [selectedSource],
+  );
+  const quranCount = useMemo(
+    () => quranicDuas.filter((dua) => dua.source === "quran").length,
+    [],
+  );
+  const hadithCount = quranicDuas.length - quranCount;
 
   const translationOptions = useMemo(
     () => [
@@ -201,9 +254,10 @@ const QuranicDuas = () => {
   const handleCopy = useCallback(async (dua, translation) => {
     try {
       await Clipboard.setStringAsync(
-        `${dua.arabic}\n${translation}\n${dua.surah} · ${dua.ayah}`,
+        `${dua.arabic}\n${translation}\n${
+          dua.source === "hadith" ? dua.reference : `${dua.surah} · ${dua.ayah}`
+        }`,
       );
-      setSnackbarVisible(true);
     } catch (error) {
       console.error("Failed to copy Quranic dua:", error);
     }
@@ -238,70 +292,62 @@ const QuranicDuas = () => {
   const listHeader = (
     <View>
       <View
+        accessibilityRole="radiogroup"
+        accessibilityLabel={`${labels.quran} / ${labels.hadith}`}
         style={[
-          styles.heroCard,
+          styles.sourceSelector,
           {
             backgroundColor: theme.colors.surface,
             borderColor: theme.colors.outlineVariant,
           },
         ]}
       >
-        <View style={styles.heroTopRow}>
-          <View
-            style={[
-              styles.heroIcon,
-              { backgroundColor: theme.colors.primary },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name="hands-pray"
-              size={26}
-              color={theme.colors.onPrimary || "#fff"}
-            />
-          </View>
-          <View
-            style={[
-              styles.countPill,
-              {
-                backgroundColor:
-                  theme.colors.primaryContainer ||
-                  theme.colors.surfaceVariant ||
-                  theme.colors.background,
-              },
-            ]}
-          >
-            <Text style={[styles.countText, { color: theme.colors.primary }]}>
-              {quranicDuas.length} {labels.count}
-            </Text>
-          </View>
-        </View>
-        <Text style={[styles.heroEyebrow, { color: theme.colors.primary }]}>
-          {labels.eyebrow}
-        </Text>
-        <Text
-          style={[
-            styles.heroTitle,
-            {
-              color: theme.colors.onSurface,
-              textAlign,
-              writingDirection: writingDir,
-            },
-          ]}
-        >
-          {labels.title}
-        </Text>
-        <Text
-          style={[
-            styles.heroDescription,
-            {
-              color: theme.colors.onSurfaceVariant,
-              textAlign,
-              writingDirection: writingDir,
-            },
-          ]}
-        >
-          {labels.description}
-        </Text>
+        {[
+          { source: "quran", label: labels.quran, count: quranCount },
+          { source: "hadith", label: labels.hadith, count: hadithCount },
+        ].map((option) => {
+          const selected = selectedSource === option.source;
+          return (
+            <Pressable
+              key={option.source}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              onPress={() => setSelectedSource(option.source)}
+              style={[
+                styles.sourceOption,
+                selected && {
+                  backgroundColor: theme.colors.primary,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.sourceOptionText,
+                  {
+                    color: selected
+                      ? theme.colors.buttonText || "#fff"
+                      : theme.colors.onSurfaceVariant,
+                  },
+                ]}
+              >
+                {option.label}
+              </Text>
+              <Text
+                style={[
+                  styles.sourceCount,
+                  {
+                    color: selected
+                      ? theme.colors.buttonText || "#fff"
+                      : theme.colors.onSurfaceVariant,
+                    opacity: selected ? 0.85 : 0.7,
+                  },
+                ]}
+              >
+                {option.count}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -331,12 +377,25 @@ const QuranicDuas = () => {
             ]}
           >
             <Text
-              style={[styles.pillTitle, { color: theme.colors.onSurface }]}
+              style={[
+                styles.pillTitle,
+                {
+                  color: theme.colors.onSurface,
+                  textAlign: "center",
+                  writingDirection: translationWritingDir,
+                },
+              ]}
               numberOfLines={1}
             >
               {labels.title}
             </Text>
           </View>
+          <HeaderPill
+            icon="information-outline"
+            label={labels.info}
+            onPress={() => setInfoVisible(true)}
+            theme={theme}
+          />
           <HeaderPill
             icon="translate"
             label={labels.translate}
@@ -348,36 +407,77 @@ const QuranicDuas = () => {
       </View>
 
       <FlatList
-        data={quranicDuas}
+        data={sourceDuas}
         renderItem={renderDua}
         keyExtractor={(item) => String(item.id)}
         ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons
+              name="text-search"
+              size={34}
+              color={theme.colors.inactiveColor}
+            />
+            <Text
+              style={[
+                styles.emptyTitle,
+                { color: theme.colors.onSurface },
+              ]}
+            >
+              {labels.noResults}
+            </Text>
+          </View>
+        }
         style={styles.list}
         contentContainerStyle={[
           styles.listContent,
-          { paddingTop: insets.top + 90 },
+          { paddingTop: insets.top + 64 },
         ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         initialNumToRender={6}
         maxToRenderPerBatch={8}
         windowSize={7}
       />
-      <Snackbar
-        visible={snackbarVisible}
-        onDismiss={() => setSnackbarVisible(false)}
-        duration={1800}
-      >
-        {labels.copied}
-      </Snackbar>
       <FloatingLanguagePickerModal
         visible={pickerVisible}
-        title={t("Select Quran translation language")}
+        title={t(
+          isHadith
+            ? "Select Hadith translation language"
+            : "Select Quran translation language",
+        )}
         options={translationOptions}
-        selectedValue={contentLanguage}
-        onSelect={setTranslationLanguage}
+        selectedValue={activeContentLanguage}
+        onSelect={activeSetTranslationLanguage}
         onClose={() => setPickerVisible(false)}
         theme={theme}
       />
+      <GeneralModal
+        visible={infoVisible}
+        title={sourceTitle}
+        onClose={() => setInfoVisible(false)}
+        writingDirection={translationWritingDir}
+        textAlign={translationTextAlign}
+      >
+        <ScrollView
+          bounces={false}
+          contentContainerStyle={styles.infoModalContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text
+            style={[
+              styles.infoModalText,
+              {
+                color: theme.colors.onSurfaceVariant,
+                textAlign: translationTextAlign,
+                writingDirection: translationWritingDir,
+              },
+            ]}
+          >
+            {sourceDescription}
+          </Text>
+        </ScrollView>
+      </GeneralModal>
     </View>
   );
 };
@@ -442,55 +542,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 42,
   },
-  heroCard: {
-    borderRadius: 28,
-    padding: 20,
-    marginBottom: 18,
+  sourceSelector: {
+    flexDirection: "row",
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
+    padding: 4,
+    marginBottom: 12,
   },
-  heroTopRow: {
+  sourceOption: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 14,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  heroIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    alignItems: "center",
     justifyContent: "center",
-  },
-  countPill: {
+    gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
   },
-  countText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  heroEyebrow: {
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 30,
-  },
-  heroDescription: {
+  sourceOptionText: {
     fontSize: 14,
-    lineHeight: 21,
-    marginTop: 5,
-    marginBottom: 16,
+    fontWeight: "700",
+  },
+  sourceCount: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   duaCard: {
     borderRadius: 24,
@@ -545,8 +620,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
   },
-  emptyMessage: {
-    fontSize: 14,
-    paddingVertical: 24,
+  emptyContainer: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 38,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 12,
+  },
+  infoModalContent: {
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  infoModalText: {
+    fontSize: 15,
+    lineHeight: 25,
   },
 });
