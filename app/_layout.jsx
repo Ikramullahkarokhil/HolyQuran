@@ -1,5 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Stack, useGlobalSearchParams, useRouter } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Stack,
+  useGlobalSearchParams,
+  useRootNavigationState,
+  useRouter,
+} from "expo-router";
 import { initI18n, i18n } from "../components/i18n";
 import { I18nextProvider, useTranslation } from "react-i18next";
 import { StatusBar } from "expo-status-bar";
@@ -42,6 +53,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 const RootLayout = () => {
   const [appIsReady, setAppIsReady] = useState(false);
   const [error, setError] = useState(null);
+  const [pendingNotificationResponse, setPendingNotificationResponse] =
+    useState(() => Notifications.getLastNotificationResponse());
+  const handledNotificationResponse = useRef(null);
 
   const colorScheme = useColorScheme();
   const isDarkTheme = useThemeStore((s) => s.isDarkTheme);
@@ -59,29 +73,8 @@ const RootLayout = () => {
 
   const { bookName } = useGlobalSearchParams();
   const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
   const theme = isDarkTheme ? darkTheme : lightTheme;
-
-  const handleNotificationNavigation = useCallback(
-    (response) => {
-      const data = response?.notification?.request?.content?.data;
-      const screen = data?.screen;
-      const surahId = data?.surahId;
-      const ayahId = data?.ayahId;
-
-      if (screen === "SurahDetails" && surahId) {
-        router.push({
-          pathname: "/SurahDetails",
-          params: {
-            surahId: String(surahId),
-            ayahId: ayahId ? String(ayahId) : undefined,
-          },
-        });
-      } else if (screen === "IslamicHistory") {
-        router.push("/IslamicHistory");
-      }
-    },
-    [router],
-  );
 
   // ---- One-time initialization ----
   useEffect(() => {
@@ -116,19 +109,85 @@ const RootLayout = () => {
   }, []);
 
   useEffect(() => {
-    const initial = Notifications.getLastNotificationResponse();
-    if (initial) {
-      handleNotificationNavigation(initial);
-    }
-
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        handleNotificationNavigation(response);
+        setPendingNotificationResponse(response);
       },
     );
 
     return () => subscription.remove();
-  }, [handleNotificationNavigation]);
+  }, []);
+
+  useEffect(() => {
+    if (
+      !appIsReady ||
+      error ||
+      !rootNavigationState?.key ||
+      !pendingNotificationResponse
+    ) {
+      return;
+    }
+
+    const request = pendingNotificationResponse.notification?.request;
+    const data = request?.content?.data;
+    const responseKey = request?.identifier
+      ? `${request.identifier}:${pendingNotificationResponse.actionIdentifier}`
+      : null;
+
+    if (responseKey && handledNotificationResponse.current === responseKey) {
+      setPendingNotificationResponse(null);
+      return;
+    }
+
+    if (responseKey) {
+      handledNotificationResponse.current = responseKey;
+    }
+
+    if (data?.screen === "SurahDetails" && data.surahId) {
+      router.push({
+        pathname: "/SurahDetails",
+        params: {
+          surahId: String(data.surahId),
+          ayahId: data.ayahId ? String(data.ayahId) : undefined,
+        },
+      });
+    } else if (
+      data?.type === "daily-wisdom" &&
+      data.hadithCollection &&
+      data.hadithBookNumber &&
+      data.hadithNumber
+    ) {
+      const hadithNumber = String(data.hadithNumber);
+      router.push({
+        pathname: "/Hadiths",
+        params: {
+          collection: String(data.hadithCollection),
+          bookNumber: String(data.hadithBookNumber),
+          hadithNumber,
+          hadithId: hadithNumber,
+        },
+      });
+    } else if (
+      data?.screen === "IslamicHistory" ||
+      data?.type === "daily-wisdom"
+    ) {
+      router.push("/IslamicHistory");
+    }
+
+    setPendingNotificationResponse(null);
+    Notifications.clearLastNotificationResponseAsync().catch((clearError) => {
+      console.warn(
+        "Failed to clear the handled notification response:",
+        clearError,
+      );
+    });
+  }, [
+    appIsReady,
+    error,
+    pendingNotificationResponse,
+    rootNavigationState?.key,
+    router,
+  ]);
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {

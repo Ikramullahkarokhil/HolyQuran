@@ -33,7 +33,7 @@ const withAlpha = (color, alpha) => {
 const getLocalizedNumber = (value, language) => {
   const number = Number(value).toLocaleString("en-US");
   if (language === "pa" || language === "da") {
-    return number.replace(/[0-9]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[digit]);
+    return number.replace(/[0-9]/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
   }
   return number;
 };
@@ -65,10 +65,10 @@ const CollectionCard = memo(
         style={[
           styles.card,
           {
-            backgroundColor: available ? colors.surface : colors.disabledSurface,
-            borderColor: available
-              ? colors.cardBorder
-              : colors.outline,
+            backgroundColor: available
+              ? colors.surface
+              : colors.disabledSurface,
+            borderColor: available ? colors.cardBorder : colors.outline,
           },
         ]}
       >
@@ -87,14 +87,19 @@ const CollectionCard = memo(
           }}
           style={({ pressed }) => [
             styles.cardPressable,
-            { flexDirection, opacity: pressed ? 0.82 : 1 },
+            {
+              flexDirection,
+              opacity: pressed && available ? 0.88 : 1,
+              transform: [{ scale: pressed && available ? 0.985 : 1 }],
+            },
           ]}
         >
-          {available ? (
+          {available && (
             <View
               style={[styles.accent, { backgroundColor: colors.progress }]}
             />
-          ) : null}
+          )}
+
           <View
             style={[
               styles.collectionIcon,
@@ -107,6 +112,7 @@ const CollectionCard = memo(
           >
             <MaterialIcons name={item.icon} size={22} color={iconColor} />
           </View>
+
           <View
             style={[
               styles.cardBody,
@@ -124,24 +130,24 @@ const CollectionCard = memo(
               >
                 {item.title}
               </Text>
-              {!available ? (
+
+              {!available && (
                 <View
                   style={[
                     styles.badge,
-                    {
-                      backgroundColor: withAlpha(colors.secondary, 0.12),
-                    },
+                    { backgroundColor: withAlpha(colors.secondary, 0.12) },
                   ]}
                 >
                   <Text
                     variant="labelSmall"
-                    style={{ color: colors.secondary }}
+                    style={{ color: colors.secondary, fontWeight: "600" }}
                   >
                     {t("Soon")}
                   </Text>
                 </View>
-              ) : null}
+              )}
             </View>
+
             <Text
               variant="bodySmall"
               numberOfLines={2}
@@ -152,6 +158,7 @@ const CollectionCard = memo(
             >
               {available ? item.description : t("Coming soon")}
             </Text>
+
             {item.hadithCount ? (
               <View
                 style={[
@@ -161,7 +168,7 @@ const CollectionCard = memo(
               >
                 <MaterialIcons
                   name="format-list-numbered"
-                  size={15}
+                  size={14}
                   color={iconColor}
                 />
                 <Text
@@ -174,12 +181,15 @@ const CollectionCard = memo(
                   {getLocalizedNumber(item.hadithCount, language)}{" "}
                   {t("hadiths")}
                   {item.bookCount
-                    ? `  ·  ${getLocalizedNumber(item.bookCount, language)} ${t("books")}`
+                    ? `  ·  ${getLocalizedNumber(item.bookCount, language)} ${t(
+                        "books",
+                      )}`
                     : ""}
                 </Text>
               </View>
             ) : null}
           </View>
+
           <MaterialIcons name={arrowIcon} size={18} color={iconColor} />
         </Pressable>
       </Surface>
@@ -194,7 +204,9 @@ const HadithCollections = () => {
   const router = useRouter();
   const { t } = useTranslation();
   const language = useAppLanguageStore((state) => state.language);
+
   const progressColor = theme.colors.progressColor || theme.colors.primary;
+
   const colors = useMemo(
     () => ({
       progress: progressColor,
@@ -205,16 +217,16 @@ const HadithCollections = () => {
       background: theme.colors.background,
       outlineVariant: theme.colors.outlineVariant,
       outline: theme.colors.outlineVariant,
-      cardBorder: withAlpha(progressColor, 0.25),
-      ripple: withAlpha(progressColor, 0.12),
+      cardBorder: withAlpha(progressColor, 0.22),
+      ripple: withAlpha(progressColor, 0.14),
       iconBackground: withAlpha(progressColor, 0.12),
       disabledIconBackground: withAlpha(progressColor, 0.06),
       disabledSurface:
-        theme.colors.surfaceDisabled ||
-        withAlpha(theme.colors.onSurface, 0.04),
+        theme.colors.surfaceDisabled || withAlpha(theme.colors.onSurface, 0.04),
     }),
     [progressColor, theme.colors],
   );
+
   const flexDirection = getFlexDirection(language);
   const textAlign = getTextAlignment(language);
   const writingDirection = getWritingDirection(language);
@@ -225,16 +237,16 @@ const HadithCollections = () => {
       router.push({ pathname: "/HadithBooks", params: { collection } }),
     [router],
   );
+
   const handleNavigateJawami = useCallback(
     () => router.push("/JawamiAlKalim"),
     [router],
   );
+
+  // Pre-compute stats once
   const bukhariStats = useMemo(() => getHadithCollectionStats("bukhari"), []);
   const muslimStats = useMemo(() => getHadithCollectionStats("muslim"), []);
-  const tirmidhiStats = useMemo(
-    () => getHadithCollectionStats("tirmidhi"),
-    [],
-  );
+  const tirmidhiStats = useMemo(() => getHadithCollectionStats("tirmidhi"), []);
   const abiDawudStats = useMemo(
     () => getHadithCollectionStats("abi-dawud"),
     [],
@@ -244,6 +256,7 @@ const HadithCollections = () => {
     () => getHadithCollectionStats("ibn-majah"),
     [],
   );
+
   const collections = useMemo(
     () => [
       {
@@ -310,22 +323,22 @@ const HadithCollections = () => {
         id: "jawami-al-kalim",
         title: t("Jawami al-Kalim"),
         description: t("Explore concise Hadiths with deep meanings"),
-        icon: "menu-book",
+        icon: "auto-awesome",
         hadithCount: 100,
         available: true,
         onPress: handleNavigateJawami,
       },
     ],
     [
-      abiDawudStats,
-      bukhariStats,
+      t,
       handleNavigateCollection,
       handleNavigateJawami,
-      ibnMajahStats,
+      bukhariStats,
       muslimStats,
-      nasaiStats,
       tirmidhiStats,
-      t,
+      abiDawudStats,
+      nasaiStats,
+      ibnMajahStats,
     ],
   );
 
@@ -334,9 +347,11 @@ const HadithCollections = () => {
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
+      {/* Intro Card */}
       <Surface
-        elevation={1}
+        elevation={0}
         style={[
           styles.introCard,
           {
@@ -346,13 +361,11 @@ const HadithCollections = () => {
         ]}
       >
         <View
-          style={[
-            styles.introIcon,
-            { backgroundColor: colors.iconBackground },
-          ]}
+          style={[styles.introIcon, { backgroundColor: colors.iconBackground }]}
         >
-          <MaterialIcons name="auto-awesome" size={21} color={progressColor} />
+          <MaterialIcons name="auto-awesome" size={22} color={progressColor} />
         </View>
+
         <View style={styles.introText}>
           <Text
             variant="titleSmall"
@@ -379,6 +392,7 @@ const HadithCollections = () => {
         </View>
       </Surface>
 
+      {/* Collections List */}
       <View style={styles.list}>
         {collections.map((item) => (
           <CollectionCard
@@ -401,67 +415,105 @@ const HadithCollections = () => {
 export default memo(HadithCollections);
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28 },
-  header: { alignItems: "center", gap: 12, marginBottom: 16 },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+  container: {
+    flex: 1,
   },
-  heading: { flex: 1, fontWeight: "700" },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 32,
+  },
   introCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    borderRadius: 16,
+    gap: 14,
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 14,
-    marginBottom: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 18,
   },
   introIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  introText: { flex: 1, gap: 2 },
-  introTitle: { fontWeight: "700" },
-  introDescription: { lineHeight: 18 },
-  list: { gap: 10 },
+  introText: {
+    flex: 1,
+    gap: 3,
+  },
+  introTitle: {
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  introDescription: {
+    lineHeight: 19,
+    opacity: 0.92,
+  },
+  list: {
+    gap: 11,
+  },
   card: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },
   cardPressable: {
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 14,
+    gap: 12,
+    paddingVertical: 15,
     paddingHorizontal: 14,
-    minHeight: 76,
+    minHeight: 80,
   },
-  accent: { position: "absolute", top: 0, bottom: 0, left: 0, width: 3.5 },
+  accent: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 3.5,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+  },
   collectionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
   },
-  cardBody: { flex: 1, gap: 2 },
+  cardBody: {
+    flex: 1,
+    gap: 3,
+  },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     flexWrap: "wrap",
   },
-  title: { fontWeight: "700", flexShrink: 1 },
-  badge: { paddingHorizontal: 7, paddingVertical: 1, borderRadius: 5 },
-  description: { lineHeight: 18 },
-  statsRow: { alignItems: "center", gap: 5, marginTop: 5 },
-  statsText: { fontWeight: "700" },
+  title: {
+    fontWeight: "700",
+    flexShrink: 1,
+    letterSpacing: -0.15,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  description: {
+    lineHeight: 18.5,
+    opacity: 0.95,
+  },
+  statsRow: {
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
+  },
+  statsText: {
+    fontWeight: "600",
+    letterSpacing: 0.1,
+  },
 });
