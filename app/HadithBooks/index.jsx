@@ -10,9 +10,34 @@ import { LegendList } from "@legendapp/list/react-native";
 import { useTheme, Text, ActivityIndicator } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+} from "expo-router";
 import { useHadithTranslationStore } from "../../components/store/store";
-import { getHadithBooks } from "../../components/hadithData";
+import {
+  getHadithBooks,
+  normalizeHadithCollection,
+} from "../../components/hadithData";
+
+const COLLECTION_NAMES = {
+  bukhari: "Sahih Bukhari",
+  muslim: "Sahih Muslim",
+  tirmidhi: "Jami at-Tirmidhi",
+  "abi-dawud": "Sunan Abi Dawud",
+  "an-nasai": "Sunan an-Nasai",
+  "ibn-majah": "Sunan Ibn Majah",
+};
+
+const COLLECTION_TITLE_KEYS = {
+  bukhari: "Sahih Bukhari Hadiths",
+  muslim: "Sahih Muslim Hadiths",
+  tirmidhi: "Jami at-Tirmidhi Hadiths",
+  "abi-dawud": "Sunan Abi Dawud Hadiths",
+  "an-nasai": "Sunan an-Nasai Hadiths",
+  "ibn-majah": "Sunan Ibn Majah Hadiths",
+};
 
 // ─── withAlpha (shared design language) ─────────────────────────────────────
 
@@ -145,9 +170,19 @@ const HadithsScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const navigation = useNavigation();
   const { translationLanguage: hadithLanguage } = useHadithTranslationStore();
   const { collection: collectionParam } = useLocalSearchParams();
-  const collection = collectionParam === "muslim" ? "muslim" : "bukhari";
+  const collectionValue = Array.isArray(collectionParam)
+    ? collectionParam[0]
+    : collectionParam;
+  const collection = normalizeHadithCollection(collectionValue);
+  const collectionName = t(COLLECTION_NAMES[collection]);
+  const collectionTitle = t(COLLECTION_TITLE_KEYS[collection]);
+
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: collectionTitle });
+  }, [collectionTitle, navigation]);
 
   const isArabic = hadithLanguage === "arabic";
 
@@ -285,9 +320,7 @@ const HadithsScreen = () => {
       <View style={styles.searchContainer}>
         <TextInput
           placeholder={
-            collection === "muslim"
-              ? t("Search Sahih Muslim books")
-              : t("Search sahih bukhari books")
+            `${t("Search")} ${collectionName} ${t("books")}`
           }
           onChangeText={setSearchQuery}
           value={searchQuery}

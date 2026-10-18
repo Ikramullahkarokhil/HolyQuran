@@ -41,7 +41,7 @@ const getLocalizedNumber = (value, language) => {
 const CollectionCard = memo(
   ({
     item,
-    progressColor,
+    colors,
     isRtl,
     language,
     textAlign,
@@ -49,17 +49,10 @@ const CollectionCard = memo(
     flexDirection,
     t,
   }) => {
-    const theme = useTheme();
     const available = item.available;
-    const iconColor = available
-      ? progressColor
-      : theme.colors.onSurfaceDisabled;
-    const titleColor = available
-      ? theme.colors.onSurface
-      : theme.colors.onSurfaceDisabled;
-    const descriptionColor = available
-      ? theme.colors.onSurfaceVariant
-      : theme.colors.onSurfaceDisabled;
+    const iconColor = available ? colors.progress : colors.disabled;
+    const titleColor = available ? colors.text : colors.disabled;
+    const descriptionColor = available ? colors.secondary : colors.disabled;
     const arrowIcon = available
       ? isRtl
         ? "arrow-back-ios"
@@ -72,13 +65,10 @@ const CollectionCard = memo(
         style={[
           styles.card,
           {
-            backgroundColor: available
-              ? theme.colors.surface
-              : theme.colors.surfaceDisabled ||
-                withAlpha(theme.colors.onSurface, 0.04),
+            backgroundColor: available ? colors.surface : colors.disabledSurface,
             borderColor: available
-              ? withAlpha(progressColor, 0.25)
-              : theme.colors.outlineVariant,
+              ? colors.cardBorder
+              : colors.outline,
           },
         ]}
       >
@@ -92,7 +82,7 @@ const CollectionCard = memo(
             available ? t("Open collection") : t("Collection unavailable")
           }
           android_ripple={{
-            color: withAlpha(progressColor, 0.12),
+            color: colors.ripple,
             borderless: false,
           }}
           style={({ pressed }) => [
@@ -101,16 +91,17 @@ const CollectionCard = memo(
           ]}
         >
           {available ? (
-            <View style={[styles.accent, { backgroundColor: progressColor }]} />
+            <View
+              style={[styles.accent, { backgroundColor: colors.progress }]}
+            />
           ) : null}
           <View
             style={[
               styles.collectionIcon,
               {
-                backgroundColor: withAlpha(
-                  progressColor,
-                  available ? 0.12 : 0.06,
-                ),
+                backgroundColor: available
+                  ? colors.iconBackground
+                  : colors.disabledIconBackground,
               },
             ]}
           >
@@ -138,16 +129,13 @@ const CollectionCard = memo(
                   style={[
                     styles.badge,
                     {
-                      backgroundColor: withAlpha(
-                        theme.colors.onSurfaceVariant,
-                        0.12,
-                      ),
+                      backgroundColor: withAlpha(colors.secondary, 0.12),
                     },
                   ]}
                 >
                   <Text
                     variant="labelSmall"
-                    style={{ color: theme.colors.onSurfaceVariant }}
+                    style={{ color: colors.secondary }}
                   >
                     {t("Soon")}
                   </Text>
@@ -207,6 +195,26 @@ const HadithCollections = () => {
   const { t } = useTranslation();
   const language = useAppLanguageStore((state) => state.language);
   const progressColor = theme.colors.progressColor || theme.colors.primary;
+  const colors = useMemo(
+    () => ({
+      progress: progressColor,
+      text: theme.colors.onSurface,
+      secondary: theme.colors.onSurfaceVariant,
+      disabled: theme.colors.onSurfaceDisabled,
+      surface: theme.colors.surface,
+      background: theme.colors.background,
+      outlineVariant: theme.colors.outlineVariant,
+      outline: theme.colors.outlineVariant,
+      cardBorder: withAlpha(progressColor, 0.25),
+      ripple: withAlpha(progressColor, 0.12),
+      iconBackground: withAlpha(progressColor, 0.12),
+      disabledIconBackground: withAlpha(progressColor, 0.06),
+      disabledSurface:
+        theme.colors.surfaceDisabled ||
+        withAlpha(theme.colors.onSurface, 0.04),
+    }),
+    [progressColor, theme.colors],
+  );
   const flexDirection = getFlexDirection(language);
   const textAlign = getTextAlignment(language);
   const writingDirection = getWritingDirection(language);
@@ -223,6 +231,19 @@ const HadithCollections = () => {
   );
   const bukhariStats = useMemo(() => getHadithCollectionStats("bukhari"), []);
   const muslimStats = useMemo(() => getHadithCollectionStats("muslim"), []);
+  const tirmidhiStats = useMemo(
+    () => getHadithCollectionStats("tirmidhi"),
+    [],
+  );
+  const abiDawudStats = useMemo(
+    () => getHadithCollectionStats("abi-dawud"),
+    [],
+  );
+  const nasaiStats = useMemo(() => getHadithCollectionStats("an-nasai"), []);
+  const ibnMajahStats = useMemo(
+    () => getHadithCollectionStats("ibn-majah"),
+    [],
+  );
   const collections = useMemo(
     () => [
       {
@@ -246,6 +267,46 @@ const HadithCollections = () => {
         onPress: handleNavigateCollection("muslim"),
       },
       {
+        id: "tirmidhi",
+        title: t("Jami at-Tirmidhi"),
+        description: t("Browse the complete Jami at-Tirmidhi collection"),
+        icon: "menu-book",
+        hadithCount: tirmidhiStats.hadithCount,
+        bookCount: tirmidhiStats.bookCount,
+        available: true,
+        onPress: handleNavigateCollection("tirmidhi"),
+      },
+      {
+        id: "abi-dawud",
+        title: t("Sunan Abi Dawud"),
+        description: t("Browse the complete Sunan Abi Dawud collection"),
+        icon: "library-books",
+        hadithCount: abiDawudStats.hadithCount,
+        bookCount: abiDawudStats.bookCount,
+        available: true,
+        onPress: handleNavigateCollection("abi-dawud"),
+      },
+      {
+        id: "an-nasai",
+        title: t("Sunan an-Nasai"),
+        description: t("Browse the complete Sunan an-Nasai collection"),
+        icon: "menu-book",
+        hadithCount: nasaiStats.hadithCount,
+        bookCount: nasaiStats.bookCount,
+        available: true,
+        onPress: handleNavigateCollection("an-nasai"),
+      },
+      {
+        id: "ibn-majah",
+        title: t("Sunan Ibn Majah"),
+        description: t("Browse the complete Sunan Ibn Majah collection"),
+        icon: "library-books",
+        hadithCount: ibnMajahStats.hadithCount,
+        bookCount: ibnMajahStats.bookCount,
+        available: true,
+        onPress: handleNavigateCollection("ibn-majah"),
+      },
+      {
         id: "jawami-al-kalim",
         title: t("Jawami al-Kalim"),
         description: t("Explore concise Hadiths with deep meanings"),
@@ -254,27 +315,23 @@ const HadithCollections = () => {
         available: true,
         onPress: handleNavigateJawami,
       },
-
-      {
-        id: "other",
-        title: t("Other Hadith Collections"),
-        description: t("More authentic and trusted Hadith collections"),
-        icon: "collections-bookmark",
-        available: false,
-      },
     ],
     [
+      abiDawudStats,
       bukhariStats,
       handleNavigateCollection,
       handleNavigateJawami,
+      ibnMajahStats,
       muslimStats,
+      nasaiStats,
+      tirmidhiStats,
       t,
     ],
   );
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
@@ -283,15 +340,15 @@ const HadithCollections = () => {
         style={[
           styles.introCard,
           {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outlineVariant,
+            backgroundColor: colors.surface,
+            borderColor: colors.outlineVariant,
           },
         ]}
       >
         <View
           style={[
             styles.introIcon,
-            { backgroundColor: withAlpha(progressColor, 0.12) },
+            { backgroundColor: colors.iconBackground },
           ]}
         >
           <MaterialIcons name="auto-awesome" size={21} color={progressColor} />
@@ -301,7 +358,7 @@ const HadithCollections = () => {
             variant="titleSmall"
             style={[
               styles.introTitle,
-              { color: theme.colors.onSurface, textAlign, writingDirection },
+              { color: colors.text, textAlign, writingDirection },
             ]}
           >
             {t("Choose a Hadith collection")}
@@ -311,7 +368,7 @@ const HadithCollections = () => {
             style={[
               styles.introDescription,
               {
-                color: theme.colors.onSurfaceVariant,
+                color: colors.secondary,
                 textAlign,
                 writingDirection,
               },
@@ -327,7 +384,7 @@ const HadithCollections = () => {
           <CollectionCard
             key={item.id}
             item={item}
-            progressColor={progressColor}
+            colors={colors}
             isRtl={isRtl}
             language={language}
             textAlign={textAlign}

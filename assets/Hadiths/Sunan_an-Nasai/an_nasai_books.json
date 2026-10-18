@@ -1,0 +1,410 @@
+[
+  {
+    "Book_Number": 1,
+    "Book_Name": {
+      "arabic": "كتاب الطهارة",
+      "english": "The Book of Purification"
+    },
+    "Hadith_Count": 325
+  },
+  {
+    "Book_Number": 2,
+    "Book_Name": {
+      "arabic": "كتاب المياه",
+      "english": "The Book of Water"
+    },
+    "Hadith_Count": 23
+  },
+  {
+    "Book_Number": 3,
+    "Book_Name": {
+      "arabic": "كتاب الحيض والاستحاضة",
+      "english": "The Book of Menstruation and Istihadah"
+    },
+    "Hadith_Count": 48
+  },
+  {
+    "Book_Number": 4,
+    "Book_Name": {
+      "arabic": "كتاب الغسل والتيمم",
+      "english": "The Book of Ghusl and Tayammum"
+    },
+    "Hadith_Count": 53
+  },
+  {
+    "Book_Number": 5,
+    "Book_Name": {
+      "arabic": "كتاب الصلاة",
+      "english": "The Book of Salah"
+    },
+    "Hadith_Count": 46
+  },
+  {
+    "Book_Number": 6,
+    "Book_Name": {
+      "arabic": "كتاب المواقيت",
+      "english": "The Book of the Times (of Prayer)"
+    },
+    "Hadith_Count": 132
+  },
+  {
+    "Book_Number": 7,
+    "Book_Name": {
+      "arabic": "كتاب الأذان",
+      "english": "The Book of the Adhan (The Call to Prayer)"
+    },
+    "Hadith_Count": 62
+  },
+  {
+    "Book_Number": 8,
+    "Book_Name": {
+      "arabic": "كتاب المساجد",
+      "english": "The Book of the Masjids"
+    },
+    "Hadith_Count": 54
+  },
+  {
+    "Book_Number": 9,
+    "Book_Name": {
+      "arabic": "كتاب القبلة",
+      "english": "The Book of the Qiblah"
+    },
+    "Hadith_Count": 35
+  },
+  {
+    "Book_Number": 10,
+    "Book_Name": {
+      "arabic": "كتاب الإمامة",
+      "english": "The Book of Leading the Prayer (Al-Imamah)"
+    },
+    "Hadith_Count": 99
+  },
+  {
+    "Book_Number": 11,
+    "Book_Name": {
+      "arabic": "كتاب الافتتاح",
+      "english": "The Book of the Commencement of the Prayer"
+    },
+    "Hadith_Count": 153
+  },
+  {
+    "Book_Number": 12,
+    "Book_Name": {
+      "arabic": "كتاب التطبيق",
+      "english": "The Book of The At-Tatbiq (Clasping One's Hands Together)"
+    },
+    "Hadith_Count": 150
+  },
+  {
+    "Book_Number": 13,
+    "Book_Name": {
+      "arabic": "كتاب السهو",
+      "english": "The Book of Forgetfulness (In Prayer)"
+    },
+    "Hadith_Count": 188
+  },
+  {
+    "Book_Number": 14,
+    "Book_Name": {
+      "arabic": "كتاب الجمعة",
+      "english": "The Book of Jumu'ah (Friday Prayer)"
+    },
+    "Hadith_Count": 69
+  },
+  {
+    "Book_Number": 15,
+    "Book_Name": {
+      "arabic": "كتاب تقصير الصلاة فى السفر",
+      "english": "The Book of Shortening the Prayer When Traveling"
+    },
+    "Hadith_Count": 26
+  },
+  {
+    "Book_Number": 16,
+    "Book_Name": {
+      "arabic": "كتاب الكسوف",
+      "english": "The Book of Eclipses"
+    },
+    "Hadith_Count": 45
+  },
+  {
+    "Book_Number": 17,
+    "Book_Name": {
+      "arabic": "كتاب الاستسقاء",
+      "english": "The Book of Praying for Rain (Al-Istisqa')"
+    },
+    "Hadith_Count": 25
+  },
+  {
+    "Book_Number": 18,
+    "Book_Name": {
+      "arabic": "كتاب صلاة الخوف",
+      "english": "The Book of the Fear Prayer"
+    },
+    "Hadith_Count": 27
+  },
+  {
+    "Book_Number": 19,
+    "Book_Name": {
+      "arabic": "كتاب صلاة العيدين",
+      "english": "The Book of the Prayer for the Two 'Eids"
+    },
+    "Hadith_Count": 42
+  },
+  {
+    "Book_Number": 20,
+    "Book_Name": {
+      "arabic": "كتاب قيام الليل وتطوع النهار",
+      "english": "The Book of Qiyam Al-Lail (The Night Prayer) and Voluntary Prayers During the Day"
+    },
+    "Hadith_Count": 220
+  },
+  {
+    "Book_Number": 21,
+    "Book_Name": {
+      "arabic": "كتاب الجنائز",
+      "english": "The Book of Funerals"
+    },
+    "Hadith_Count": 272
+  },
+  {
+    "Book_Number": 22,
+    "Book_Name": {
+      "arabic": "كتاب الصيام",
+      "english": "The Book of Fasting"
+    },
+    "Hadith_Count": 345
+  },
+  {
+    "Book_Number": 23,
+    "Book_Name": {
+      "arabic": "كتاب الزكاة",
+      "english": "The Book of Zakah"
+    },
+    "Hadith_Count": 184
+  },
+  {
+    "Book_Number": 24,
+    "Book_Name": {
+      "arabic": "كتاب مناسك الحج",
+      "english": "The Book of Hajj"
+    },
+    "Hadith_Count": 467
+  },
+  {
+    "Book_Number": 25,
+    "Book_Name": {
+      "arabic": "كتاب الجهاد",
+      "english": "The Book of Jihad"
+    },
+    "Hadith_Count": 111
+  },
+  {
+    "Book_Number": 26,
+    "Book_Name": {
+      "arabic": "كتاب النكاح",
+      "english": "The Book of Marriage"
+    },
+    "Hadith_Count": 193
+  },
+  {
+    "Book_Number": 27,
+    "Book_Name": {
+      "arabic": "كتاب الطلاق",
+      "english": "The Book of Divorce"
+    },
+    "Hadith_Count": 174
+  },
+  {
+    "Book_Number": 28,
+    "Book_Name": {
+      "arabic": "كتاب الخيل",
+      "english": "The Book of Horses, Races and Shooting"
+    },
+    "Hadith_Count": 33
+  },
+  {
+    "Book_Number": 29,
+    "Book_Name": {
+      "arabic": "كتاب الإحباس",
+      "english": "The Book of Endowments"
+    },
+    "Hadith_Count": 17
+  },
+  {
+    "Book_Number": 30,
+    "Book_Name": {
+      "arabic": "كتاب الوصايا",
+      "english": "The Book of Wills"
+    },
+    "Hadith_Count": 61
+  },
+  {
+    "Book_Number": 31,
+    "Book_Name": {
+      "arabic": "كتاب النحل",
+      "english": "The Book of Presents"
+    },
+    "Hadith_Count": 16
+  },
+  {
+    "Book_Number": 32,
+    "Book_Name": {
+      "arabic": "كتاب الهبة",
+      "english": "The Book of Gifts"
+    },
+    "Hadith_Count": 18
+  },
+  {
+    "Book_Number": 33,
+    "Book_Name": {
+      "arabic": "كتاب الرقبى",
+      "english": "The Book of ar-Ruqba"
+    },
+    "Hadith_Count": 14
+  },
+  {
+    "Book_Number": 34,
+    "Book_Name": {
+      "arabic": "كتاب العمرى",
+      "english": "The Book of 'Umra"
+    },
+    "Hadith_Count": 42
+  },
+  {
+    "Book_Number": 35,
+    "Book_Name": {
+      "arabic": "كتاب الأيمان والنذور",
+      "english": "The Book of Oaths and Vows"
+    },
+    "Hadith_Count": 96
+  },
+  {
+    "Book_Number": 36,
+    "Book_Name": {
+      "arabic": "كتاب المزارعة",
+      "english": "The Book of Agriculture"
+    },
+    "Hadith_Count": 27
+  },
+  {
+    "Book_Number": 37,
+    "Book_Name": {
+      "arabic": "كتاب عشرة النساء",
+      "english": "The Book of the Kind Treatment of Women"
+    },
+    "Hadith_Count": 167
+  },
+  {
+    "Book_Number": 38,
+    "Book_Name": {
+      "arabic": "كتاب تحريم الدم",
+      "english": "The Book of Fighting [The Prohibition of Bloodshed]"
+    },
+    "Hadith_Count": 16
+  },
+  {
+    "Book_Number": 39,
+    "Book_Name": {
+      "arabic": "كتاب قسم الفىء",
+      "english": "The Book of Distribution of Al-Fay'"
+    },
+    "Hadith_Count": 63
+  },
+  {
+    "Book_Number": 40,
+    "Book_Name": {
+      "arabic": "كتاب البيعة",
+      "english": "The Book of al-Bay'ah"
+    },
+    "Hadith_Count": 10
+  },
+  {
+    "Book_Number": 41,
+    "Book_Name": {
+      "arabic": "كتاب العقيقة",
+      "english": "The Book of al-'Aqiqah"
+    },
+    "Hadith_Count": 41
+  },
+  {
+    "Book_Number": 42,
+    "Book_Name": {
+      "arabic": "كتاب الفرع والعتيرة",
+      "english": "The Book of al-Fara' and al-'Atirah"
+    },
+    "Hadith_Count": 98
+  },
+  {
+    "Book_Number": 43,
+    "Book_Name": {
+      "arabic": "كتاب الصيد والذبائح",
+      "english": "The Book of Hunting and Slaughtering"
+    },
+    "Hadith_Count": 88
+  },
+  {
+    "Book_Number": 44,
+    "Book_Name": {
+      "arabic": "كتاب الضحايا",
+      "english": "The Book of ad-Dahaya (Sacrifices)"
+    },
+    "Hadith_Count": 257
+  },
+  {
+    "Book_Number": 45,
+    "Book_Name": {
+      "arabic": "كتاب البيوع",
+      "english": "The Book of Financial Transactions"
+    },
+    "Hadith_Count": 164
+  },
+  {
+    "Book_Number": 46,
+    "Book_Name": {
+      "arabic": "كتاب القسامة",
+      "english": "The Book of Oaths (qasamah), Retaliation and Blood Money"
+    },
+    "Hadith_Count": 114
+  },
+  {
+    "Book_Number": 47,
+    "Book_Name": {
+      "arabic": "كتاب قطع السارق",
+      "english": "The Book of Cutting off the Hand of the Thief"
+    },
+    "Hadith_Count": 55
+  },
+  {
+    "Book_Number": 48,
+    "Book_Name": {
+      "arabic": "كتاب الإيمان وشرائعه",
+      "english": "The Book Of Faith and its Signs"
+    },
+    "Hadith_Count": 339
+  },
+  {
+    "Book_Number": 49,
+    "Book_Name": {
+      "arabic": "كتاب الزينة من السنن",
+      "english": "The Book of Adornment"
+    },
+    "Hadith_Count": 49
+  },
+  {
+    "Book_Number": 50,
+    "Book_Name": {
+      "arabic": "كتاب آداب القضاة",
+      "english": "The Book of the Etiquette of Judges"
+    },
+    "Hadith_Count": 112
+  },
+  {
+    "Book_Number": 51,
+    "Book_Name": {
+      "arabic": "كتاب الاستعاذة",
+      "english": "The Book of Seeking Refuge with Allah"
+    },
+    "Hadith_Count": 220
+  }
+]

@@ -21,10 +21,52 @@ const HADITH_COLLECTIONS = {
         require("../assets/Hadiths/sahih_muslim/sahih_muslim_english.json"),
     },
   },
+  tirmidhi: {
+    books: () =>
+      require("../assets/Hadiths/Jami_at-Tirmidhi/tirmidhi_books.json"),
+    hadiths: {
+      arabic: () =>
+        require("../assets/Hadiths/Jami_at-Tirmidhi/tirmidhi_arabic.json"),
+      english: () =>
+        require("../assets/Hadiths/Jami_at-Tirmidhi/tirmidhi_english.json"),
+    },
+  },
+  "abi-dawud": {
+    books: () =>
+      require("../assets/Hadiths/Sunan_Abi_Dawud/abi_dawud_books.json"),
+    hadiths: {
+      arabic: () =>
+        require("../assets/Hadiths/Sunan_Abi_Dawud/abi_dawud_arabic.json"),
+      english: () =>
+        require("../assets/Hadiths/Sunan_Abi_Dawud/abi_dawud_english.json"),
+    },
+  },
+  "an-nasai": {
+    books: () =>
+      require("../assets/Hadiths/Sunan_an-Nasai/an_nasai_books.json"),
+    hadiths: {
+      arabic: () =>
+        require("../assets/Hadiths/Sunan_an-Nasai/an_nasai_arabic.json"),
+      english: () =>
+        require("../assets/Hadiths/Sunan_an-Nasai/an_nasai_english.json"),
+    },
+  },
+  "ibn-majah": {
+    books: () =>
+      require("../assets/Hadiths/Sunan_Ibn_Majah/ibn_majah_books.json"),
+    hadiths: {
+      arabic: () =>
+        require("../assets/Hadiths/Sunan_Ibn_Majah/ibn_majah_arabic.json"),
+      english: () =>
+        require("../assets/Hadiths/Sunan_Ibn_Majah/ibn_majah_english.json"),
+    },
+  },
 };
 
-const normalizeCollection = (collection) =>
-  collection === "muslim" ? "muslim" : "bukhari";
+const normalizeHadithCollection = (collection) =>
+  Object.prototype.hasOwnProperty.call(HADITH_COLLECTIONS, collection)
+    ? collection
+    : "bukhari";
 
 const normalizeLanguage = (language) =>
   language === "arabic" ? "arabic" : "english";
@@ -48,7 +90,7 @@ const createHadithIndex = (hadiths) => {
 };
 
 const getHadithIndex = (collection, language) => {
-  const normalizedCollection = normalizeCollection(collection);
+  const normalizedCollection = normalizeHadithCollection(collection);
   const normalizedLanguage = normalizeLanguage(language);
   const cacheKey = `${normalizedCollection}:${normalizedLanguage}`;
   const cachedIndex = hadithIndexCache.get(cacheKey);
@@ -62,7 +104,7 @@ const getHadithIndex = (collection, language) => {
 };
 
 const getHadithBooks = (collection = "bukhari", language = "english") => {
-  const normalizedCollection = normalizeCollection(collection);
+  const normalizedCollection = normalizeHadithCollection(collection);
   const normalizedLanguage = normalizeLanguage(language);
   const cacheKey = `${normalizedCollection}:${normalizedLanguage}`;
   const cachedBooks = booksCache.get(cacheKey);
@@ -83,7 +125,7 @@ const getHadithsByBook = (collection, language, bookNumber) =>
   getHadithIndex(collection, language).get(String(bookNumber)) || [];
 
 const getAllHadiths = (collection = "bukhari", language = "english") => {
-  const normalizedCollection = normalizeCollection(collection);
+  const normalizedCollection = normalizeHadithCollection(collection);
   const normalizedLanguage = normalizeLanguage(language);
   const cacheKey = `all:${normalizedCollection}:${normalizedLanguage}`;
   const cachedHadiths = hadithIndexCache.get(cacheKey);
@@ -96,7 +138,7 @@ const getAllHadiths = (collection = "bukhari", language = "english") => {
 };
 
 const getHadithCollectionStats = (collection = "bukhari") => {
-  const normalizedCollection = normalizeCollection(collection);
+  const normalizedCollection = normalizeHadithCollection(collection);
   const cachedStats = metadataCache.get(normalizedCollection);
   if (cachedStats) return cachedStats;
 
@@ -118,4 +160,5 @@ export {
   getHadithId,
   getHadithBooks,
   getHadithsByBook,
+  normalizeHadithCollection,
 };

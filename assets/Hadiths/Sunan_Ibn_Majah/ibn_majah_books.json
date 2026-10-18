@@ -1,0 +1,298 @@
+[
+  {
+    "Book_Number": 1,
+    "Book_Name": {
+      "arabic": "كتاب الطهارة وسننها",
+      "english": "The Book of Purification and its Sunnah"
+    },
+    "Hadith_Count": 400
+  },
+  {
+    "Book_Number": 2,
+    "Book_Name": {
+      "arabic": "كتاب الصلاة",
+      "english": "The Book of the Prayer"
+    },
+    "Hadith_Count": 39
+  },
+  {
+    "Book_Number": 3,
+    "Book_Name": {
+      "arabic": "كتاب الأذان والسنة فيها",
+      "english": "The Book of the Adhan and the Sunnah Regarding It"
+    },
+    "Hadith_Count": 29
+  },
+  {
+    "Book_Number": 4,
+    "Book_Name": {
+      "arabic": "كتاب المساجد والجماعات",
+      "english": "The Book On The Mosques And The Congregations"
+    },
+    "Hadith_Count": 68
+  },
+  {
+    "Book_Number": 5,
+    "Book_Name": {
+      "arabic": "كتاب إقامة الصلاة والسنة فيها",
+      "english": "Establishing the Prayer and the Sunnah Regarding Them"
+    },
+    "Hadith_Count": 630
+  },
+  {
+    "Book_Number": 6,
+    "Book_Name": {
+      "arabic": "كتاب الجنائز",
+      "english": "Chapters Regarding Funerals"
+    },
+    "Hadith_Count": 205
+  },
+  {
+    "Book_Number": 7,
+    "Book_Name": {
+      "arabic": "كتاب الصيام",
+      "english": "Fasting"
+    },
+    "Hadith_Count": 145
+  },
+  {
+    "Book_Number": 8,
+    "Book_Name": {
+      "arabic": "كتاب الزكاة",
+      "english": "The Chapters Regarding Zakat"
+    },
+    "Hadith_Count": 62
+  },
+  {
+    "Book_Number": 9,
+    "Book_Name": {
+      "arabic": "كتاب النكاح",
+      "english": "The Chapters on Marriage"
+    },
+    "Hadith_Count": 171
+  },
+  {
+    "Book_Number": 10,
+    "Book_Name": {
+      "arabic": "كتاب الطلاق",
+      "english": "The Chapters on Divorce"
+    },
+    "Hadith_Count": 74
+  },
+  {
+    "Book_Number": 11,
+    "Book_Name": {
+      "arabic": "كتاب الكفارات",
+      "english": "The Chapters on Expiation"
+    },
+    "Hadith_Count": 47
+  },
+  {
+    "Book_Number": 12,
+    "Book_Name": {
+      "arabic": "كتاب التجارات",
+      "english": "The Chapters on Business Transactions"
+    },
+    "Hadith_Count": 171
+  },
+  {
+    "Book_Number": 13,
+    "Book_Name": {
+      "arabic": "كتاب الأحكام",
+      "english": "The Chapters on Rulings"
+    },
+    "Hadith_Count": 67
+  },
+  {
+    "Book_Number": 14,
+    "Book_Name": {
+      "arabic": "كتاب الهبات",
+      "english": "The Chapters on Gifts"
+    },
+    "Hadith_Count": 15
+  },
+  {
+    "Book_Number": 15,
+    "Book_Name": {
+      "arabic": "كتاب الصدقات",
+      "english": "The Chapters on Charity"
+    },
+    "Hadith_Count": 46
+  },
+  {
+    "Book_Number": 16,
+    "Book_Name": {
+      "arabic": "كتاب الرهون",
+      "english": "The Chapters on Pawning"
+    },
+    "Hadith_Count": 57
+  },
+  {
+    "Book_Number": 17,
+    "Book_Name": {
+      "arabic": "كتاب الشفعة",
+      "english": "The Chapters on Pre-emption"
+    },
+    "Hadith_Count": 11
+  },
+  {
+    "Book_Number": 18,
+    "Book_Name": {
+      "arabic": "كتاب اللقطة",
+      "english": "The Chapters on Lost Property"
+    },
+    "Hadith_Count": 10
+  },
+  {
+    "Book_Number": 19,
+    "Book_Name": {
+      "arabic": "كتاب العتق",
+      "english": "The Chapters on Manumission (of Slaves)"
+    },
+    "Hadith_Count": 21
+  },
+  {
+    "Book_Number": 20,
+    "Book_Name": {
+      "arabic": "كتاب الحدود",
+      "english": "The Chapters on Legal Punishments"
+    },
+    "Hadith_Count": 82
+  },
+  {
+    "Book_Number": 21,
+    "Book_Name": {
+      "arabic": "كتاب الديات",
+      "english": "The Chapters on Blood Money"
+    },
+    "Hadith_Count": 80
+  },
+  {
+    "Book_Number": 22,
+    "Book_Name": {
+      "arabic": "كتاب الوصايا",
+      "english": "The Chapters on Wills"
+    },
+    "Hadith_Count": 24
+  },
+  {
+    "Book_Number": 23,
+    "Book_Name": {
+      "arabic": "كتاب الفرائض",
+      "english": "Chapters on Shares of Inheritance"
+    },
+    "Hadith_Count": 34
+  },
+  {
+    "Book_Number": 24,
+    "Book_Name": {
+      "arabic": "كتاب الجهاد",
+      "english": "The Chapters on Jihad"
+    },
+    "Hadith_Count": 129
+  },
+  {
+    "Book_Number": 25,
+    "Book_Name": {
+      "arabic": "كتاب المناسك",
+      "english": "Chapters on Hajj Rituals"
+    },
+    "Hadith_Count": 238
+  },
+  {
+    "Book_Number": 26,
+    "Book_Name": {
+      "arabic": "كتاب الأضاحي",
+      "english": "Chapters on Sacrifices"
+    },
+    "Hadith_Count": 42
+  },
+  {
+    "Book_Number": 27,
+    "Book_Name": {
+      "arabic": "كتاب الذبائح",
+      "english": "Chapters on Slaughtering"
+    },
+    "Hadith_Count": 38
+  },
+  {
+    "Book_Number": 28,
+    "Book_Name": {
+      "arabic": "كتاب الصيد",
+      "english": "Chapters on Hunting"
+    },
+    "Hadith_Count": 51
+  },
+  {
+    "Book_Number": 29,
+    "Book_Name": {
+      "arabic": "كتاب الأطعمة",
+      "english": "Chapters on Food"
+    },
+    "Hadith_Count": 120
+  },
+  {
+    "Book_Number": 30,
+    "Book_Name": {
+      "arabic": "كتاب الأشربة",
+      "english": "Chapters on Drinks"
+    },
+    "Hadith_Count": 65
+  },
+  {
+    "Book_Number": 31,
+    "Book_Name": {
+      "arabic": "كتاب الطب",
+      "english": "Chapters on Medicine"
+    },
+    "Hadith_Count": 114
+  },
+  {
+    "Book_Number": 32,
+    "Book_Name": {
+      "arabic": "كتاب اللباس",
+      "english": "Chapters on Dress"
+    },
+    "Hadith_Count": 107
+  },
+  {
+    "Book_Number": 33,
+    "Book_Name": {
+      "arabic": "كتاب الأدب",
+      "english": "Etiquette"
+    },
+    "Hadith_Count": 170
+  },
+  {
+    "Book_Number": 34,
+    "Book_Name": {
+      "arabic": "كتاب الدعاء",
+      "english": "Supplication"
+    },
+    "Hadith_Count": 66
+  },
+  {
+    "Book_Number": 35,
+    "Book_Name": {
+      "arabic": "كتاب تعبير الرؤيا",
+      "english": "Interpretation of Dreams"
+    },
+    "Hadith_Count": 34
+  },
+  {
+    "Book_Number": 36,
+    "Book_Name": {
+      "arabic": "كتاب الفتن",
+      "english": "Tribulations"
+    },
+    "Hadith_Count": 175
+  },
+  {
+    "Book_Number": 37,
+    "Book_Name": {
+      "arabic": "كتاب الزهد",
+      "english": "Zuhd"
+    },
+    "Hadith_Count": 242
+  }
+]

@@ -58,6 +58,7 @@ import {
   getHadithBooks,
   getHadithId,
   getHadithsByBook,
+  normalizeHadithCollection,
 } from "../../components/hadithData";
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
@@ -556,7 +557,7 @@ const HadithsScreen = () => {
   const collectionValue = Array.isArray(collectionParam)
     ? collectionParam[0]
     : collectionParam;
-  const collection = collectionValue === "muslim" ? "muslim" : "bukhari";
+  const collection = normalizeHadithCollection(collectionValue);
 
   const { translationLanguage: hadithLanguage, setTranslationLanguage } =
     useHadithTranslationStore();
