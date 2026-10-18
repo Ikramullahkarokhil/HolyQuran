@@ -68,6 +68,8 @@ const normalizeHadithCollection = (collection) =>
     ? collection
     : "bukhari";
 
+const getHadithCollectionIds = () => Object.keys(HADITH_COLLECTIONS);
+
 const normalizeLanguage = (language) =>
   language === "arabic" ? "arabic" : "english";
 
@@ -160,5 +162,6 @@ export {
   getHadithId,
   getHadithBooks,
   getHadithsByBook,
+  getHadithCollectionIds,
   normalizeHadithCollection,
 };

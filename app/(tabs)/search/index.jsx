@@ -49,7 +49,11 @@ import {
   getSurahNames,
   getSurahByIndex,
 } from "../../../components/quranData";
-import { getAllHadiths, getHadithId } from "../../../components/hadithData";
+import {
+  getAllHadiths,
+  getHadithCollectionIds,
+  getHadithId,
+} from "../../../components/hadithData";
 
 // Optional: Jawami collection
 let jawamiHadiths = [];
@@ -100,6 +104,15 @@ const SURAH_LIST = getSurahNames();
 const MAX_RESULTS = 80;
 const DEBOUNCE_MS = 120;
 const MIN_QUERY_LENGTH = 2;
+
+const HADITH_COLLECTION_NAMES = {
+  bukhari: "Sahih Bukhari",
+  muslim: "Sahih Muslim",
+  tirmidhi: "Jami at-Tirmidhi",
+  "abi-dawud": "Sunan Abi Dawud",
+  "an-nasai": "Sunan an-Nasai",
+  "ibn-majah": "Sunan Ibn Majah",
+};
 
 const quranSearchIndexCache = new Map();
 const hadithSearchIndexCache = new Map();
@@ -407,7 +420,7 @@ const buildHadithSearchIndex = (hadithLanguage) => {
   }
 
   const items = [];
-  for (const collection of ["bukhari", "muslim"]) {
+  for (const collection of getHadithCollectionIds()) {
     for (const [hadithIndex, hadith] of getAllHadiths(
       collection,
       hadithLanguage,
@@ -421,6 +434,7 @@ const buildHadithSearchIndex = (hadithLanguage) => {
         type: "hadith",
         id: `hadith-${collection}-${bookNumber}-${id}-${hadithIndex}`,
         collection,
+        collectionName: HADITH_COLLECTION_NAMES[collection],
         bookNumber,
         hadithId: id,
         text: hadith.text || "",
@@ -680,10 +694,14 @@ QuranResultCard.displayName = "QuranResultCard";
 const HadithResultCard = memo(
   ({ item, colors, onPress, textAlign, writingDirection, t, index }) => {
     const scale = useSharedValue(1);
-    const bookName =
+    const collectionName =
       item.collection === "jawami_al_kalim"
         ? t("Jawami al-Kalim")
-        : item.bookName;
+        : t(item.collectionName);
+    const bookName =
+      item.collection === "jawami_al_kalim"
+        ? collectionName
+        : `${collectionName} · ${item.bookName}`;
 
     const pressStyle = useAnimatedStyle(() => ({
       transform: [{ scale: scale.value }],
