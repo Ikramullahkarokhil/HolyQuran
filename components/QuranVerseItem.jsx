@@ -1719,7 +1719,7 @@ export const VerseItem = memo(
         opacity: highlightProgress.value * 0.9,
         transform: [{ scale: 0.98 + highlightProgress.value * 0.02 }],
       };
-    }, [isHighlighted]);
+    });
 
     const cardBg = isHighlighted
       ? withAlpha(colors.accent, 0.09)

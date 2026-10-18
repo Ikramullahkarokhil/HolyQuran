@@ -10,7 +10,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.zadalhuda.app",
-      "capabilities": ["background-audio", "audio"],
       "infoPlist": {
         "UIBackgroundModes": ["audio", "playback"]
       }

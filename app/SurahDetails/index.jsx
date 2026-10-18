@@ -526,7 +526,6 @@ const FloatingPillHeader = memo(
         }
         lastScrollY.value = y;
       },
-      [],
     );
 
     const headerStyle = useAnimatedStyle(() => {
