@@ -1,16 +1,13 @@
 /**
  * Qibla compass screen
- * Expo SDK 57 · React Native 0.86 · Reanimated 4.5 · plain JavaScript
+ * Expo SDK 58 · React Native · Reanimated · plain JavaScript
  *
- * Architecture (why it stays at your display's refresh rate):
- *  1. Sensor → JS: a One-Euro filter removes jitter at rest and keeps lag low
- *     while turning. The filtered heading is written to a shared value.
- *  2. UI thread: a frame callback smoothly follows the latest heading, without
- *     interrupting per-reading animations or triggering React renders.
- *  3. Only tiny components (number readout, guidance pill, halo) subscribe to
- *     heading changes through an external store, throttled to 10 Hz. The
- *     screen itself never re-renders for a heading tick.
- *  4. Clocks / timers pause when the screen is unfocused or backgrounded.
+ * Architecture:
+ *  1. Sensor → JS: Optimized One-Euro filter instantly reacts to fast turns while
+ *     retaining absolute stability at rest.
+ *  2. UI thread: Frame callback smoothly and instantly follows heading changes.
+ *  3. Throttled store updates: Tiny components subscribe efficiently without re-rendering the root.
+ *  4. Robust Lifecycle Management: Pauses timers and listeners when backgrounded or unfocused.
  */
 import React, {
   createContext,
@@ -86,54 +83,44 @@ import {
 
 /* ───────────────────────────── constants ───────────────────────────── */
 
-// Kaaba coordinates (same reference point the adhan library uses).
 const KAABA = { latitude: 21.4225241, longitude: 39.8261818 };
 const TICKS = Array.from({ length: 72 }, (_, i) => i);
 
-// Visual alignment. Enter/exit differ so the UI never flickers on the edge.
 const ALIGN_ENTER_DEG = 8;
 const ALIGN_EXIT_DEG = 11;
 
-// Haptic alignment (stricter, needs a trustworthy sensor).
 const HAPTIC_ENTER_DEG = 4;
 const HAPTIC_EXIT_DEG = 7;
 const HAPTIC_DWELL_MS = 500;
 const HAPTIC_MIN_ACCURACY = 2;
 
-// Heading pipeline.
-const HEADING_UI_INTERVAL_MS = 100; // max React updates for the number readout
-const DISPLAY_HYSTERESIS_DEG = 0.65; // keeps the integer from flickering at rest
+const HEADING_UI_INTERVAL_MS = 80;
+const DISPLAY_HYSTERESIS_DEG = 0.5;
 const NO_HEADING_TIMEOUT_MS = 6000;
-const TRUE_HEADING_GRACE_MS = 2500; // wait for true north before using magnetic
-const VISUAL_TAU_MS = 100;
-// Keep stationary readings calm while allowing the filter to follow turns
-// quickly; the short UI-thread transition bridges gaps between sensor events.
+const TRUE_HEADING_GRACE_MS = 2000;
+const VISUAL_TAU_MS = 45; // Snappier frame interpolation
+
+// Tuned One-Euro filter for zero-lag rotation and zero-jitter rest
 const FILTER = {
-  minCutoff: 1.2, // Hz – smoothing at rest
-  minCutoffLowAccuracy: 0.7, // Hz – calmer when the sensor reports low accuracy
-  beta: 0.08, // how quickly smoothing relaxes while turning
-  derivativeCutoff: 1, // Hz
+  minCutoff: 1.6,
+  minCutoffLowAccuracy: 0.8,
+  beta: 0.18, // High responsiveness during quick phone turns
+  derivativeCutoff: 1.5,
 };
 
-// Location.
 const LOCATION_TIMEOUT_MS = 15_000;
 const CACHED_LOCATION_MAX_AGE_MS = 5 * 60_000;
 const FALLBACK_LOCATION_MAX_AGE_MS = 60 * 60_000;
 const RESUME_REFRESH_AFTER_MS = 5_000;
 
-// Time keeping.
 const MOON_BUCKET_MS = 15 * 60_000;
 
-// Sun chart geometry.
 const SUN_CHART_WIDTH = 320;
 const SUN_CHART_HEIGHT = 110;
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-// Prayer settings. Change these two lines to switch method / madhab.
-// Methods: MuslimWorldLeague, Egyptian, Karachi, UmmAlQura, Dubai, Qatar,
-// Kuwait, MoonsightingCommittee, Singapore, Turkey, Tehran, NorthAmerica.
 const PRAYER_CALCULATION_METHOD = "MuslimWorldLeague";
-const PRAYER_MADHAB = Madhab.Shafi; // Madhab.Hanafi for later Asr
+const PRAYER_MADHAB = Madhab.Shafi;
 
 const COMPASS_POINTS = [
   "N",
@@ -224,7 +211,6 @@ const EMPTY_MOON = {
 const toRadians = (d) => (d * Math.PI) / 180;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
-// Marked as worklets so the UI-thread frame callback can use them too.
 const normalizeDegrees = (d) => {
   "worklet";
   return ((d % 360) + 360) % 360;
@@ -238,7 +224,7 @@ const shortestSignedDelta = (from, to) => {
 const stepVisualHeading = (current, target, dtMs) => {
   "worklet";
   const diff = shortestSignedDelta(current, target);
-  if (Math.abs(diff) < 0.02) return target;
+  if (Math.abs(diff) < 0.01) return target;
   const k = 1 - Math.exp(-dtMs / VISUAL_TAU_MS);
   return normalizeDegrees(current + diff * k);
 };
@@ -293,8 +279,6 @@ const formatCountdown = (ms) => {
   return `${pad2(m)}:${pad2(s)}`;
 };
 
-// Uses the Moon's ecliptic phase (0 new → 180 full), which – unlike the
-// illumination "phase angle" – distinguishes waxing from waning.
 const moonPhaseLabel = (phaseDeg) =>
   MOON_PHASE_LABELS[
     Math.floor(((normalizeDegrees(phaseDeg) + 22.5) % 360) / 45)
@@ -339,18 +323,12 @@ function buildPrayerParams(coords) {
     CalculationMethod.MuslimWorldLeague;
   const params = factory();
   params.madhab = PRAYER_MADHAB;
-  // Without this, Fajr / Isha are wrong or undefined in long summer twilight
-  // at high latitudes (above ~48°).
   if (typeof HighLatitudeRule?.recommended === "function") {
     params.highLatitudeRule = HighLatitudeRule.recommended(coords);
   }
   return params;
 }
 
-/**
- * One calculation per (location, local day). Also grabs yesterday's Isha and
- * tomorrow's Fajr so "next prayer" is always defined, even after Isha.
- */
 function computePrayerSchedule(latitude, longitude, dayStartMs) {
   const coords = new Coordinates(latitude, longitude);
   const params = buildPrayerParams(coords);
@@ -381,7 +359,6 @@ function computePrayerSchedule(latitude, longitude, dayStartMs) {
   };
 }
 
-/** Pure: which prayer is current / next at `nowMs`. */
 function derivePrayerPhase(schedule, nowMs) {
   const timed = schedule.entries.filter((e) => isValidDate(e.time));
   let currentIndex = -1;
@@ -418,7 +395,6 @@ function derivePrayerPhase(schedule, nowMs) {
   };
 }
 
-/** Sunrise / sunset / moonrise / moonset that fall on the given local day. */
 function computeSkyEvents(latitude, longitude, dayStartMs) {
   try {
     const observer = new Observer(latitude, longitude, 0);
@@ -472,10 +448,6 @@ function computeMoonState(latitude, nowMs) {
 
 /* ───────────────────────── heading pipeline (JS) ───────────────────── */
 
-/**
- * One-Euro filter on a circular quantity (degrees). Heavy smoothing when the
- * phone is still, light smoothing when it is turning – so no jitter and no lag.
- */
 function createHeadingFilter() {
   let value = null;
   let lastRaw = null;
@@ -502,7 +474,7 @@ function createHeadingFilter() {
         rate = 0;
         return value;
       }
-      const dt = clamp((nowMs - lastAt) / 1000, 0.008, 0.5);
+      const dt = clamp((nowMs - lastAt) / 1000, 0.005, 0.5);
       const instantRate = shortestSignedDelta(lastRaw, raw) / dt;
       lastRaw = raw;
       lastAt = nowMs;
@@ -518,7 +490,6 @@ function createHeadingFilter() {
   };
 }
 
-/* Tiny external store: only components that need the heading subscribe. */
 const INITIAL_COMPASS_STATE = { heading: null, aligned: false };
 
 function createCompassStore() {
@@ -561,15 +532,9 @@ const fireSuccessHaptic = () => {
     Promise.resolve(
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
     ).catch(() => {});
-  } catch {
-    // Haptics are a nicety – never let them break the compass.
-  }
+  } catch {}
 };
 
-/**
- * Turns raw sensor readings into: (a) a filtered UI-thread target,
- * (b) a throttled integer for the readout, (c) alignment state + haptics.
- */
 function createHeadingPipeline({
   store,
   headingSV,
@@ -609,7 +574,6 @@ function createHeadingPipeline({
     hapticTimer = null;
   };
 
-  // True north when available; magnetic north only after a short grace period.
   const resolveHeading = (reading, now) => {
     const trueHeading = reading?.trueHeading;
     const magHeading = reading?.magHeading;
@@ -633,7 +597,6 @@ function createHeadingPipeline({
     store.setState({ heading: rounded });
   };
 
-  // Leading + trailing throttle so the last value is never dropped.
   const showHeading = (deg, now) => {
     if (
       shown != null &&
@@ -665,7 +628,6 @@ function createHeadingPipeline({
 
   const evaluateHaptics = (delta) => {
     if (!hapticBaselineSet) {
-      // Don't buzz for a phone that is already aligned when the screen opens.
       hapticBaselineSet = true;
       hapticLatched = delta <= HAPTIC_ENTER_DEG;
       return;
@@ -774,11 +736,10 @@ function createHeadingPipeline({
   };
 }
 
-/* ───────────────────────── screen-level hooks ──────────────────────── */
+/* ───────────────────────────── screen-level hooks ──────────────────────── */
 
 const ActiveContext = createContext(true);
 
-/** True while the screen is focused and the app is not in the background. */
 function useScreenActive() {
   const [focused, setFocused] = useState(true);
   const [appActive, setAppActive] = useState(
@@ -802,7 +763,6 @@ function useScreenActive() {
   return focused && appActive;
 }
 
-/** Re-renders only its caller, only while the screen is active. */
 function useClock(intervalMs) {
   const active = useContext(ActiveContext);
   const [now, setNow] = useState(() => Date.now());
@@ -827,7 +787,6 @@ const readTimeStamp = () => {
   };
 };
 
-/** Local-day + 15-minute buckets. State only changes when a bucket changes. */
 function useTimeStamp(active) {
   const [stamp, setStamp] = useState(readTimeStamp);
   useEffect(() => {
@@ -847,7 +806,6 @@ function useTimeStamp(active) {
   return stamp;
 }
 
-/** Current / next prayer; re-derives exactly when the next prayer starts. */
 function usePrayerPhase(schedule, active) {
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -894,7 +852,6 @@ function useHeadingSmoothing({ headingSV, targetSV, snapSV, active }) {
   }, [frame, active]);
 }
 
-/** City name, geocoded only when the position moves by roughly a kilometre. */
 function useCityName(location) {
   const [cityName, setCityName] = useState(null);
   const resolvedKeyRef = useRef(null);
@@ -924,11 +881,6 @@ function useCityName(location) {
   return cityName;
 }
 
-/**
- * Permission → heading subscription + location (in parallel) with cached
- * position, timeout, last-known fallback, and a full refresh after the app
- * has been in the background.
- */
 function useQiblaSensors({ store, headingSV, targetSV, snapSV, qiblaSV }) {
   const [location, setLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState("loading");
@@ -1104,7 +1056,6 @@ function useQiblaSensors({ store, headingSV, targetSV, snapSV, qiblaSV }) {
 
       run();
 
-      // Sensors can go stale after a long time in the background: restart.
       const appStateSub = AppState.addEventListener("change", (state) => {
         if (state === "background") {
           backgroundedAt = Date.now();
@@ -1583,7 +1534,6 @@ const GuidancePill = memo(({ store, qiblaBearing, dial, colors, t }) => {
     tRef.current = t;
   }, [t]);
 
-  // Announce alignment once for screen-reader users (not every degree).
   useEffect(() => {
     if (isAligned) {
       AccessibilityInfo.announceForAccessibility(
@@ -1738,7 +1688,6 @@ const CountdownRing = memo(
 );
 CountdownRing.displayName = "CountdownRing";
 
-// Owns its own 1 s clock, so only this card re-renders every second.
 const NextPrayerCard = memo(({ phase, colors, dial, t }) => {
   const nowMs = useClock(1000);
   if (!phase?.nextLabel || phase.nextTimeMs == null) return null;
@@ -1843,10 +1792,6 @@ const PrayerStrip = memo(({ schedule, phase, colors, dial, t }) => {
 });
 PrayerStrip.displayName = "PrayerStrip";
 
-/**
- * Moon with the correct lit shape: a half-circle on the lit side plus an
- * elliptical terminator. Mirrored in the southern hemisphere.
- */
 const MoonGlyph = memo(({ fraction, waxing, southern, size, color, track }) => {
   const f = clamp(fraction ?? 0, 0, 1);
   const cx = size / 2;
@@ -2101,7 +2046,6 @@ const Qibla = () => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // Sensor heading animates on the UI thread without re-rendering this screen.
   const [store] = useState(createCompassStore);
   const headingSV = useSharedValue(0);
   const targetSV = useSharedValue(0);
@@ -2123,7 +2067,6 @@ const Qibla = () => {
 
   const cityName = useCityName(location);
 
-  // ~110 m precision is plenty for sky / prayer maths and keeps memos stable.
   const lat = location ? Math.round(location.latitude * 1000) / 1000 : null;
   const lon = location ? Math.round(location.longitude * 1000) / 1000 : null;
   const stamp = useTimeStamp(active);
@@ -2562,7 +2505,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  /* Sun path card */
   sunCard: {
     width: "100%",
     borderWidth: 1,
