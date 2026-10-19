@@ -252,7 +252,6 @@ const FloatingPillHeader = memo(
         }
         lastScrollY.value = y;
       },
-      [],
     );
 
     const headerStyle = useAnimatedStyle(() => {
@@ -564,6 +563,7 @@ const HadithsScreen = () => {
 
   const listRef = useRef(null);
   const isMounted = useRef(true);
+  const hasUserScrolledRef = useRef(false);
   const showScrollTopRef = useRef(false);
   const currentTopIndexRef = useRef(0);
   const lastSavedIndexRef = useRef(null);
@@ -641,9 +641,11 @@ const HadithsScreen = () => {
 
   // Reset when book / collection changes
   useEffect(() => {
+    if (indexSaveTimer.current) clearTimeout(indexSaveTimer.current);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHighlightedHadithId(null);
     setShowScrollTop(false);
+    hasUserScrolledRef.current = false;
     showScrollTopRef.current = false;
     currentTopIndexRef.current = 0;
     lastSavedIndexRef.current = null;
@@ -665,12 +667,14 @@ const HadithsScreen = () => {
         if (!raw) return;
         const parsed = JSON.parse(raw);
         const idx = Number(parsed?.index);
-        if (active && isMounted.current && Number.isFinite(idx) && idx > 2) {
+        if (active && isMounted.current && Number.isInteger(idx) && idx > 2) {
           setLastReadIndex(idx);
           setLastReadHadithId(parsed?.id != null ? String(parsed.id) : null);
           setShowLastReadBtn(true);
         }
-      } catch {}
+      } catch (error) {
+        console.warn("[Hadiths] Failed to load reading position:", error);
+      }
     };
     loadLastRead();
 
@@ -685,10 +689,20 @@ const HadithsScreen = () => {
       .then((value) => {
         const storedPins = JSON.parse(value || "[]");
         if (active && isMounted.current) {
-          setPins(Array.isArray(storedPins) ? storedPins : []);
+          setPins(
+            Array.isArray(storedPins)
+              ? storedPins.filter(
+                  (pin) =>
+                    pin &&
+                    typeof pin.id === "string" &&
+                    Number.isInteger(pin.index),
+                )
+              : [],
+          );
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        console.warn("[Hadiths] Failed to load pinned locations:", error);
         if (active && isMounted.current) setPins([]);
       });
     return () => {
@@ -741,22 +755,35 @@ const HadithsScreen = () => {
   // Reliable scroll-to-target with layout settle retries
   useEffect(() => {
     if (currentHadithIndex < 0) return;
+    let lastScrollError;
 
-    const doScroll = (animated) => {
+    const doScroll = async (animated) => {
+      const list = listRef.current;
+      if (!list) return false;
       try {
-        listRef.current?.scrollToIndex?.({
+        await list.scrollToIndex({
           index: currentHadithIndex,
           animated,
           viewPosition: 0.28,
         });
-      } catch {
-        // LegendList may throw if not yet measured
+        lastScrollError = null;
+        return true;
+      } catch (error) {
+        lastScrollError = error;
+        return false;
       }
     };
 
-    const runHighlight = () => {
+    const runHighlight = async (animated = false, reportFailure = false) => {
       if (!isMounted.current) return;
-      doScroll(false);
+      const scrolled = await doScroll(animated);
+      if (!isMounted.current) return;
+      if (!scrolled && reportFailure) {
+        console.warn(
+          "[Hadiths] Could not scroll to the selected hadith:",
+          lastScrollError,
+        );
+      }
       setHighlightedHadithId(targetHadithNumber);
       highlightProgress.value = 0;
       highlightProgress.value = withSequence(
@@ -765,21 +792,20 @@ const HadithsScreen = () => {
       );
     };
 
-    doScroll(false);
+    void doScroll(false);
 
     const timer = setTimeout(() => {
-      runHighlight();
+      void runHighlight();
     }, 120);
 
     const retryTimers = [
       setTimeout(() => {
         if (!isMounted.current) return;
-        doScroll(true);
+        void doScroll(true);
       }, 420),
       setTimeout(() => {
         if (!isMounted.current) return;
-        doScroll(true);
-        runHighlight();
+        void runHighlight(true, true);
       }, 900),
     ];
 
@@ -915,20 +941,21 @@ const HadithsScreen = () => {
         safeHaptic(() => Haptics.selectionAsync());
         setActionHadith(item);
         setActionIsBookmarked(isBookmarked);
-      } catch {
+      } catch (error) {
         if (!isMounted.current) return;
-        setActionHadith(item);
-        setActionIsBookmarked(false);
+        console.warn("[Hadiths] Failed to check hadith bookmarks:", error);
+        showAlert(t("Error"), t("Could not load bookmarks"));
       }
     },
-    [collection],
+    [collection, showAlert, t],
   );
 
   const savePins = useCallback(
     (nextPins) => {
       setPins(nextPins);
       AsyncStorage.setItem(pinsStorageKey, JSON.stringify(nextPins)).catch(
-        () => {},
+        (error) =>
+          console.warn("[Hadiths] Failed to save pinned locations:", error),
       );
     },
     [pinsStorageKey],
@@ -947,13 +974,16 @@ const HadithsScreen = () => {
   );
 
   const goToHadithPin = useCallback((pin) => {
-    try {
-      listRef.current?.scrollToIndex?.({
+    const list = listRef.current;
+    if (list) {
+      void list.scrollToIndex({
         index: pin.index,
         animated: true,
         viewPosition: 0.28,
-      });
-    } catch {}
+      }).catch((error) =>
+        console.warn("[Hadiths] Could not scroll to pinned hadith:", error),
+      );
+    }
     setPinsVisible(false);
   }, []);
 
@@ -1097,6 +1127,7 @@ const HadithsScreen = () => {
   const onScroll = useCallback(
     (event) => {
       const offsetY = event.nativeEvent.contentOffset.y || 0;
+      if (offsetY > 24) hasUserScrolledRef.current = true;
       updateScrollTopVisibility(offsetY);
     },
     [updateScrollTopVisibility],
@@ -1114,13 +1145,13 @@ const HadithsScreen = () => {
     ({ viewableItems }) => {
       if (!viewableItems || viewableItems.length === 0) return;
 
-      let topIndex = viewableItems[0]?.index;
+      let topIndex = Infinity;
       for (const v of viewableItems) {
         if (typeof v.index === "number" && v.index < topIndex) {
           topIndex = v.index;
         }
       }
-      if (typeof topIndex !== "number") return;
+      if (!Number.isFinite(topIndex)) return;
 
       currentTopIndexRef.current = topIndex;
 
@@ -1132,20 +1163,24 @@ const HadithsScreen = () => {
         setShowLastReadBtn(false);
       }
 
+      if (!hasUserScrolledRef.current && topIndex <= 2) return;
+
       const key = getScrollStorageKey();
       if (!key) return;
       if (lastSavedIndexRef.current === topIndex) return;
 
       if (indexSaveTimer.current) clearTimeout(indexSaveTimer.current);
       indexSaveTimer.current = setTimeout(async () => {
-        lastSavedIndexRef.current = topIndex;
         try {
           const id = hadiths[topIndex] ? getHadithId(hadiths[topIndex]) : null;
           await AsyncStorage.setItem(
             key,
             JSON.stringify({ index: topIndex, id }),
           );
-        } catch {}
+          lastSavedIndexRef.current = topIndex;
+        } catch (error) {
+          console.warn("[Hadiths] Failed to save reading position:", error);
+        }
       }, 450);
     },
     [getScrollStorageKey, lastReadIndex, showLastReadBtn, hadiths],
@@ -1153,27 +1188,57 @@ const HadithsScreen = () => {
 
   const scrollToTop = useCallback(() => {
     safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
-    listRef.current?.scrollToOffset?.({ offset: 0, animated: true });
+    const list = listRef.current;
+    if (list) {
+      void list
+        .scrollToOffset({ offset: 0, animated: true })
+        .catch((error) =>
+          console.warn("[Hadiths] Could not scroll to the top:", error),
+        );
+    }
   }, []);
 
-  const goToLastRead = useCallback(() => {
+  const goToLastRead = useCallback(async () => {
     if (lastReadIndex == null) return;
-    if (lastReadIndex >= hadiths.length) {
+    const savedIdIndex =
+      lastReadHadithId == null
+        ? -1
+        : hadiths.findIndex((item) => getHadithId(item) === lastReadHadithId);
+    const targetIndex = savedIdIndex >= 0 ? savedIdIndex : lastReadIndex;
+    if (targetIndex >= hadiths.length) {
       setShowLastReadBtn(false);
       return;
     }
+    const list = listRef.current;
+    if (!list) return;
+    safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
     try {
-      safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
-      listRef.current?.scrollToIndex?.({
-        index: lastReadIndex,
+      await list.scrollToIndex({
+        index: targetIndex,
         animated: true,
         viewPosition: 0.12,
       });
       setShowLastReadBtn(false);
-    } catch {}
-  }, [lastReadIndex, hadiths.length]);
+    } catch (error) {
+      console.warn("[Hadiths] Could not restore the reading position:", error);
+    }
+  }, [lastReadHadithId, lastReadIndex, hadiths]);
 
   const listTopPadding = insets.top + 8 + HEADER_EXPANDED + 14;
+  const listContentContainerStyle = useMemo(
+    () => [
+      styles.listContent,
+      {
+        paddingTop: listTopPadding,
+        paddingBottom: insets.bottom + 72,
+      },
+    ],
+    [insets.bottom, listTopPadding],
+  );
+  const listSharedValues = useMemo(
+    () => ({ scrollOffset: scrollY }),
+    [scrollY],
+  );
 
   const listExtraData = useMemo(
     () => `${hadithLanguage}|${highlightedHadithId ?? ""}|${pins.length}`,
@@ -1230,16 +1295,10 @@ const HadithsScreen = () => {
             scrollEventThrottle={16}
             onViewableItemsChanged={handleViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
-            contentContainerStyle={[
-              styles.listContent,
-              {
-                paddingTop: listTopPadding,
-                paddingBottom: insets.bottom + 72,
-              },
-            ]}
+            contentContainerStyle={listContentContainerStyle}
             removeClippedSubviews={Platform.OS === "android"}
             maintainVisibleContentPosition
-            sharedValues={{ scrollOffset: scrollY }}
+            sharedValues={listSharedValues}
           />
         </View>
 

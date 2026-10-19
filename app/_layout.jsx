@@ -143,7 +143,9 @@ const RootLayout = () => {
       handledNotificationResponse.current = responseKey;
     }
 
-    if (data?.screen === "SurahDetails" && data.surahId) {
+    if (data?.type === "daily-wisdom") {
+      router.push("/IslamicHistory");
+    } else if (data?.screen === "SurahDetails" && data.surahId) {
       router.push({
         pathname: "/SurahDetails",
         params: {
@@ -151,26 +153,7 @@ const RootLayout = () => {
           ayahId: data.ayahId ? String(data.ayahId) : undefined,
         },
       });
-    } else if (
-      data?.type === "daily-wisdom" &&
-      data.hadithCollection &&
-      data.hadithBookNumber &&
-      data.hadithNumber
-    ) {
-      const hadithNumber = String(data.hadithNumber);
-      router.push({
-        pathname: "/Hadiths",
-        params: {
-          collection: String(data.hadithCollection),
-          bookNumber: String(data.hadithBookNumber),
-          hadithNumber,
-          hadithId: hadithNumber,
-        },
-      });
-    } else if (
-      data?.screen === "IslamicHistory" ||
-      data?.type === "daily-wisdom"
-    ) {
+    } else if (data?.screen === "IslamicHistory") {
       router.push("/IslamicHistory");
     }
 

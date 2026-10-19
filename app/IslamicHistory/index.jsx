@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import {
   Alert,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,12 +34,13 @@ import {
 const DAILY_REMINDER_KEY = "daily_wisdom_notification_time";
 const DAILY_LANGUAGE_KEY = "daily_wisdom_notification_language";
 const DAILY_ENABLED_KEY = "daily_wisdom_notification_enabled";
-const DAILY_REMINDER_CHANNEL_ID = "daily-wisdom-reminders";
+const DAILY_REMINDER_CHANNEL_ID = "daily-wisdom-reminders-v2";
 const DAILY_REMINDER_PREFIX = "daily-wisdom-reminder-";
 const DAILY_REMINDER_DAYS = 30;
 const DEFAULT_REMINDER_TIME = { hour: 8, minute: 0 };
 const DEFAULT_LANGUAGE = "english";
 const REMINDER_MINUTE_STEP = 5;
+let reminderScheduleQueue = Promise.resolve();
 
 const LANGUAGE_OPTIONS = [
   { label: "English", value: "english", icon: "translate" },
@@ -52,29 +52,27 @@ const LANGUAGE_OPTIONS = [
 const REMINDER_TEXT = {
   english: {
     title: "✨ Your Daily Reflection",
-    body: "Take a moment to connect with today's Ayah and Hadith.",
     ayahLabel: "Ayah",
     hadithLabel: "Hadith",
   },
   pashto: {
     title: "✨ د نن ورځې حکمت",
-    body: "یو شیبه وخت واخلئ او د نن ورځې له ایات او حدیث سره وصل شئ.",
     ayahLabel: "آیت",
     hadithLabel: "حدیث",
   },
   dari: {
     title: "✨ حکمت امروز",
-    body: "لحظه‌ای تأمل کنید و با آیه و حدیث امروز همراه شوید.",
     ayahLabel: "آیه",
     hadithLabel: "حدیث",
   },
   arabic: {
     title: "✨ نورُ اليوم",
-    body: "خُذ لحظة للتفكُّر في آيةِ ومالامحِ حديثِ اليوم.",
     ayahLabel: "آية",
     hadithLabel: "حديث",
   },
 };
+
+const dailyQuranVersesCache = new Map();
 
 const hashString = (value) => {
   let hash = 2166136261;
@@ -161,7 +159,10 @@ const formatReminderTime = ({ hour, minute }) => {
 };
 
 const buildDailyVerse = (language, refreshSeed = 0, dayKey = getDateKey()) => {
-  const verses = getQuranVerses(language);
+  if (!dailyQuranVersesCache.has(language)) {
+    dailyQuranVersesCache.set(language, getQuranVerses(language));
+  }
+  const verses = dailyQuranVersesCache.get(language);
   const surahNames = getSurahNames();
   const index =
     hashString(`${dayKey}-${language}-${refreshSeed}`) % verses.length;
@@ -242,37 +243,45 @@ const truncateNotificationText = (value, maxLength = 54) => {
   return `${characters.slice(0, maxLength - 1).join("").trimEnd()}…`;
 };
 
+const isHadithReminderDay = (dayKey) =>
+  Math.floor(Date.parse(`${dayKey}T00:00:00Z`) / 86400000) % 2 === 1;
+
 const buildDailyNotificationContent = (language, dayKey) => {
-  const verse = buildDailyVerse(language, 0, dayKey);
-  const hadith = buildDailyHadith(language, 0, dayKey);
   const title = REMINDER_TEXT[language] || REMINDER_TEXT.english;
+  const isHadithDay = isHadithReminderDay(dayKey);
+  const dailyItem = isHadithDay
+    ? buildDailyHadith(language, 0, dayKey)
+    : buildDailyVerse(language, 0, dayKey);
+  const itemLabel = isHadithDay ? title.hadithLabel : title.ayahLabel;
 
   return {
     title: wrapDirectionalText(title.title, language),
-    subtitle: `${verse.surah} · ${hadith.title}`,
-    body: [
-      wrapDirectionalText(
-        `${title.ayahLabel} ${verse.reference}: ${truncateNotificationText(verse.text)}`,
-        language,
-      ),
-      wrapDirectionalText(
-        `${title.hadithLabel} #${hadith.id}: ${truncateNotificationText(hadith.text)}`,
-        language,
-      ),
-    ].join("\n"),
+    subtitle: isHadithDay
+      ? `${dailyItem.title} · ${itemLabel} #${dailyItem.id}`
+      : `${itemLabel} ${dailyItem.reference} · ${dailyItem.surah}`,
+    body: wrapDirectionalText(
+      truncateNotificationText(dailyItem.text),
+      language,
+    ),
     data: {
       screen: "IslamicHistory",
       type: "daily-wisdom",
+      itemType: isHadithDay ? "hadith" : "verse",
       language,
       textAlign: getTextAlignment(language),
       writingDirection: getWritingDirection(language),
-      verseReference: verse.reference,
-      verseSurah: verse.surah,
-      surahId: verse.surahId,
-      ayahId: verse.ayah,
-      hadithCollection: hadith.collection,
-      hadithBookNumber: hadith.bookNumber,
-      hadithNumber: hadith.id,
+      ...(isHadithDay
+        ? {
+            hadithCollection: dailyItem.collection,
+            hadithBookNumber: dailyItem.bookNumber,
+            hadithNumber: dailyItem.id,
+          }
+        : {
+            verseReference: dailyItem.reference,
+            verseSurah: dailyItem.surah,
+            surahId: dailyItem.surahId,
+            ayahId: dailyItem.ayah,
+          }),
     },
   };
 };
@@ -282,7 +291,6 @@ const ensureDailyReminderChannel = async () => {
     await Notifications.setNotificationChannelAsync(DAILY_REMINDER_CHANNEL_ID, {
       name: "Daily wisdom reminders",
       importance: Notifications.AndroidImportance.HIGH,
-      sound: "default",
       enableVibrate: true,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
@@ -291,15 +299,14 @@ const ensureDailyReminderChannel = async () => {
   }
 };
 
-const cancelExistingReminder = async (exceptIds = new Set()) => {
+const cancelExistingReminder = async () => {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   const reminderIds = scheduled
     .filter(
       (request) =>
-        !exceptIds.has(request.identifier) &&
-        (request.identifier === "daily-wisdom-reminder" ||
-          request.identifier.startsWith(DAILY_REMINDER_PREFIX) ||
-          request.content.data?.type === "daily-wisdom"),
+        request.identifier === "daily-wisdom-reminder" ||
+        request.identifier.startsWith(DAILY_REMINDER_PREFIX) ||
+        request.content.data?.type === "daily-wisdom",
     )
     .map((request) => request.identifier);
   await Promise.all(
@@ -309,7 +316,17 @@ const cancelExistingReminder = async (exceptIds = new Set()) => {
   );
 };
 
-const scheduleReminder = async ({
+const scheduleReminder = (options) => {
+  const schedule = () => scheduleReminderNow(options);
+  const result = reminderScheduleQueue.then(schedule, schedule);
+  reminderScheduleQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+};
+
+const scheduleReminderNow = async ({
   hour,
   minute,
   language = DEFAULT_LANGUAGE,
@@ -326,14 +343,25 @@ const scheduleReminder = async ({
     : DEFAULT_LANGUAGE;
 
   if (!enabled) {
-    await cancelExistingReminder();
-    await persistReminderSettings({
-      hour: normalizedTime.hour,
-      minute: normalizedTime.minute,
-      language: safeLanguage,
-      enabled,
-    });
-    return true;
+    try {
+      await cancelExistingReminder();
+      await persistReminderSettings({
+        hour: normalizedTime.hour,
+        minute: normalizedTime.minute,
+        language: safeLanguage,
+        enabled,
+      });
+      return true;
+    } catch (error) {
+      console.warn("Failed to disable daily wisdom reminders:", error);
+      if (showAlert) {
+        Alert.alert(
+          "Reminder unavailable",
+          "Could not update your reminder. Please try again.",
+        );
+      }
+      return false;
+    }
   }
 
   let newReminderIds = [];
@@ -370,6 +398,8 @@ const scheduleReminder = async ({
       firstReminder.setDate(firstReminder.getDate() + 1);
     }
 
+    await cancelExistingReminder();
+
     const scheduleGeneration = Date.now();
     for (let offset = 0; offset < DAILY_REMINDER_DAYS; offset += 1) {
       const date = new Date(firstReminder);
@@ -397,7 +427,6 @@ const scheduleReminder = async ({
       newReminderIds.push(identifier);
     }
 
-    await cancelExistingReminder(new Set(newReminderIds));
     await persistReminderSettings({
       hour: normalizedTime.hour,
       minute: normalizedTime.minute,
@@ -421,7 +450,7 @@ const scheduleReminder = async ({
     if (showAlert) {
       Alert.alert(
         "Reminder unavailable",
-        "Your saved reminder time has been kept, but scheduling failed. Please try again in a moment.",
+        "Your reminder could not be scheduled. Please try again in a moment.",
       );
     }
     return false;
@@ -441,6 +470,10 @@ const IslamicHistory = () => {
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
   const [verseRefreshSeed, setVerseRefreshSeed] = useState(0);
   const [hadithRefreshSeed, setHadithRefreshSeed] = useState(0);
+  const committedReminderSettings = useRef({
+    time: DEFAULT_REMINDER_TIME,
+    language: DEFAULT_LANGUAGE,
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -452,23 +485,31 @@ const IslamicHistory = () => {
 
       if (!mounted) return;
 
+      committedReminderSettings.current = {
+        time: savedTime,
+        language: savedLanguage,
+      };
       setReminderTime(savedTime);
       setSelectedLanguage(savedLanguage);
-      setIsReminderEnabled(savedEnabled);
 
       if (savedEnabled) {
-        await scheduleReminder({
+        const scheduled = await scheduleReminder({
           ...savedTime,
           language: savedLanguage,
           enabled: true,
           showAlert: false,
         });
+        if (mounted) setIsReminderEnabled(scheduled);
       } else {
         await cancelExistingReminder();
+        if (mounted) setIsReminderEnabled(false);
       }
     };
 
-    init();
+    init().catch((error) => {
+      console.warn("Failed to initialize daily wisdom reminders:", error);
+      if (mounted) setIsReminderEnabled(false);
+    });
     return () => {
       mounted = false;
     };
@@ -524,10 +565,16 @@ const IslamicHistory = () => {
           showAlert: true,
         });
         if (success) {
-          setReminderTime(nextTime);
+          const savedTime = normalizeReminderTime(nextTime);
+          committedReminderSettings.current = {
+            time: savedTime,
+            language: nextLanguage,
+          };
+          setReminderTime(savedTime);
           setSelectedLanguage(nextLanguage);
           setIsReminderEnabled(nextEnabled);
         }
+        return success;
       } finally {
         setIsScheduling(false);
       }
@@ -538,18 +585,30 @@ const IslamicHistory = () => {
   const handleDisableReminder = useCallback(async () => {
     setIsScheduling(true);
     try {
-      await scheduleReminder({
+      const success = await scheduleReminder({
         ...reminderTime,
         language: selectedLanguage,
         enabled: false,
-        showAlert: false,
+        showAlert: true,
       });
-      setIsReminderEnabled(false);
-      setReminderModalVisible(false);
+      if (success) {
+        committedReminderSettings.current = {
+          time: reminderTime,
+          language: selectedLanguage,
+        };
+        setIsReminderEnabled(false);
+        setReminderModalVisible(false);
+      }
     } finally {
       setIsScheduling(false);
     }
   }, [reminderTime, selectedLanguage]);
+
+  const closeReminderModal = useCallback(() => {
+    setReminderTime(committedReminderSettings.current.time);
+    setSelectedLanguage(committedReminderSettings.current.language);
+    setReminderModalVisible(false);
+  }, []);
 
   const handleBack = useCallback(() => {
     router.back();
@@ -651,6 +710,7 @@ const IslamicHistory = () => {
             onPress={openReminderModal}
             icon={isReminderEnabled ? "bell-ring" : "bell-outline"}
             label="Reminder"
+            hitSlop={12}
             colors={{
               surface: theme.colors.surface,
               border: theme.colors.outlineVariant,
@@ -668,12 +728,21 @@ const IslamicHistory = () => {
         style={styles.scroll}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + 90 },
+          {
+            paddingTop: insets.top + 90,
+            paddingBottom: Math.max(insets.bottom, 24),
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
         <View
-          style={[styles.heroCard, { backgroundColor: theme.colors.surface }]}
+          style={[
+            styles.heroCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outlineVariant,
+            },
+          ]}
         >
           <View style={styles.heroTopRow}>
             <View
@@ -866,27 +935,28 @@ const IslamicHistory = () => {
         </DailyCard>
       </ScrollView>
 
-      <ReminderModal
-        visible={reminderModalVisible}
-        theme={theme}
-        selectedLanguage={selectedLanguage}
-        reminderTime={reminderTime}
-        isReminderEnabled={isReminderEnabled}
-        isScheduling={isScheduling}
-        onClose={() => setReminderModalVisible(false)}
-        onSelectLanguage={setSelectedLanguage}
-        onSave={handleReminderSave}
-        onDisable={handleDisableReminder}
-        onTimeChange={(nextTime) =>
-          setReminderTime(normalizeReminderTime(nextTime))
-        }
-        hourOptions={hourOptions}
-        minuteOptions={minuteOptions}
-        textAlign={getTextAlignment(selectedLanguage)}
-        writingDirection={getWritingDirection(selectedLanguage)}
-        t={t}
-        insets={insets}
-      />
+      {reminderModalVisible && (
+        <ReminderModal
+          theme={theme}
+          selectedLanguage={selectedLanguage}
+          reminderTime={reminderTime}
+          isReminderEnabled={isReminderEnabled}
+          isScheduling={isScheduling}
+          onClose={closeReminderModal}
+          onSelectLanguage={setSelectedLanguage}
+          onSave={handleReminderSave}
+          onDisable={handleDisableReminder}
+          onTimeChange={(nextTime) =>
+            setReminderTime(normalizeReminderTime(nextTime))
+          }
+          hourOptions={hourOptions}
+          minuteOptions={minuteOptions}
+          textAlign={getTextAlignment(selectedLanguage)}
+          writingDirection={getWritingDirection(selectedLanguage)}
+          t={t}
+          insets={insets}
+        />
+      )}
     </View>
   );
 };
@@ -900,21 +970,26 @@ const DailyCard = ({
   onPress,
   onRefresh,
 }) => (
-  <Pressable
-    accessibilityRole="button"
-    onPress={onPress}
-    disabled={!onPress}
-    style={({ pressed }) => [
+  <View
+    style={[
       styles.card,
-      { backgroundColor: theme.colors.surface, opacity: pressed ? 0.9 : 1 },
+      {
+        backgroundColor: theme.colors.surface,
+        borderColor: theme.colors.outlineVariant,
+      },
     ]}
   >
     <View style={styles.cardHeader}>
       <View style={styles.cardHeaderLeft}>
-        <View style={[styles.cardBadge, { backgroundColor: accent }]}>
-          <MaterialCommunityIcons name={icon} size={20} color="#ffffff" />
+        <View style={[styles.cardBadge, { backgroundColor: `${accent}1A` }]}>
+          <MaterialCommunityIcons name={icon} size={20} color={accent} />
         </View>
-        <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
+        <Text
+          style={[
+            styles.cardTitle,
+            { color: theme.colors.onSurface },
+          ]}
+        >
           {title}
         </Text>
       </View>
@@ -923,16 +998,14 @@ const DailyCard = ({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Refresh ${title}`}
-          onPress={(event) => {
-            event.stopPropagation();
-            onRefresh();
-          }}
+          hitSlop={8}
+          onPress={onRefresh}
           style={({ pressed }) => [
             styles.refreshButton,
             {
               backgroundColor:
                 theme.colors.surfaceVariant || theme.colors.background,
-              opacity: pressed ? 0.8 : 1,
+              opacity: pressed ? 0.72 : 1,
             },
           ]}
         >
@@ -944,14 +1017,26 @@ const DailyCard = ({
         </Pressable>
       )}
     </View>
-    {children}
-  </Pressable>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
+        styles.cardContent,
+        { opacity: pressed ? 0.78 : 1 },
+      ]}
+    >
+      {children}
+    </Pressable>
+  </View>
 );
 
 const MiniPill = ({ onPress, icon, label, colors, badge, badgeColor }) => (
   <Pressable
     accessibilityRole="button"
     accessibilityLabel={label}
+    hitSlop={8}
     onPress={onPress}
     style={[
       styles.miniPill,
@@ -987,13 +1072,15 @@ const TimePickerColumn = ({
   useEffect(() => {
     const index = options.indexOf(value);
     if (index >= 0 && scrollRef.current) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         scrollRef.current?.scrollTo({
           y: Math.max(0, index * ITEM_HEIGHT - ITEM_HEIGHT),
           animated: false,
         });
       }, 50);
+      return () => clearTimeout(timeoutId);
     }
+    return undefined;
   }, [value, options]);
 
   return (
@@ -1060,7 +1147,6 @@ const TimePickerColumn = ({
 };
 
 const ReminderModal = ({
-  visible,
   theme,
   selectedLanguage,
   reminderTime,
@@ -1079,28 +1165,27 @@ const ReminderModal = ({
   insets,
 }) => {
   const handleSave = async () => {
-    await onSave({ ...reminderTime }, selectedLanguage, true);
-    onClose();
+    const saved = await onSave({ ...reminderTime }, selectedLanguage, true);
+    if (saved) onClose();
   };
 
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable
-          style={[
-            styles.reminderSheet,
-            {
-              backgroundColor: theme.colors.surface,
-              paddingBottom: Math.max(insets.bottom, 20),
-            },
-          ]}
-          onPress={(event) => event.stopPropagation()}
-        >
+    <View style={styles.modalBackdrop}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("Close reminder settings")}
+        onPress={onClose}
+        style={styles.modalBackdropDismiss}
+      />
+      <View
+        style={[
+          styles.reminderSheet,
+          {
+            backgroundColor: theme.colors.surface,
+            paddingBottom: Math.max(insets.bottom, 20),
+          },
+        ]}
+      >
           {/* Drag handle */}
           <View style={styles.sheetHandleRow}>
             <View
@@ -1347,9 +1432,8 @@ const ReminderModal = ({
               </Pressable>
             )}
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </View>
   );
 };
 
@@ -1365,6 +1449,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 30,
+    elevation: 30,
     paddingHorizontal: 14,
   },
   pillRow: {
@@ -1417,17 +1502,20 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 18,
     paddingBottom: 42,
+    width: "100%",
+    maxWidth: 760,
+    alignSelf: "center",
   },
   heroCard: {
-    borderRadius: 28,
-    padding: 20,
-    marginBottom: 18,
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 16,
     borderWidth: StyleSheet.hairlineWidth,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 1,
   },
   heroTopRow: {
     flexDirection: "row",
@@ -1507,32 +1595,49 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   card: {
-    borderRadius: 24,
+    borderRadius: 22,
     padding: 18,
-    marginBottom: 18,
+    marginBottom: 14,
     borderWidth: StyleSheet.hairlineWidth,
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  cardHeaderLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  cardContent: {
+    borderRadius: 12,
   },
   cardBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: "700",
+    flexShrink: 1,
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   verseText: {
     fontSize: 22,
@@ -1562,9 +1667,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 1000,
+    elevation: 1000,
     justifyContent: "flex-end",
+  },
+  modalBackdropDismiss: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
   reminderSheet: {
     width: "100%",
@@ -1578,6 +1692,7 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 0, height: -8 },
     elevation: 12,
+    zIndex: 1,
   },
   sheetHandleRow: {
     alignItems: "center",

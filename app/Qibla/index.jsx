@@ -4,9 +4,9 @@
  *
  * Architecture (why it stays at your display's refresh rate):
  *  1. Sensor → JS: a One-Euro filter removes jitter at rest and keeps lag low
- *     while turning. Output is written to a shared value (no React state).
- *  2. UI thread: a frame callback eases the dial toward the filtered target
- *     every display frame (60 / 120 Hz), independent of the sensor rate.
+ *     while turning. The filtered heading is written to a shared value.
+ *  2. UI thread: a frame callback smoothly follows the latest heading, without
+ *     interrupting per-reading animations or triggering React renders.
  *  3. Only tiny components (number readout, guidance pill, halo) subscribe to
  *     heading changes through an external store, throttled to 10 Hz. The
  *     screen itself never re-renders for a heading tick.
@@ -105,15 +105,14 @@ const HEADING_UI_INTERVAL_MS = 100; // max React updates for the number readout
 const DISPLAY_HYSTERESIS_DEG = 0.65; // keeps the integer from flickering at rest
 const NO_HEADING_TIMEOUT_MS = 6000;
 const TRUE_HEADING_GRACE_MS = 2500; // wait for true north before using magnetic
-const VISUAL_TAU_MS = 45; // UI-thread easing time constant (lower = snappier)
-// Tuned by simulation (σ≈1.5° sensor noise): ~2.7× less jitter at rest with
-// ≈45 ms of lag while turning at 90°/s. Raise minCutoff for a snappier needle,
-// lower it for a calmer one.
+const VISUAL_TAU_MS = 100;
+// Keep stationary readings calm while allowing the filter to follow turns
+// quickly; the short UI-thread transition bridges gaps between sensor events.
 const FILTER = {
-  minCutoff: 0.9, // Hz – smoothing at rest
-  minCutoffLowAccuracy: 0.5, // Hz – calmer when the sensor reports low accuracy
-  beta: 0.03, // how quickly smoothing relaxes while turning
-  derivativeCutoff: 0.5, // Hz
+  minCutoff: 1.2, // Hz – smoothing at rest
+  minCutoffLowAccuracy: 0.7, // Hz – calmer when the sensor reports low accuracy
+  beta: 0.08, // how quickly smoothing relaxes while turning
+  derivativeCutoff: 1, // Hz
 };
 
 // Location.
@@ -236,7 +235,6 @@ const shortestSignedDelta = (from, to) => {
   return ((((to - from) % 360) + 540) % 360) - 180;
 };
 
-// One UI-frame of easing toward the target heading (frame-rate independent).
 const stepVisualHeading = (current, target, dtMs) => {
   "worklet";
   const diff = shortestSignedDelta(current, target);
@@ -569,11 +567,12 @@ const fireSuccessHaptic = () => {
 };
 
 /**
- * Turns raw sensor readings into: (a) a smooth target for the UI thread,
+ * Turns raw sensor readings into: (a) a filtered UI-thread target,
  * (b) a throttled integer for the readout, (c) alignment state + haptics.
  */
 function createHeadingPipeline({
   store,
+  headingSV,
   targetSV,
   snapSV,
   onAccuracy,
@@ -762,7 +761,6 @@ function createHeadingPipeline({
       lastHeading = filtered;
       lastReadingAt = now;
 
-      // Target first, then snap flag: the first reading must not animate.
       targetSV.set(filtered);
       if (isFirst) {
         snapSV.set(1);
@@ -873,7 +871,6 @@ function usePrayerPhase(schedule, active) {
   return phase;
 }
 
-/** Eases the displayed heading toward the target on the UI thread, per frame. */
 function useHeadingSmoothing({ headingSV, targetSV, snapSV, active }) {
   const frame = useFrameCallback((info) => {
     "worklet";
@@ -882,11 +879,11 @@ function useHeadingSmoothing({ headingSV, targetSV, snapSV, active }) {
       headingSV.set(targetSV.get());
       return;
     }
-    const current = headingSV.get();
     const dt = Math.min(
       64,
       info.timeSincePreviousFrame == null ? 16 : info.timeSincePreviousFrame,
     );
+    const current = headingSV.get();
     const next = stepVisualHeading(current, targetSV.get(), dt);
     if (next !== current) headingSV.set(next);
   }, false);
@@ -932,7 +929,7 @@ function useCityName(location) {
  * position, timeout, last-known fallback, and a full refresh after the app
  * has been in the background.
  */
-function useQiblaSensors({ store, targetSV, snapSV, qiblaSV }) {
+function useQiblaSensors({ store, headingSV, targetSV, snapSV, qiblaSV }) {
   const [location, setLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState("loading");
   const [canAskAgain, setCanAskAgain] = useState(true);
@@ -951,6 +948,7 @@ function useQiblaSensors({ store, targetSV, snapSV, qiblaSV }) {
   if (pipelineRef.current === null) {
     pipelineRef.current = createHeadingPipeline({
       store,
+      headingSV,
       targetSV,
       snapSV,
       onAccuracy: setHeadingAccuracy,
@@ -2103,7 +2101,7 @@ const Qibla = () => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // Heading plumbing: JS writes target, UI thread eases `headingSV` per frame.
+  // Sensor heading animates on the UI thread without re-rendering this screen.
   const [store] = useState(createCompassStore);
   const headingSV = useSharedValue(0);
   const targetSV = useSharedValue(0);
@@ -2121,7 +2119,7 @@ const Qibla = () => {
     headingMode,
     headingUnavailable,
     retry,
-  } = useQiblaSensors({ store, targetSV, snapSV, qiblaSV });
+  } = useQiblaSensors({ store, headingSV, targetSV, snapSV, qiblaSV });
 
   const cityName = useCityName(location);
 
