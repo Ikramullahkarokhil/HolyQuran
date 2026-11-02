@@ -48,6 +48,10 @@ import {
   Gesture,
   GestureDetector,
 } from "react-native-gesture-handler";
+import {
+  getTajweedAnnotationsForAyah,
+  getTajweedStyleForRule,
+} from "../../components/tajweedData";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -461,6 +465,66 @@ GlobalAudioPlayer.displayName = "GlobalAudioPlayer";
 const DIRECTION_THRESHOLD = 8;
 const IDLE_RESET_MS = 180;
 
+const TajweedGuide = memo(({ colors, rules = [], showTajweed, onSelectRule, selectedRule, t }) => {
+  if (!showTajweed || !rules.length) return null;
+
+  const guideTitle = typeof t === "function" ? t("Tajweed guide") || "Tajweed guide" : "Tajweed guide";
+
+  return (
+    <View
+      style={[
+        styles.tajweedGuideCard,
+        {
+          backgroundColor: withAlpha(colors.surface, 0.96),
+          borderColor: colors.border,
+          shadowColor: colors.shadow,
+        },
+      ]}
+    >
+      <View style={styles.tajweedGuideHeader}>
+        <Icon source="format-color-highlight" size={16} color={colors.accent} />
+        <Text style={[styles.tajweedGuideTitle, { color: colors.text }]}>
+          {guideTitle}
+        </Text>
+      </View>
+      <View style={styles.tajweedGuideRow}>
+        {rules.map(({ rule, label, color, backgroundColor, borderColor }) => {
+          const active = selectedRule === rule;
+          return (
+            <Pressable
+              key={rule}
+              onPress={() => onSelectRule?.(rule)}
+              accessibilityRole="button"
+              accessibilityLabel={`Show Tajweed rule guide for ${label}`}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.tajweedGuideChip,
+                {
+                  backgroundColor,
+                  borderColor,
+                  opacity: pressed ? 0.8 : 1,
+                  transform: [{ scale: active ? 1.02 : 1 }],
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.tajweedGuideDot,
+                  { backgroundColor: color },
+                ]}
+              />
+              <Text style={[styles.tajweedGuideChipText, { color }]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+});
+TajweedGuide.displayName = "TajweedGuide";
+
 const FloatingPillHeader = memo(
   ({
     surah,
@@ -470,6 +534,8 @@ const FloatingPillHeader = memo(
     onNext,
     onPins,
     onTranslate,
+    onToggleTajweed,
+    showTajweed,
     onBack,
     colors,
     labels,
@@ -660,6 +726,21 @@ const FloatingPillHeader = memo(
               size={38}
             />
           </Animated.View>
+
+          <Animated.View style={secondaryStyle} pointerEvents="box-none">
+            <MiniPill
+              onPress={onToggleTajweed}
+              icon="format-color-highlight"
+              filled={showTajweed}
+              active={showTajweed}
+              accessibilityLabel={
+                showTajweed ? labels.hideTajweed : labels.showTajweed
+              }
+              colors={colors}
+              rtl={rtl}
+              size={38}
+            />
+          </Animated.View>
         </View>
       </Animated.View>
     );
@@ -683,6 +764,7 @@ const SurahDetails = () => {
     useQuranTranslationStore();
 
   const listRef = useRef(null);
+  const tajweedInfoTimerRef = useRef(null);
   const isMounted = useRef(true);
   const showScrollTopRef = useRef(false);
   const currentTopIndexRef = useRef(0);
@@ -696,6 +778,9 @@ const SurahDetails = () => {
   const scrollY = useSharedValue(0);
 
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showTajweed, setShowTajweed] = useState(true);
+  const [selectedTajweedRule, setSelectedTajweedRule] = useState(null);
+  const [tajweedInfoCountdown, setTajweedInfoCountdown] = useState(0);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [actionVerse, setActionVerse] = useState(null);
   const [actionIsBookmarked, setActionIsBookmarked] = useState(false);
@@ -775,6 +860,8 @@ const SurahDetails = () => {
       next: t("Next Surah"),
       pins: t("Pinned locations"),
       translate: t("Select translation language"),
+      showTajweed: t("Show Tajweed") || "Show Tajweed",
+      hideTajweed: t("Hide Tajweed") || "Hide Tajweed",
       meccan: t("Meccan") || "Meccan",
       medinan: t("Medinan") || "Medinan",
       verses: t("verses") || "verses",
@@ -828,6 +915,7 @@ const SurahDetails = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHighlightedAyahId(null);
     setExpandedTafseerIds(new Set());
+    setSelectedTajweedRule(null);
     setShowScrollTop(false);
     showScrollTopRef.current = false;
     currentTopIndexRef.current = 0;
@@ -1193,6 +1281,55 @@ const SurahDetails = () => {
 
   const handlePins = useCallback(() => setPinsVisible(true), []);
   const handleTranslate = useCallback(() => setPickerVisible(true), []);
+  const toggleTajweed = useCallback(() => {
+    setShowTajweed((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedTajweedRule(null);
+        setTajweedInfoCountdown(0);
+      }
+      return next;
+    });
+  }, []);
+
+  const dismissTajweedInfo = useCallback(() => {
+    if (tajweedInfoTimerRef.current) {
+      clearInterval(tajweedInfoTimerRef.current);
+      tajweedInfoTimerRef.current = null;
+    }
+    setSelectedTajweedRule(null);
+    setTajweedInfoCountdown(0);
+  }, []);
+
+  const openTajweedRuleInfo = useCallback((rule) => {
+    if (!rule) return;
+    if (tajweedInfoTimerRef.current) {
+      clearInterval(tajweedInfoTimerRef.current);
+    }
+    setSelectedTajweedRule(rule);
+    setTajweedInfoCountdown(4);
+
+    tajweedInfoTimerRef.current = setInterval(() => {
+      setTajweedInfoCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(tajweedInfoTimerRef.current);
+          tajweedInfoTimerRef.current = null;
+          setSelectedTajweedRule(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (tajweedInfoTimerRef.current) {
+        clearInterval(tajweedInfoTimerRef.current);
+        tajweedInfoTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleFlingLeft = useCallback(
     ({ nativeEvent }) => {
@@ -1257,11 +1394,14 @@ const SurahDetails = () => {
     [pins, savePins],
   );
 
-  const goToVersePin = useCallback((pin) => {
-    const index = verses.findIndex((verse) => verse.ayah === pin.ayah);
-    if (index >= 0) scrollToVerse(index, 0.28, true);
-    setPinsVisible(false);
-  }, [scrollToVerse, verses]);
+  const goToVersePin = useCallback(
+    (pin) => {
+      const index = verses.findIndex((verse) => verse.ayah === pin.ayah);
+      if (index >= 0) scrollToVerse(index, 0.28, true);
+      setPinsVisible(false);
+    },
+    [scrollToVerse, verses],
+  );
 
   const pinnedVerseIds = useMemo(() => new Set(pins.map((p) => p.id)), [pins]);
   const pinnedLabel = t("Pinned");
@@ -1399,8 +1539,11 @@ const SurahDetails = () => {
           isPinned={pinnedVerseIds.has(item.id)}
           highlightProgress={highlightProgress}
           colors={colors}
+          showTajweed={showTajweed}
           pinnedLabel={pinnedLabel}
           onLongPress={handleLongPress}
+          onRulePress={openTajweedRuleInfo}
+          translationLanguage={translationLanguage}
           surahId={surahId}
           isAudioDownloaded={downloadedSet.has(item.ayah)}
           isAudioPlaying={isPlayingInThisSurah && playingId === item.ayah}
@@ -1422,9 +1565,11 @@ const SurahDetails = () => {
       translationFallback,
       highlightedAyahId,
       pinnedVerseIds,
+      showTajweed,
       highlightProgress,
       colors,
       labels,
+      translationLanguage,
       pinnedLabel,
       handleLongPress,
       tafseerByAyah,
@@ -1443,6 +1588,7 @@ const SurahDetails = () => {
       downloadVerse,
       playVerse,
       pauseVerse,
+      openTajweedRuleInfo,
     ],
   );
 
@@ -1545,9 +1691,7 @@ const SurahDetails = () => {
     () => [
       styles.listContent,
       {
-        paddingTop: audioPlayerVisible
-          ? listTopPadding + 110
-          : listTopPadding,
+        paddingTop: audioPlayerVisible ? listTopPadding + 110 : listTopPadding,
         paddingBottom: insets.bottom + 72,
       },
     ],
@@ -1560,7 +1704,7 @@ const SurahDetails = () => {
 
   const listExtraData = useMemo(
     () =>
-      `${translationLanguage}|${highlightedAyahId ?? ""}|${pins.length}|${expandedTafseerIds.size}|${downloadedCount}|${playingId ?? ""}|${expandedId ?? ""}|${downloadingId ?? ""}|${bulkProgress.toFixed(2)}|${singleDownloadMetrics?.bytesWritten ?? ""}|${bulkDownloadedBytes}`,
+      `${translationLanguage}|${highlightedAyahId ?? ""}|${pins.length}|${expandedTafseerIds.size}|${downloadedCount}|${playingId ?? ""}|${expandedId ?? ""}|${downloadingId ?? ""}|${bulkProgress.toFixed(2)}|${singleDownloadMetrics?.bytesWritten ?? ""}|${bulkDownloadedBytes}|${showTajweed ? 1 : 0}`,
     [
       translationLanguage,
       highlightedAyahId,
@@ -1573,31 +1717,90 @@ const SurahDetails = () => {
       bulkProgress,
       singleDownloadMetrics?.bytesWritten,
       bulkDownloadedBytes,
+      showTajweed,
     ],
   );
 
+  const surahTajweedRules = useMemo(() => {
+    if (!showTajweed || !verses.length) return [];
+
+    const deduped = new Map();
+    for (const verse of verses) {
+      const annotations = getTajweedAnnotationsForAyah(verse.surah, verse.ayah);
+      for (const annotation of annotations) {
+        const rule = String(annotation?.rule || "");
+        if (!rule || rule === "default" || rule === "plain") continue;
+        if (deduped.has(rule)) continue;
+
+        const style = getTajweedStyleForRule(rule, colors, translationLanguage);
+        deduped.set(rule, {
+          rule,
+          label: style.label || rule.replace(/_/g, " "),
+          color: style.color,
+          backgroundColor: style.backgroundColor,
+          borderColor: style.borderColor,
+          description: style.description || "Tajweed rule",
+        });
+      }
+    }
+
+    return Array.from(deduped.values());
+  }, [colors, showTajweed, translationLanguage, verses]);
+
+  const activeTajweedRuleMeta = useMemo(() => {
+    if (!selectedTajweedRule) return null;
+
+    const found = surahTajweedRules.find(
+      (rule) => rule.rule === selectedTajweedRule,
+    );
+    if (found) return found;
+
+    const style = getTajweedStyleForRule(
+      selectedTajweedRule,
+      colors,
+      translationLanguage,
+    );
+    return {
+      ...style,
+      rule: selectedTajweedRule,
+      label: style.label || selectedTajweedRule.replace(/_/g, " "),
+      description:
+        style.description || "This tajweed rule is highlighted in the recitation.",
+    };
+  }, [colors, selectedTajweedRule, surahTajweedRules, translationLanguage]);
+
   const ListHeader = useMemo(
     () => (
-      <SurahAudioToolbar
-        totalVerses={verses.length}
-        downloadedCount={downloadedCount}
-        isDownloadingAll={isDownloadingAll}
-        isPausedDownloadAll={bulkPaused}
-        progress={bulkProgress}
-        activeDownloads={bulkActiveDownloads}
-        singleProgress={downloadProgressMap.get(downloadingId) || 0}
-        singleDownloadMetrics={singleDownloadMetrics}
-        bulkDownloadedBytes={bulkDownloadedBytes}
-        bulkTotalBytes={bulkTotalBytes}
-        failedCount={bulkFailedCount}
-        totalBytesLabel={totalBytesLabel}
-        colors={colors}
-        labels={labels}
-        onDownloadAll={downloadAll}
-        onPauseDownloadAll={pauseDownloadAll}
-        onResumeDownloadAll={resumeDownloadAll}
-        onCancelDownloadAll={cancelDownloadAll}
-      />
+      <>
+        <TajweedGuide
+          colors={colors}
+          rules={surahTajweedRules}
+          showTajweed={showTajweed}
+          onSelectRule={openTajweedRuleInfo}
+          selectedRule={selectedTajweedRule}
+          t={t}
+        />
+        <SurahAudioToolbar
+          totalVerses={verses.length}
+          downloadedCount={downloadedCount}
+          isDownloadingAll={isDownloadingAll}
+          isPausedDownloadAll={bulkPaused}
+          progress={bulkProgress}
+          activeDownloads={bulkActiveDownloads}
+          singleProgress={downloadProgressMap.get(downloadingId) || 0}
+          singleDownloadMetrics={singleDownloadMetrics}
+          bulkDownloadedBytes={bulkDownloadedBytes}
+          bulkTotalBytes={bulkTotalBytes}
+          failedCount={bulkFailedCount}
+          totalBytesLabel={totalBytesLabel}
+          colors={colors}
+          labels={labels}
+          onDownloadAll={downloadAll}
+          onPauseDownloadAll={pauseDownloadAll}
+          onResumeDownloadAll={resumeDownloadAll}
+          onCancelDownloadAll={cancelDownloadAll}
+        />
+      </>
     ),
     [
       verses.length,
@@ -1613,6 +1816,11 @@ const SurahDetails = () => {
       totalBytesLabel,
       colors,
       labels,
+      showTajweed,
+      surahTajweedRules,
+      selectedTajweedRule,
+      openTajweedRuleInfo,
+      t,
       downloadAll,
       downloadProgressMap,
       pauseDownloadAll,
@@ -1673,11 +1881,88 @@ const SurahDetails = () => {
         onNext={handleNext}
         onPins={handlePins}
         onTranslate={handleTranslate}
+        onToggleTajweed={toggleTajweed}
+        showTajweed={showTajweed}
         onBack={handleBack}
         colors={colors}
         labels={labels}
         scrollY={scrollY}
       />
+
+      {showTajweed && activeTajweedRuleMeta ? (
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(120)}
+          style={[
+            styles.tajweedInfoBubble,
+            {
+              top: insets.top + 74,
+              backgroundColor: withAlpha(colors.surface, 0.98),
+              borderColor: activeTajweedRuleMeta.borderColor || colors.border,
+              shadowColor: colors.shadow,
+            },
+          ]}
+        >
+          <View style={styles.tajweedInfoHeader}>
+            <View
+              style={[
+                styles.tajweedInfoDot,
+                { backgroundColor: activeTajweedRuleMeta.color || colors.accent },
+              ]}
+            />
+            <Text
+              style={[
+                styles.tajweedInfoTitle,
+                { color: activeTajweedRuleMeta.color || colors.text },
+              ]}
+            >
+              {activeTajweedRuleMeta.label || t("Tajweed rule") || "Tajweed rule"}
+            </Text>
+            <View style={styles.tajweedInfoMeta}>
+              <Text style={[styles.tajweedInfoTimer, { color: colors.secondary }]}>
+                {tajweedInfoCountdown}s
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[styles.tajweedInfoDescription, { color: colors.secondary }]}>
+            {activeTajweedRuleMeta.description || t("Rule details") || "Rule details"}
+          </Text>
+
+          <View style={styles.tajweedInfoActions}>
+            <Pressable
+              onPress={dismissTajweedInfo}
+              style={({ pressed }) => [
+                styles.tajweedInfoAction,
+                {
+                  backgroundColor: withAlpha(colors.accent, 0.12),
+                  opacity: pressed ? 0.78 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t("Hide Tajweed rule info") || "Hide Tajweed rule info"}
+            >
+              <Text style={[styles.tajweedInfoActionText, { color: colors.accent }]}>
+                {t("Hide") || "Hide"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={dismissTajweedInfo}
+              style={({ pressed }) => [
+                styles.tajweedInfoClose,
+                {
+                  backgroundColor: withAlpha(colors.text, 0.06),
+                  opacity: pressed ? 0.78 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t("Close Tajweed rule info") || "Close Tajweed rule info"}
+            >
+              <Icon source="close" size={14} color={colors.secondary} />
+            </Pressable>
+          </View>
+        </Animated.View>
+      ) : null}
 
       <FlingGestureHandler
         direction={Directions.LEFT}
@@ -2083,6 +2368,126 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  tajweedGuideCard: {
+    marginTop: 8,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  tajweedGuideHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 10,
+  },
+  tajweedGuideTitle: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    letterSpacing: 0.15,
+  },
+  tajweedGuideRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  tajweedGuideChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  tajweedGuideDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+  },
+  tajweedGuideChipText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    letterSpacing: 0.15,
+  },
+  tajweedInfoBubble: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    zIndex: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      ios: {
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.14,
+        shadowRadius: 10,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  tajweedInfoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  tajweedInfoDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+  },
+  tajweedInfoTitle: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: "800",
+    letterSpacing: 0.15,
+  },
+  tajweedInfoMeta: {
+    minWidth: 30,
+    alignItems: "flex-end",
+  },
+  tajweedInfoTimer: {
+    fontSize: 10.5,
+    fontWeight: "700",
+  },
+  tajweedInfoDescription: {
+    marginTop: 6,
+    fontSize: 11.5,
+    lineHeight: 18,
+  },
+  tajweedInfoActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 10,
+  },
+  tajweedInfoAction: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  tajweedInfoActionText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+  },
+  tajweedInfoClose: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   listContent: {
     paddingHorizontal: 12,
   },

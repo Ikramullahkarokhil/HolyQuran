@@ -29,6 +29,11 @@ import {
   getReciterById,
 } from "../components/reciters";
 import { getSurahByIndex } from "./quranData";
+import {
+  getTajweedAnnotationsForAyah,
+  buildTajweedSegments,
+  getTajweedStyleForRule,
+} from "./tajweedData";
 import { useReciterStore } from "./store/useReciterStore";
 import { requestAudioNotificationPermission } from "./requestAudioNotificationPermission";
 // Adjust path if your helpers live elsewhere:
@@ -336,12 +341,6 @@ export const SurahAudioToolbar = memo(
     const displayedTotalBytes = isDownloadingAll
       ? bulkTotalBytes
       : singleDownloadMetrics?.totalBytes;
-    const activeLabel = activeDownloads
-      .map(
-        (download) =>
-          `${labels?.ayah || "Ayah"} ${download.ayah} · ${Math.round(download.progress * 100)}%`,
-      )
-      .join("  ·  ");
 
     return (
       <View
@@ -1699,8 +1698,11 @@ export const VerseItem = memo(
     isPinned,
     highlightProgress,
     colors,
+    showTajweed = true,
     pinnedLabel,
     onLongPress,
+    onRulePress,
+    translationLanguage = "english",
     surahId,
     isAudioDownloaded,
     isAudioPlaying,
@@ -1740,6 +1742,41 @@ export const VerseItem = memo(
       },
       [item, translationVerse, index, onLongPress],
     );
+
+    const tajweedSegments = useMemo(() => {
+      if (!showTajweed) {
+        return [{ text: item.verse, rule: "plain" }];
+      }
+
+      const annotations = getTajweedAnnotationsForAyah(item.surah, item.ayah);
+      return buildTajweedSegments(item.verse, annotations);
+    }, [item.ayah, item.surah, item.verse, showTajweed]);
+
+    const tajweedRuleHighlights = useMemo(() => {
+      if (!showTajweed) return [];
+
+      const seen = new Set();
+      const result = [];
+
+      for (const segment of tajweedSegments) {
+        const rule = segment.rule;
+        if (!rule || rule === "plain" || rule === "default" || seen.has(rule)) {
+          continue;
+        }
+
+        seen.add(rule);
+        const style = getTajweedStyleForRule(rule, colors, translationLanguage);
+        result.push({
+          rule,
+          label: style.label || rule.replace(/_/g, " "),
+          color: style.color,
+          backgroundColor: style.backgroundColor,
+          description: style.description || "Tajweed rule",
+        });
+      }
+
+      return result;
+    }, [colors, showTajweed, tajweedSegments, translationLanguage]);
 
     return (
       <LongPressGestureHandler
@@ -1827,9 +1864,64 @@ export const VerseItem = memo(
                 >
                   {item.ayah}{" "}
                 </Text>
-                {item.verse}
+                {tajweedSegments.map((segment, segmentIndex) => {
+                  const ruleStyle = getTajweedStyleForRule(
+                    segment.rule,
+                    colors,
+                    translationLanguage,
+                  );
+                  return (
+                    <Text
+                      key={`${item.id}-tajweed-${segmentIndex}`}
+                      style={[
+                        styles.tajweedSegment,
+                        {
+                          color: ruleStyle.color,
+                          backgroundColor: ruleStyle.backgroundColor,
+                          borderColor: ruleStyle.borderColor,
+                        },
+                      ]}
+                    >
+                      {segment.text}
+                    </Text>
+                  );
+                })}
               </Text>
             </View>
+
+            {showTajweed && tajweedRuleHighlights.length > 0 ? (
+              <View style={styles.tajweedRuleRow}>
+                {tajweedRuleHighlights.map((meta) => (
+                  <Pressable
+                    key={`${item.id}-${meta.rule}`}
+                    onPress={() =>
+                      onRulePress?.(meta.rule, meta.label, meta.description)
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={`Show Tajweed rule info for ${meta.label}`}
+                    hitSlop={8}
+                    style={({ pressed }) => [
+                      styles.tajweedRuleChip,
+                      {
+                        backgroundColor: meta.backgroundColor,
+                        borderColor: meta.color + "55",
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.tajweedRuleDot,
+                        { backgroundColor: meta.color },
+                      ]}
+                    />
+                    <Text style={[styles.tajweedRuleText, { color: meta.color }]}>
+                      {meta.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
 
             <Text
               style={[
@@ -1908,6 +2000,7 @@ export const VerseItem = memo(
     prev.isHighlighted === next.isHighlighted &&
     prev.isPinned === next.isPinned &&
     prev.colors === next.colors &&
+    prev.showTajweed === next.showTajweed &&
     prev.pinnedLabel === next.pinnedLabel &&
     prev.onLongPress === next.onLongPress &&
     prev.onToggleTafseer === next.onToggleTafseer &&
@@ -2065,6 +2158,39 @@ const styles = StyleSheet.create({
     textAlign: "right",
     lineHeight: 38,
     writingDirection: "rtl",
+    letterSpacing: 0.2,
+  },
+  tajweedSegment: {
+    borderRadius: 5,
+    paddingHorizontal: 1,
+    borderWidth: 0,
+    textAlign: "right",
+    writingDirection: "rtl",
+  },
+  tajweedRuleRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+    marginTop: -2,
+  },
+  tajweedRuleChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  tajweedRuleDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+  },
+  tajweedRuleText: {
+    fontSize: 10,
+    fontWeight: "700",
     letterSpacing: 0.2,
   },
   translationText: { fontSize: 15, lineHeight: 24, opacity: 0.94 },
