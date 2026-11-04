@@ -815,6 +815,22 @@ const SurahDetails = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showTajweed, setShowTajweed] = useState(true);
   const [selectedTajweedRule, setSelectedTajweedRule] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem("surah_details_tajweed_visibility")
+      .then((stored) => {
+        if (!active) return;
+        if (stored !== null) {
+          setShowTajweed(stored === "true");
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
   const [tajweedInfoCountdown, setTajweedInfoCountdown] = useState(0);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
@@ -1322,6 +1338,10 @@ const SurahDetails = () => {
   const toggleTajweed = useCallback(() => {
     setShowTajweed((prev) => {
       const next = !prev;
+      AsyncStorage.setItem(
+        "surah_details_tajweed_visibility",
+        String(next),
+      ).catch(() => {});
       if (!next) {
         setSelectedTajweedRule(null);
         setTajweedInfoCountdown(0);
