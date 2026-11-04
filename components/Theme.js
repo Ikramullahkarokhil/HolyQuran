@@ -16,6 +16,14 @@ const lightTheme = {
     progressColor: "#2587d8",
     buttonText: "#ffffff",
     error: "#d93025",
+    elevation: {
+      level0: "transparent",
+      level1: "#F5F7FA",
+      level2: "#EEF2F7",
+      level3: "#E7EDF8",
+      level4: "#DDE7F6",
+      level5: "#D1DDEF",
+    },
   },
 };
 
@@ -37,6 +45,14 @@ const darkTheme = {
     progressColor: "#4ea1ff",
     buttonText: "#ffffff",
     error: "#ff6b6b",
+    elevation: {
+      level0: "transparent",
+      level1: "#1F232A",
+      level2: "#252C36",
+      level3: "#2B3440",
+      level4: "#303D4C",
+      level5: "#364A5D",
+    },
   },
 };
 

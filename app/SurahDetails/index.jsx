@@ -65,7 +65,7 @@ import {
   useNavigation,
   useRouter,
 } from "expo-router";
-import { Icon, useTheme } from "react-native-paper";
+import { Icon, Menu, useTheme } from "react-native-paper";
 import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FloatingLanguagePickerModal from "../../components/FloatingLanguagePickerModal";
@@ -141,6 +141,7 @@ const MiniPill = memo(
   ({
     onPress,
     icon,
+    label,
     disabled = false,
     filled = false,
     active = false,
@@ -178,6 +179,10 @@ const MiniPill = memo(
       onPress?.();
     }, [disabled, haptic, onPress]);
 
+    const hasLabel = Boolean(label);
+    const pillWidth = hasLabel ? Math.max(size + 22, 94) : size;
+    const iconColor = filled ? "#fff" : rtl ? colors.accent : colors.text;
+
     return (
       <Animated.View style={pressStyle}>
         <Pressable
@@ -192,12 +197,13 @@ const MiniPill = memo(
           style={({ pressed }) => [
             styles.miniPill,
             {
-              width: size,
+              width: pillWidth,
               height: size,
-              borderRadius: size / 2,
+              borderRadius: hasLabel ? 18 : size / 2,
               backgroundColor: filled ? colors.accent : colors.surface,
               borderColor: filled ? colors.accent : colors.border,
               shadowColor: filled ? colors.accent : colors.shadow,
+              paddingHorizontal: hasLabel ? 12 : 0,
             },
             active &&
               !filled && { backgroundColor: withAlpha(colors.accent, 0.16) },
@@ -205,11 +211,14 @@ const MiniPill = memo(
             disabled && { opacity: 0.32 },
           ]}
         >
-          <Icon
-            source={icon}
-            size={size >= 40 ? 19 : 17}
-            color={filled ? "#fff" : rtl ? colors.accent : colors.text}
-          />
+          <View
+            style={[
+              styles.miniPillContent,
+              { flexDirection: hasLabel ? "row" : "column" },
+            ]}
+          >
+            <Icon source={icon} size={size >= 40 ? 18 : 16} color={iconColor} />
+          </View>
         </Pressable>
       </Animated.View>
     );
@@ -465,64 +474,70 @@ GlobalAudioPlayer.displayName = "GlobalAudioPlayer";
 const DIRECTION_THRESHOLD = 8;
 const IDLE_RESET_MS = 180;
 
-const TajweedGuide = memo(({ colors, rules = [], showTajweed, onSelectRule, selectedRule, t }) => {
-  if (!showTajweed || !rules.length) return null;
+const TajweedGuide = memo(
+  ({ colors, rules = [], showTajweed, onSelectRule, selectedRule, t }) => {
+    if (!showTajweed || !rules.length) return null;
 
-  const guideTitle = typeof t === "function" ? t("Tajweed guide") || "Tajweed guide" : "Tajweed guide";
+    const guideTitle =
+      typeof t === "function"
+        ? t("Tajweed guide") || "Tajweed guide"
+        : "Tajweed guide";
 
-  return (
-    <View
-      style={[
-        styles.tajweedGuideCard,
-        {
-          backgroundColor: withAlpha(colors.surface, 0.96),
-          borderColor: colors.border,
-          shadowColor: colors.shadow,
-        },
-      ]}
-    >
-      <View style={styles.tajweedGuideHeader}>
-        <Icon source="format-color-highlight" size={16} color={colors.accent} />
-        <Text style={[styles.tajweedGuideTitle, { color: colors.text }]}>
-          {guideTitle}
-        </Text>
-      </View>
-      <View style={styles.tajweedGuideRow}>
-        {rules.map(({ rule, label, color, backgroundColor, borderColor }) => {
-          const active = selectedRule === rule;
-          return (
-            <Pressable
-              key={rule}
-              onPress={() => onSelectRule?.(rule)}
-              accessibilityRole="button"
-              accessibilityLabel={`Show Tajweed rule guide for ${label}`}
-              hitSlop={8}
-              style={({ pressed }) => [
-                styles.tajweedGuideChip,
-                {
-                  backgroundColor,
-                  borderColor,
-                  opacity: pressed ? 0.8 : 1,
-                  transform: [{ scale: active ? 1.02 : 1 }],
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.tajweedGuideDot,
-                  { backgroundColor: color },
+    return (
+      <View
+        style={[
+          styles.tajweedGuideCard,
+          {
+            backgroundColor: withAlpha(colors.surface, 0.96),
+            borderColor: colors.border,
+            shadowColor: colors.shadow,
+          },
+        ]}
+      >
+        <View style={styles.tajweedGuideHeader}>
+          <Icon
+            source="format-color-highlight"
+            size={16}
+            color={colors.accent}
+          />
+          <Text style={[styles.tajweedGuideTitle, { color: colors.text }]}>
+            {guideTitle}
+          </Text>
+        </View>
+        <View style={styles.tajweedGuideRow}>
+          {rules.map(({ rule, label, color, backgroundColor, borderColor }) => {
+            const active = selectedRule === rule;
+            return (
+              <Pressable
+                key={rule}
+                onPress={() => onSelectRule?.(rule)}
+                accessibilityRole="button"
+                accessibilityLabel={`Show Tajweed rule guide for ${label}`}
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.tajweedGuideChip,
+                  {
+                    backgroundColor,
+                    borderColor,
+                    opacity: pressed ? 0.8 : 1,
+                    transform: [{ scale: active ? 1.02 : 1 }],
+                  },
                 ]}
-              />
-              <Text style={[styles.tajweedGuideChipText, { color }]}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
+              >
+                <View
+                  style={[styles.tajweedGuideDot, { backgroundColor: color }]}
+                />
+                <Text style={[styles.tajweedGuideChipText, { color }]}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
-    </View>
-  );
-});
+    );
+  },
+);
 TajweedGuide.displayName = "TajweedGuide";
 
 const FloatingPillHeader = memo(
@@ -540,6 +555,8 @@ const FloatingPillHeader = memo(
     colors,
     labels,
     scrollY,
+    menuVisible,
+    setMenuVisible,
   }) => {
     const insets = useSafeAreaInsets();
     const { language } = useAppLanguageStore();
@@ -617,8 +634,8 @@ const FloatingPillHeader = memo(
       const p = compactProgress.value;
       return {
         flexGrow: interpolate(p, [0, 1], [1, 1.28], Extrapolation.CLAMP),
-        maxWidth: interpolate(p, [0, 1], [230, 360], Extrapolation.CLAMP),
-        marginHorizontal: interpolate(p, [0, 1], [4, 6], Extrapolation.CLAMP),
+        maxWidth: interpolate(p, [0, 1], [170, 220], Extrapolation.CLAMP),
+        marginHorizontal: interpolate(p, [0, 1], [2, 4], Extrapolation.CLAMP),
       };
     });
 
@@ -705,41 +722,59 @@ const FloatingPillHeader = memo(
             size={38}
           />
 
-          <Animated.View style={secondaryStyle} pointerEvents="box-none">
-            <MiniPill
-              onPress={onPins}
-              icon="pin-outline"
-              accessibilityLabel={labels.pins}
-              colors={colors}
-              rtl={rtl}
-              size={38}
-            />
-          </Animated.View>
-
-          <Animated.View style={secondaryStyle} pointerEvents="box-none">
-            <MiniPill
-              onPress={onTranslate}
-              icon="translate"
-              accessibilityLabel={labels.translate}
-              colors={colors}
-              rtl={rtl}
-              size={38}
-            />
-          </Animated.View>
-
-          <Animated.View style={secondaryStyle} pointerEvents="box-none">
-            <MiniPill
-              onPress={onToggleTajweed}
-              icon="format-color-highlight"
-              filled={showTajweed}
-              active={showTajweed}
-              accessibilityLabel={
-                showTajweed ? labels.hideTajweed : labels.showTajweed
+          <Animated.View
+            style={[secondaryStyle, styles.secondaryActionWrapper]}
+            pointerEvents="box-none"
+          >
+            <Menu
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={
+                <MiniPill
+                  onPress={() => setMenuVisible((value) => !value)}
+                  icon="dots-vertical"
+                  accessibilityLabel={labels.menu || "More options"}
+                  colors={colors}
+                  rtl={rtl}
+                  size={38}
+                />
               }
-              colors={colors}
-              rtl={rtl}
-              size={38}
-            />
+              contentStyle={{
+                backgroundColor: colors.surface,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: colors.border,
+                overflow: "hidden",
+              }}
+            >
+              <Menu.Item
+                leadingIcon="translate"
+                title={labels.translate}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onTranslate();
+                }}
+                titleStyle={{ color: colors.text }}
+              />
+              <Menu.Item
+                leadingIcon="pin-outline"
+                title={labels.pins}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onPins();
+                }}
+                titleStyle={{ color: colors.text }}
+              />
+              <Menu.Item
+                leadingIcon="format-color-highlight"
+                title={showTajweed ? labels.hideTajweed : labels.showTajweed}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onToggleTajweed();
+                }}
+                titleStyle={{ color: colors.text }}
+              />
+            </Menu>
           </Animated.View>
         </View>
       </Animated.View>
@@ -782,6 +817,7 @@ const SurahDetails = () => {
   const [selectedTajweedRule, setSelectedTajweedRule] = useState(null);
   const [tajweedInfoCountdown, setTajweedInfoCountdown] = useState(0);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const [actionVerse, setActionVerse] = useState(null);
   const [actionIsBookmarked, setActionIsBookmarked] = useState(false);
   const [pins, setPins] = useState([]);
@@ -859,9 +895,11 @@ const SurahDetails = () => {
       prev: t("Previous Surah"),
       next: t("Next Surah"),
       pins: t("Pinned locations"),
-      translate: t("Select translation language"),
+      translate: t("Translation language"),
+      menu: t("More options") || "More options",
       showTajweed: t("Show Tajweed") || "Show Tajweed",
       hideTajweed: t("Hide Tajweed") || "Hide Tajweed",
+      tajweed: t("Tajweed") || "Tajweed",
       meccan: t("Meccan") || "Meccan",
       medinan: t("Medinan") || "Medinan",
       verses: t("verses") || "verses",
@@ -1765,7 +1803,8 @@ const SurahDetails = () => {
       rule: selectedTajweedRule,
       label: style.label || selectedTajweedRule.replace(/_/g, " "),
       description:
-        style.description || "This tajweed rule is highlighted in the recitation.",
+        style.description ||
+        "This tajweed rule is highlighted in the recitation.",
     };
   }, [colors, selectedTajweedRule, surahTajweedRules, translationLanguage]);
 
@@ -1887,6 +1926,8 @@ const SurahDetails = () => {
         colors={colors}
         labels={labels}
         scrollY={scrollY}
+        menuVisible={headerMenuVisible}
+        setMenuVisible={setHeaderMenuVisible}
       />
 
       {showTajweed && activeTajweedRuleMeta ? (
@@ -1907,7 +1948,9 @@ const SurahDetails = () => {
             <View
               style={[
                 styles.tajweedInfoDot,
-                { backgroundColor: activeTajweedRuleMeta.color || colors.accent },
+                {
+                  backgroundColor: activeTajweedRuleMeta.color || colors.accent,
+                },
               ]}
             />
             <Text
@@ -1916,17 +1959,25 @@ const SurahDetails = () => {
                 { color: activeTajweedRuleMeta.color || colors.text },
               ]}
             >
-              {activeTajweedRuleMeta.label || t("Tajweed rule") || "Tajweed rule"}
+              {activeTajweedRuleMeta.label ||
+                t("Tajweed rule") ||
+                "Tajweed rule"}
             </Text>
             <View style={styles.tajweedInfoMeta}>
-              <Text style={[styles.tajweedInfoTimer, { color: colors.secondary }]}>
+              <Text
+                style={[styles.tajweedInfoTimer, { color: colors.secondary }]}
+              >
                 {tajweedInfoCountdown}s
               </Text>
             </View>
           </View>
 
-          <Text style={[styles.tajweedInfoDescription, { color: colors.secondary }]}>
-            {activeTajweedRuleMeta.description || t("Rule details") || "Rule details"}
+          <Text
+            style={[styles.tajweedInfoDescription, { color: colors.secondary }]}
+          >
+            {activeTajweedRuleMeta.description ||
+              t("Rule details") ||
+              "Rule details"}
           </Text>
 
           <View style={styles.tajweedInfoActions}>
@@ -1940,9 +1991,13 @@ const SurahDetails = () => {
                 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel={t("Hide Tajweed rule info") || "Hide Tajweed rule info"}
+              accessibilityLabel={
+                t("Hide Tajweed rule info") || "Hide Tajweed rule info"
+              }
             >
-              <Text style={[styles.tajweedInfoActionText, { color: colors.accent }]}>
+              <Text
+                style={[styles.tajweedInfoActionText, { color: colors.accent }]}
+              >
                 {t("Hide") || "Hide"}
               </Text>
             </Pressable>
@@ -1956,7 +2011,9 @@ const SurahDetails = () => {
                 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel={t("Close Tajweed rule info") || "Close Tajweed rule info"}
+              accessibilityLabel={
+                t("Close Tajweed rule info") || "Close Tajweed rule info"
+              }
             >
               <Icon source="close" size={14} color={colors.secondary} />
             </Pressable>
@@ -2167,21 +2224,32 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     alignItems: "center",
   },
-  pillRow: {
+  pillScroll: {
     width: "100%",
     maxWidth: 600,
+  },
+  pillScrollContent: {
+    paddingHorizontal: 2,
+    paddingVertical: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pillRow: {
+    width: "auto",
+    minWidth: "100%",
     alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    gap: 4,
     paddingHorizontal: 2,
   },
   miniPill: {
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
     ...Platform.select({
@@ -2195,12 +2263,24 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  miniPillContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  miniPillLabel: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    letterSpacing: 0.16,
+  },
 
   titleCapsuleWrapper: {
-    flex: 1,
-    minWidth: 100,
-    maxWidth: 230,
-    marginHorizontal: 4,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 74,
+    maxWidth: 180,
+    marginHorizontal: 2,
   },
   titleCapsuleInner: {
     flexDirection: "row",
@@ -2231,6 +2311,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: "center",
     letterSpacing: 0.12,
+  },
+  secondaryActionWrapper: {
+    flexShrink: 0,
   },
 
   // Global Audio Player
