@@ -11,7 +11,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.zadalhuda.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio", "playback"]
+        "UIBackgroundModes": [
+          "audio",
+          "playback"
+        ]
       }
     },
     "android": {
@@ -64,7 +67,8 @@
       ],
       "expo-font",
       "expo-asset",
-      "expo-status-bar"
+      "expo-status-bar",
+      "react-native-litert-lm"
     ],
     "experiments": {
       "reactCompiler": true

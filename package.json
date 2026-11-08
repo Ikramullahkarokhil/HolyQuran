@@ -44,6 +44,8 @@
     "react-native": "0.88.0",
     "react-native-circular-progress": "^1.4.0",
     "react-native-gesture-handler": "~3.3.0",
+    "react-native-litert-lm": "^0.8.2",
+    "react-native-nitro-modules": "^0.37.2",
     "react-native-pager-view": "9.0.7",
     "react-native-paper": "^5.12.3",
     "react-native-reanimated": "4.7.1",

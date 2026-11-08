@@ -101,6 +101,14 @@ const formatDownloadBytes = (bytes) => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 };
 
+const formatDownloadSpeed = (bytesPerSecond) => {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return "0 B/s";
+  if (bytesPerSecond < 1024) return `${Math.round(bytesPerSecond)} B/s`;
+  if (bytesPerSecond < 1024 * 1024)
+    return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+  return `${(bytesPerSecond / (1024 * 1024)).toFixed(2)} MB/s`;
+};
+
 const getAyahDirectory = (reciterId, surahId) =>
   new Directory(
     new Directory(Paths.document, "quran-audio"),
@@ -633,6 +641,7 @@ const ReciterSelectScreen = ({ navigation }) => {
   const downloadControlRef = useRef({ paused: false, cancelled: false });
   const downloadBytesRef = useRef(0);
   const sessionBytesRef = useRef(0);
+  const speedSamplesRef = useRef([]);
   const downloadStartTimeRef = useRef(0);
   const isScreenMountedRef = useRef(true);
   const preflightRef = useRef(null);
@@ -863,10 +872,30 @@ const ReciterSelectScreen = ({ navigation }) => {
     (task, bytesWritten, totalBytes) => {
       const key = `${task.surah}:${task.ayah}`;
       const previous = activeDownloadsRef.current.get(key);
-      const written = Math.max(0, bytesWritten || 0);
+      const written = Math.max(0, Number(bytesWritten) || 0);
       const delta = Math.max(0, written - (previous?.bytesWritten || 0));
-      downloadBytesRef.current += delta;
-      sessionBytesRef.current += delta;
+      const now = Date.now();
+
+      if (delta > 0) {
+        downloadBytesRef.current += delta;
+        sessionBytesRef.current += delta;
+        speedSamplesRef.current.push({ at: now, bytes: delta });
+      }
+
+      while (
+        speedSamplesRef.current.length > 0 &&
+        now - speedSamplesRef.current[0].at > 4000
+      ) {
+        speedSamplesRef.current.shift();
+      }
+
+      const sampleWindow = speedSamplesRef.current;
+      const currentSpeed =
+        sampleWindow.length > 0
+          ? sampleWindow.reduce((sum, sample) => sum + sample.bytes, 0) /
+            Math.max(1, (now - sampleWindow[0].at) / 1000)
+          : 0;
+
       activeDownloadsRef.current.set(key, {
         ...task,
         bytesWritten: written,
@@ -876,17 +905,17 @@ const ReciterSelectScreen = ({ navigation }) => {
             ? Math.min(1, written / totalBytes)
             : previous?.progress || 0,
       });
-      const elapsedSeconds = Math.max(
-        1,
-        (Date.now() - downloadStartTimeRef.current) / 1000,
-      );
       const downloads = Array.from(activeDownloadsRef.current.values());
       if (isScreenMountedRef.current) {
         setActiveDownloads(downloads);
         setBulkDownload((current) => ({
           ...current,
           transferredBytes: downloadBytesRef.current,
-          speed: sessionBytesRef.current / elapsedSeconds,
+          totalBytes:
+            totalBytes > 0
+              ? Math.max(current.totalBytes ?? 0, totalBytes)
+              : current.totalBytes,
+          speed: currentSpeed,
         }));
       }
     },
@@ -899,6 +928,7 @@ const ReciterSelectScreen = ({ navigation }) => {
     control.cancelled = false;
     downloadStartTimeRef.current = Date.now();
     sessionBytesRef.current = 0;
+    speedSamplesRef.current = [];
     if (isScreenMountedRef.current) {
       setBulkDownload((current) => ({ ...current, status: "downloading" }));
     }
@@ -1059,6 +1089,7 @@ const ReciterSelectScreen = ({ navigation }) => {
     downloadQueueRef.current = prepared.tasks;
     downloadBytesRef.current = prepared.existingBytes;
     sessionBytesRef.current = 0;
+    speedSamplesRef.current = [];
     setBulkDownload({
       status: prepared.tasks.length ? "downloading" : "complete",
       total: prepared.total,
@@ -1219,15 +1250,6 @@ const ReciterSelectScreen = ({ navigation }) => {
     [],
   );
 
-  const bulkProgressValue = bulkDownload.total
-    ? Math.min(
-        1,
-        (bulkDownload.completed +
-          activeDownloads.reduce((sum, item) => sum + item.progress, 0)) /
-          bulkDownload.total,
-      )
-    : 0;
-  const bulkProgressPercent = Math.round(bulkProgressValue * 100);
   const visibleDownloadEstimate =
     downloadEstimate.reciterId === reciterId
       ? downloadEstimate
@@ -1238,6 +1260,20 @@ const ReciterSelectScreen = ({ navigation }) => {
           existingBytes: 0,
           totalBytes: null,
         };
+  const knownTotalBytes =
+    bulkDownload.totalBytes ?? visibleDownloadEstimate.totalBytes ?? null;
+  const bulkProgressValue =
+    knownTotalBytes != null
+      ? Math.min(1, bulkDownload.transferredBytes / knownTotalBytes)
+      : bulkDownload.total
+        ? Math.min(
+            1,
+            (bulkDownload.completed +
+              activeDownloads.reduce((sum, item) => sum + item.progress, 0)) /
+              bulkDownload.total,
+          )
+        : 0;
+  const bulkProgressPercent = Math.round(bulkProgressValue * 100);
   const displayedDownloadedBytes =
     visibleDownloadEstimate.reciterId !== reciterId
       ? 0
@@ -1248,12 +1284,9 @@ const ReciterSelectScreen = ({ navigation }) => {
             bulkDownload.transferredBytes,
           );
   const remainingDownloadBytes =
-    visibleDownloadEstimate.totalBytes == null
+    knownTotalBytes == null
       ? null
-      : Math.max(
-          0,
-          visibleDownloadEstimate.totalBytes - displayedDownloadedBytes,
-        );
+      : Math.max(0, knownTotalBytes - displayedDownloadedBytes);
 
   const isSearching = search.trim().length > 0;
   const hasNoResults = isSearching && filteredReciters.length === 0;
@@ -1420,12 +1453,12 @@ const ReciterSelectScreen = ({ navigation }) => {
                       { color: themeColors.textColor },
                     ]}
                   >
-                    {visibleDownloadEstimate.totalBytes == null
+                    {knownTotalBytes == null
                       ? visibleDownloadEstimate.status === "ready"
                         ? t("Download size unavailable") ||
                           "Download size unavailable"
                         : "..."
-                      : formatDownloadBytes(visibleDownloadEstimate.totalBytes)}
+                      : formatDownloadBytes(knownTotalBytes)}
                   </Text>
                 </View>
                 <View
@@ -1521,8 +1554,9 @@ const ReciterSelectScreen = ({ navigation }) => {
                           { color: themeColors.textColor, textAlign },
                         ]}
                       >
-                        {bulkDownload.completed} / {bulkDownload.total}{" "}
-                        {t("ayahs") || "ayahs"} · {bulkProgressPercent}%
+                        {knownTotalBytes != null
+                          ? `${formatDownloadBytes(bulkDownload.transferredBytes)} / ${formatDownloadBytes(knownTotalBytes)}`
+                          : `${bulkDownload.completed} / ${bulkDownload.total} ${t("ayahs") || "ayahs"} · ${bulkProgressPercent}%`}
                       </Text>
                       <Text
                         style={[
@@ -1530,7 +1564,9 @@ const ReciterSelectScreen = ({ navigation }) => {
                           { color: withAlpha(themeColors.textColor, 0.6) },
                         ]}
                       >
-                        {formatDownloadBytes(bulkDownload.speed)}/s
+                        {knownTotalBytes != null
+                          ? `${bulkProgressPercent}% · ${formatDownloadSpeed(bulkDownload.speed)}`
+                          : `${formatDownloadSpeed(bulkDownload.speed)}`}
                       </Text>
                     </View>
 
