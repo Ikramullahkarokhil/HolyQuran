@@ -2,7 +2,7 @@
   "expo": {
     "name": "Zād al-Hudā",
     "slug": "Zad-al-Huda",
-    "version": "2.1.0",
+    "version": "2.5.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
     "scheme": "zad-al-huda",
@@ -11,10 +11,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.zadalhuda.app",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio",
-          "playback"
-        ]
+        "UIBackgroundModes": ["audio", "playback"]
       }
     },
     "android": {
@@ -68,7 +65,8 @@
       "expo-font",
       "expo-asset",
       "expo-status-bar",
-      "react-native-litert-lm"
+      "react-native-litert-lm",
+      "react-native-qdrant-edge"
     ],
     "experiments": {
       "reactCompiler": true

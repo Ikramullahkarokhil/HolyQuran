@@ -1,13 +1,14 @@
 {
   "name": "Zād al-Hudā",
   "main": "expo-router/entry",
-  "version": "2.1.0",
+  "version": "2.5.0",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "index:search": "node scripts/build-search-index.js",
     "build:android": "eas build --platform android --profile preview",
     "build:ios": "eas build --platform ios --profile preview",
     "build:production:android": "eas build --platform android --profile production",
@@ -48,6 +49,7 @@
     "react-native-nitro-modules": "^0.37.2",
     "react-native-pager-view": "9.0.7",
     "react-native-paper": "^5.12.3",
+    "react-native-qdrant-edge": "^0.4.1",
     "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.0",

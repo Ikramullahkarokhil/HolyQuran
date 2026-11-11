@@ -4,15 +4,20 @@
 // on-device EmbeddingGemma model. It builds a single, language-independent
 // corpus covering *every* Quran translation (Arabic, English, Pashto, Dari) and
 // *every* hadith (all six collections in Arabic and English, plus Jawami'
-// al-Kalim), precomputes one embedding per entity, and persists that index to
-// disk so searches are fast on every subsequent launch.
+// al-Kalim), imports bundled precomputed vectors, and persists them in an
+// on-device Qdrant Edge shard for fast nearest-neighbor search.
 //
-// Search = embed the query + a linear dot-product scan over the precomputed
-// vectors (normalized, so dot product equals cosine similarity). No lexical
-// fallback: every search goes through the model.
+// Search = embed the query + HNSW vector search. No lexical fallback: every
+// search goes through the model.
 
 import { EmbeddingTask } from "react-native-litert-lm";
-import { File, Paths } from "expo-file-system";
+import {
+  createShard,
+  loadShard,
+  mobileWalDefaults,
+} from "react-native-qdrant-edge";
+import { Asset } from "expo-asset";
+import { Directory, File, Paths } from "expo-file-system";
 
 import { getQuranVerses, getSurahNames } from "./quranData";
 import {
@@ -21,6 +26,7 @@ import {
   getHadithCollectionIds,
   getHadithId,
 } from "./hadithData";
+import { normalizeSearchLanguage } from "./searchQueryLanguage";
 
 // ─── Tunables ───────────────────────────────────────────────────────────────
 
@@ -29,17 +35,18 @@ export const MAX_RESULTS = 60;
 
 const EMBED_OPTIONS = { normalize: true, outputSize: 256 };
 const EMBED_DIM = 256;
-const EMBED_BATCH_SIZE = 64;
-const MIN_EMBED_BATCH_SIZE = 8;
 const EMBEDDING_MAX_QUERY_LENGTH = 220;
 const EMBEDDING_MAX_DOC_LENGTH = 640;
 const SEMANTIC_MIN_SCORE = 0.12;
+const SEARCH_HNSW_EF = 128;
+const SEARCH_INDEX_DIRECTORY = "zad-semantic-qdrant";
+const SEARCH_INDEX_METADATA_FILE = "zad-semantic-qdrant.json";
+const PREBUILT_INDEX_FORMAT_VERSION = 1;
+const PREBUILT_INDEX_RECORD_BYTES = Float32Array.BYTES_PER_ELEMENT + EMBED_DIM;
+const PREBUILT_INDEX_METADATA = require("../assets/search-index.json");
+const PREBUILT_INDEX_ASSET = require("../assets/search-index.bin");
 
-export const INDEX_VERSION = 3;
-const INDEX_FILE_NAME = "zad-semantic-index.bin";
-const INDEX_MAGIC = 0x5a484958; // "ZHIX"
-const INDEX_HEADER_BYTES = 28;
-const QUANTIZED_VECTOR_BYTES = Float32Array.BYTES_PER_ELEMENT + EMBED_DIM;
+export const INDEX_VERSION = 4;
 
 const HADITH_COLLECTION_NAMES = {
   bukhari: "Sahih Bukhari",
@@ -62,6 +69,60 @@ const truncateForEmbedding = (text, maxLength) => {
 };
 
 const waitForUi = (ms = 8) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const getIndexDirectory = () =>
+  new Directory(Paths.document, SEARCH_INDEX_DIRECTORY);
+
+const getNativePath = (uri) =>
+  decodeURIComponent(uri.replace(/^file:\/\//, ""));
+
+const getIndexMetadataFile = () =>
+  new File(Paths.document, SEARCH_INDEX_METADATA_FILE);
+
+let searchShard = null;
+let embeddingIndexLoaded = false;
+let embeddingIndexLoadPromise = null;
+
+const closeSearchShard = () => {
+  if (!searchShard) return;
+  searchShard.close();
+  searchShard = null;
+};
+
+const removePersistedIndex = () => {
+  closeSearchShard();
+  const directory = getIndexDirectory();
+  if (directory.exists) directory.delete();
+  const metadataFile = getIndexMetadataFile();
+  if (metadataFile.exists) metadataFile.delete();
+};
+
+const getIndexMetadata = (docs) => {
+  const [fingerprintHigh, fingerprintLow] = getIndexFingerprint(docs);
+  return {
+    version: INDEX_VERSION,
+    count: docs.length,
+    fingerprintHigh,
+    fingerprintLow,
+  };
+};
+
+export const getPrebuiltIndexMetadata = (corpus) =>
+  getIndexMetadata(corpus.all);
+
+const createSearchShard = () => {
+  const directory = getIndexDirectory();
+  directory.create({ intermediates: true, idempotent: true });
+  const shard = createShard(getNativePath(directory.uri), {
+    vectors: { "": { size: EMBED_DIM, distance: "Cosine" } },
+    hnsw_config: { m: 16, ef_construct: 100 },
+    optimizers: { indexing_threshold: 10000 },
+    wal_options: mobileWalDefaults(),
+    max_search_threads: 2,
+  });
+  shard.createFieldIndex("type", "keyword");
+  return shard;
+};
 
 // ─── Corpus ─────────────────────────────────────────────────────────────────
 
@@ -149,7 +210,6 @@ async function buildCorpusInternal(onProgress) {
       },
       surahName: surahMeta.name || `Surah ${v.surah}`,
       surahTname: surahMeta.tname || "",
-      embedding: null,
     });
   }
 
@@ -196,7 +256,6 @@ async function buildCorpusInternal(onProgress) {
           english: english?.text || "",
         },
         bookName: bookNameById.get(bookNumber) || `Book ${bookNumber}`,
-        embedding: null,
       });
     });
 
@@ -233,18 +292,10 @@ async function buildCorpusInternal(onProgress) {
   return corpusCache;
 }
 
-const selectDocs = (corpus, filter) => {
-  if (filter === "quran") return corpus.quran;
-  if (filter === "hadith") return corpus.hadith;
-  return corpus.all;
-};
-
-// ─── Embedding index ────────────────────────────────────────────────────────
+// ─── Index identity ─────────────────────────────────────────────────────────
 //
-// One embedding per entity. We embed the English translation as the semantic
-// anchor (EmbeddingGemma is multilingual and English is its strongest pivot),
-// falling back to Arabic. This keeps the index language-independent: switching
-// the display translation never requires re-indexing.
+// The same language-independent text selection is used by the laptop index
+// generator and determines whether the bundled index matches the corpus.
 
 const embedTitleFor = (doc) =>
   doc.type === "quran"
@@ -257,6 +308,13 @@ const embedTextFor = (doc) =>
   doc.translations.pashto ||
   doc.translations.dari ||
   "";
+
+export const getSearchDocumentEmbeddingInput = (doc) => {
+  const title = truncateForEmbedding(embedTitleFor(doc), 48);
+  const text =
+    truncateForEmbedding(embedTextFor(doc), EMBEDDING_MAX_DOC_LENGTH) || title;
+  return { title, text };
+};
 
 const getIndexFingerprint = (docs) => {
   let first = 0x811c9dc5;
@@ -283,194 +341,166 @@ const getIndexFingerprint = (docs) => {
   return [first >>> 0, second >>> 0];
 };
 
-/**
- * Embed every doc in the corpus. Vectors are copied out of native memory
- * (the library returns views that can be reused by later calls) and assigned
- * to `doc.embedding`. `onProgress(done, total)` reports chunk progress.
- */
-export async function buildEmbeddingIndex(corpus, embedder, onProgress) {
+async function loadPrebuiltEmbeddingIndex(corpus, onProgress) {
   const docs = corpus.all;
-  const total = docs.length;
-  if (!embedder || typeof embedder.embedBatch !== "function") {
-    throw new Error("Embedding model is unavailable");
+  const expectedMetadata = getIndexMetadata(docs);
+  const metadata = PREBUILT_INDEX_METADATA;
+  if (
+    metadata?.formatVersion !== PREBUILT_INDEX_FORMAT_VERSION ||
+    metadata?.indexVersion !== expectedMetadata.version ||
+    metadata?.dimension !== EMBED_DIM ||
+    metadata?.recordBytes !== PREBUILT_INDEX_RECORD_BYTES ||
+    metadata?.count !== expectedMetadata.count ||
+    metadata?.fingerprintHigh !== expectedMetadata.fingerprintHigh ||
+    metadata?.fingerprintLow !== expectedMetadata.fingerprintLow
+  ) {
+    throw new Error(
+      "Bundled search index is missing or stale. Regenerate it with scripts/build-search-index.js.",
+    );
   }
 
-  let completed = 0;
-  const embedAndStore = async (batch, inputs) => {
-    let vectors;
-    try {
-      vectors = await embedder.embedBatch(inputs, EMBED_OPTIONS);
-    } catch (error) {
-      if (batch.length <= MIN_EMBED_BATCH_SIZE) throw error;
-      const middle = Math.floor(batch.length / 2);
-      await embedAndStore(batch.slice(0, middle), inputs.slice(0, middle));
-      await embedAndStore(batch.slice(middle), inputs.slice(middle));
-      return;
+  try {
+    const asset = Asset.fromModule(PREBUILT_INDEX_ASSET);
+    await asset.downloadAsync();
+    if (!asset.localUri) {
+      throw new Error("Prebuilt search index asset is unavailable locally");
     }
 
-    if (!Array.isArray(vectors) || vectors.length !== batch.length) {
+    const bytes = await new File(asset.localUri).bytes();
+    const expectedByteLength = docs.length * PREBUILT_INDEX_RECORD_BYTES;
+    if (bytes.byteLength !== expectedByteLength) {
       throw new Error(
-        `Embedding batch returned ${vectors?.length ?? 0} vectors for ${batch.length} documents`,
+        `Prebuilt search index has ${bytes.byteLength} bytes; expected ${expectedByteLength}`,
       );
     }
 
-    batch.forEach((doc, index) => {
-      const vector = vectors[index];
-      if (!vector || vector.length !== EMBED_DIM) {
-        throw new Error(`Embedding for ${doc.id} has an invalid dimension`);
+    removePersistedIndex();
+    searchShard = createSearchShard();
+    const dataView = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const batchSize = 512;
+    for (let start = 0; start < docs.length; start += batchSize) {
+      const end = Math.min(start + batchSize, docs.length);
+      const points = [];
+      for (let index = start; index < end; index += 1) {
+        const recordOffset = index * PREBUILT_INDEX_RECORD_BYTES;
+        const scale = dataView.getFloat32(recordOffset, true);
+        if (!Number.isFinite(scale) || scale <= 0) {
+          throw new Error(`Prebuilt vector ${index} has an invalid scale`);
+        }
+
+        const quantized = new Int8Array(
+          bytes.buffer,
+          bytes.byteOffset + recordOffset + Float32Array.BYTES_PER_ELEMENT,
+          EMBED_DIM,
+        );
+        const vector = Array.from(quantized, (value) => value * scale);
+        if (!vector.every(Number.isFinite)) {
+          throw new Error(`Prebuilt vector ${index} contains a non-finite value`);
+        }
+        points.push({
+          id: index + 1,
+          vector,
+          payload: { type: docs[index].type },
+        });
       }
-      const copiedVector = new Float32Array(vector);
-      if (!copiedVector.every(Number.isFinite)) {
-        throw new Error(`Embedding for ${doc.id} contains a non-finite value`);
-      }
-      doc.embedding = copiedVector;
-      doc.embeddingScale = 1;
+
+      searchShard.upsert(points);
+      if (typeof onProgress === "function") onProgress(end, docs.length);
+      await waitForUi(0);
+    }
+
+    if (searchShard.count() !== docs.length) {
+      throw new Error("Imported prebuilt search index is incomplete");
+    }
+    searchShard.optimize();
+    searchShard.flush();
+
+    const metadataFile = getIndexMetadataFile();
+    metadataFile.create({ overwrite: true, intermediates: true });
+    await metadataFile.write(JSON.stringify(expectedMetadata));
+    return true;
+  } catch (error) {
+    removePersistedIndex();
+    throw error;
+  }
+}
+
+/**
+ * Load the persisted Qdrant shard or import its bundled prebuilt vectors.
+ * Throws when the bundled index is invalid; the app never embeds the corpus.
+ */
+export async function loadEmbeddingIndex(corpus, onProgress) {
+  if (embeddingIndexLoaded && searchShard) return true;
+  if (embeddingIndexLoadPromise) return embeddingIndexLoadPromise;
+
+  embeddingIndexLoadPromise = loadEmbeddingIndexInternal(corpus, onProgress)
+    .then((loaded) => {
+      embeddingIndexLoaded = loaded;
+      return loaded;
+    })
+    .finally(() => {
+      embeddingIndexLoadPromise = null;
     });
 
-    completed += batch.length;
-    if (typeof onProgress === "function") onProgress(completed, total);
-    await waitForUi(0);
-  };
-
-  for (let i = 0; i < total; i += EMBED_BATCH_SIZE) {
-    const batch = docs.slice(i, i + EMBED_BATCH_SIZE);
-    const inputs = batch.map((doc) =>
-      EmbeddingTask.document({
-        title: truncateForEmbedding(embedTitleFor(doc), 48),
-        text:
-          truncateForEmbedding(embedTextFor(doc), EMBEDDING_MAX_DOC_LENGTH) ||
-          truncateForEmbedding(embedTitleFor(doc), 48),
-      }),
-    );
-
-    await embedAndStore(batch, inputs);
-  }
+  return embeddingIndexLoadPromise;
 }
 
-/** Persist the index to the app cache so later launches load instantly. */
-export async function saveEmbeddingIndex(corpus) {
-  const docs = corpus.all;
-  const count = docs.length;
-  const [fingerprintHigh, fingerprintLow] = getIndexFingerprint(docs);
-  const byteLength = INDEX_HEADER_BYTES + count * QUANTIZED_VECTOR_BYTES;
-  const buffer = new ArrayBuffer(byteLength);
-  const view = new DataView(buffer);
-
-  view.setUint32(0, INDEX_MAGIC, false);
-  view.setUint32(4, INDEX_VERSION, false);
-  view.setUint32(8, EMBED_DIM, false);
-  view.setUint32(12, count, false);
-  view.setUint32(16, fingerprintHigh, false);
-  view.setUint32(20, fingerprintLow, false);
-  view.setUint32(24, 1, false);
-
-  for (let i = 0; i < count; i += 1) {
-    const vector = docs[i].embedding;
-    if (!vector || vector.length !== EMBED_DIM) {
-      throw new Error("Embedding index is incomplete");
-    }
-    const recordOffset = INDEX_HEADER_BYTES + i * QUANTIZED_VECTOR_BYTES;
-    let maxAbs = 0;
-    for (let j = 0; j < EMBED_DIM; j += 1) {
-      if (!Number.isFinite(vector[j])) {
-        throw new Error(
-          `Embedding for ${docs[i].id} contains a non-finite value`,
-        );
-      }
-      maxAbs = Math.max(maxAbs, Math.abs(vector[j]));
-    }
-
-    const scale = maxAbs > 0 ? maxAbs / 127 : 1;
-    view.setFloat32(recordOffset, scale, false);
-    const quantized = new Int8Array(
-      buffer,
-      recordOffset + Float32Array.BYTES_PER_ELEMENT,
-      EMBED_DIM,
-    );
-    for (let j = 0; j < EMBED_DIM; j += 1) {
-      quantized[j] = Math.max(
-        -127,
-        Math.min(127, Math.round(vector[j] / scale)),
-      );
-    }
-  }
-
-  const file = new File(Paths.cache, INDEX_FILE_NAME);
-  file.create({ overwrite: true, intermediates: true });
-  await file.write(new Uint8Array(buffer));
-}
-
-/**
- * Load a previously persisted index into `doc.embedding`. Returns false (and
- * leaves the corpus untouched) when the file is missing, stale, or corrupt, in
- * which case the caller should rebuild it.
- */
-export async function loadEmbeddingIndex(corpus) {
+async function loadEmbeddingIndexInternal(corpus, onProgress) {
   try {
-    const file = new File(Paths.cache, INDEX_FILE_NAME);
-    if (!file.exists) return false;
+    const directory = getIndexDirectory();
+    const metadataFile = getIndexMetadataFile();
+    if (!directory.exists || !metadataFile.exists) {
+      removePersistedIndex();
+      return loadPrebuiltEmbeddingIndex(corpus, onProgress);
+    }
 
-    const bytes = await file.bytes();
-    if (!bytes || bytes.byteLength < INDEX_HEADER_BYTES) return false;
-
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    if (view.getUint32(0, false) !== INDEX_MAGIC) return false;
-    if (view.getUint32(4, false) !== INDEX_VERSION) return false;
-
-    const dim = view.getUint32(8, false);
-    const count = view.getUint32(12, false);
-    if (dim !== EMBED_DIM || count !== corpus.all.length) return false;
+    const storedMetadata = JSON.parse(await metadataFile.text());
+    const expectedMetadata = getIndexMetadata(corpus.all);
     if (
-      bytes.byteLength !==
-      INDEX_HEADER_BYTES + count * QUANTIZED_VECTOR_BYTES
+      storedMetadata?.version !== expectedMetadata.version ||
+      storedMetadata?.count !== expectedMetadata.count ||
+      storedMetadata?.fingerprintHigh !== expectedMetadata.fingerprintHigh ||
+      storedMetadata?.fingerprintLow !== expectedMetadata.fingerprintLow
     ) {
-      return false;
-    }
-    if (view.getUint32(24, false) !== 1) return false;
-    const [fingerprintHigh, fingerprintLow] = getIndexFingerprint(corpus.all);
-    if (
-      view.getUint32(16, false) !== fingerprintHigh ||
-      view.getUint32(20, false) !== fingerprintLow
-    ) {
-      return false;
+      removePersistedIndex();
+      return loadPrebuiltEmbeddingIndex(corpus, onProgress);
     }
 
-    for (let i = 0; i < count; i += 1) {
-      const recordOffset = INDEX_HEADER_BYTES + i * QUANTIZED_VECTOR_BYTES;
-      const scale = view.getFloat32(recordOffset, false);
-      if (!Number.isFinite(scale) || scale <= 0) return false;
-      corpus.all[i].embeddingScale = scale;
-      corpus.all[i].embedding = new Int8Array(
-        bytes.buffer,
-        bytes.byteOffset +
-          recordOffset +
-          Float32Array.BYTES_PER_ELEMENT,
-        EMBED_DIM,
-      );
+    closeSearchShard();
+    searchShard = loadShard(getNativePath(directory.uri));
+    if (searchShard.count() !== corpus.all.length) {
+      removePersistedIndex();
+      return loadPrebuiltEmbeddingIndex(corpus, onProgress);
     }
+
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    console.warn("[Search] persisted Qdrant index could not be loaded", error);
+    removePersistedIndex();
+    return loadPrebuiltEmbeddingIndex(corpus, onProgress);
   }
 }
 
 // ─── Display resolution ─────────────────────────────────────────────────────
 
-const resolveQuranText = (doc, quranLang) =>
-  doc.translations[quranLang] ||
-  doc.translations.english ||
-  doc.translations.arabic ||
-  "";
+const resolveQuranText = (doc, language) =>
+  language === "arabic" ? "" : doc.translations[language] || "";
 
-const resolveHadithText = (doc, hadithLang) =>
-  doc.translations[hadithLang] ||
-  doc.translations.english ||
-  doc.translations.arabic ||
-  "";
+const resolveHadith = (doc, language) => {
+  if (language === "arabic") {
+    return { text: doc.translations.arabic || "", language: "arabic" };
+  }
+  if (doc.translations[language]) {
+    return { text: doc.translations[language], language };
+  }
+  if (doc.translations.english) {
+    return { text: doc.translations.english, language: "english" };
+  }
+  return { text: doc.translations.arabic || "", language: "arabic" };
+};
 
 /** Convert `{ doc, score }` matches into the shape the result cards expect. */
-export function toResultViewModels(scored, display) {
-  const { quranLang, hadithLang } = display;
+export function toResultViewModels(scored, language) {
   return scored.map(({ doc, score }) => {
     if (doc.type === "quran") {
       return {
@@ -480,13 +510,15 @@ export function toResultViewModels(scored, display) {
         surahId: doc.surahId,
         ayah: doc.ayah,
         arabic: doc.translations.arabic || "",
-        translation: resolveQuranText(doc, quranLang),
+        translation: resolveQuranText(doc, language),
+        translationLanguage: language,
         surahName: doc.surahName,
         surahTname: doc.surahTname,
         score,
       };
     }
 
+    const resolved = resolveHadith(doc, language);
     return {
       type: "hadith",
       id: doc.id,
@@ -494,9 +526,9 @@ export function toResultViewModels(scored, display) {
       collectionName: doc.collectionName,
       bookNumber: doc.bookNumber,
       hadithId: doc.hadithId,
-      text: resolveHadithText(doc, hadithLang),
+      text: resolved.text,
       bookName: doc.bookName,
-      contentLanguage: hadithLang === "arabic" ? "arabic" : "english",
+      contentLanguage: resolved.language,
       score,
     };
   });
@@ -505,13 +537,23 @@ export function toResultViewModels(scored, display) {
 // ─── Semantic search ────────────────────────────────────────────────────────
 
 /**
- * Embed the query and rank every doc in `filter` by normalized dot product
- * (cosine similarity). Returns at most MAX_RESULTS view models.
+ * Embed the query and rank matching documents with Qdrant's HNSW index.
+ * Returns at most MAX_RESULTS view models.
  */
-export async function searchSemantic(query, corpus, embedder, display, filter) {
+export async function searchSemantic(
+  query,
+  corpus,
+  embedder,
+  filter,
+  searchLanguage,
+) {
   const q = (query || "").trim();
   if (!q || q.length < MIN_QUERY_LENGTH || !embedder || !embedder.isReady?.()) {
     return [];
+  }
+  const resultLanguage = normalizeSearchLanguage(searchLanguage);
+  if (!resultLanguage) {
+    throw new Error(`Unsupported search language: ${searchLanguage}`);
   }
 
   const queryVector = new Float32Array(
@@ -523,32 +565,32 @@ export async function searchSemantic(query, corpus, embedder, display, filter) {
     ),
   );
 
-  const docs = selectDocs(corpus, filter);
-  const scored = [];
   const dim = queryVector.length;
   if (dim !== EMBED_DIM || !queryVector.every(Number.isFinite)) {
     throw new Error("Query embedding has an invalid dimension or value");
   }
 
-  for (const doc of docs) {
-    const vector = doc.embedding;
-    if (!vector || vector.length !== dim) {
-      throw new Error(
-        `Semantic index is missing a valid embedding for ${doc.id}`,
-      );
-    }
-
-    let sum = 0;
-    for (let i = 0; i < dim; i += 1) {
-      sum += queryVector[i] * vector[i];
-    }
-    sum *= doc.embeddingScale ?? 1;
-
-    if (sum > SEMANTIC_MIN_SCORE) {
-      scored.push({ doc, score: sum });
-    }
+  if (!searchShard) {
+    throw new Error("Qdrant search index is unavailable");
   }
 
-  scored.sort((a, b) => b.score - a.score);
-  return toResultViewModels(scored.slice(0, MAX_RESULTS), display);
+  const request = {
+    vector: Array.from(queryVector),
+    limit: MAX_RESULTS,
+    with_payload: false,
+    score_threshold: SEMANTIC_MIN_SCORE,
+    params: { hnsw_ef: SEARCH_HNSW_EF },
+    ...(filter === "quran" || filter === "hadith"
+      ? { filter: { must: [{ key: "type", match: { value: filter } }] } }
+      : {}),
+  };
+  const scored = searchShard.search(request).map(({ id, score }) => {
+    const docIndex = Number(id) - 1;
+    const doc = corpus.all[docIndex];
+    if (!Number.isSafeInteger(docIndex) || !doc) {
+      throw new Error(`Qdrant returned an unknown document ID: ${id}`);
+    }
+    return { doc, score };
+  });
+  return toResultViewModels(scored, resultLanguage);
 }

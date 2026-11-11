@@ -1319,11 +1319,10 @@ const HadithsScreen = () => {
                 },
               ]}
               onPress={scrollToTop}
-              android_ripple={{ color: "#ffffff40", borderless: true }}
               accessibilityRole="button"
               accessibilityLabel={t("Scroll to top")}
             >
-              <Icon source="arrow-up" size={22} color="#fff" />
+              <Icon source="arrow-up" size={22} color={colors.surface} />
             </Pressable>
           </Animated.View>
         )}

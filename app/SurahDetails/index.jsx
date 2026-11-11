@@ -475,7 +475,16 @@ const DIRECTION_THRESHOLD = 8;
 const IDLE_RESET_MS = 180;
 
 const TajweedGuide = memo(
-  ({ colors, rules = [], showTajweed, onSelectRule, selectedRule, t }) => {
+  ({
+    colors,
+    rules = [],
+    showTajweed,
+    expanded,
+    onToggle,
+    onSelectRule,
+    selectedRule,
+    t,
+  }) => {
     if (!showTajweed || !rules.length) return null;
 
     const guideTitle =
@@ -494,46 +503,98 @@ const TajweedGuide = memo(
           },
         ]}
       >
-        <View style={styles.tajweedGuideHeader}>
+        <Pressable
+          onPress={onToggle}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+          accessibilityLabel={`${guideTitle}, ${rules.length} ${t("rules") || "rules"}`}
+          style={({ pressed }) => [
+            styles.tajweedGuideHeader,
+            pressed && { opacity: 0.78 },
+          ]}
+        >
+          <View
+            style={[
+              styles.tajweedGuideIcon,
+              { backgroundColor: withAlpha(colors.accent, 0.12) },
+            ]}
+          >
+            <Icon
+              source="format-color-highlight"
+              size={17}
+              color={colors.accent}
+            />
+          </View>
+          <View style={styles.tajweedGuideHeading}>
+            <Text style={[styles.tajweedGuideTitle, { color: colors.text }]}>
+              {guideTitle}
+            </Text>
+            <Text
+              style={[styles.tajweedGuideHint, { color: colors.secondary }]}
+            >
+              {expanded
+                ? t("Tap a color to learn its rule") ||
+                  "Tap a color to learn its rule"
+                : t("Tap to explore the color guide") ||
+                  "Tap to explore the color guide"}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.tajweedGuideCount,
+              { backgroundColor: withAlpha(colors.accent, 0.1) },
+            ]}
+          >
+            <Text
+              style={[styles.tajweedGuideCountText, { color: colors.accent }]}
+            >
+              {rules.length}
+            </Text>
+          </View>
           <Icon
-            source="format-color-highlight"
-            size={16}
-            color={colors.accent}
+            source={expanded ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={colors.secondary}
           />
-          <Text style={[styles.tajweedGuideTitle, { color: colors.text }]}>
-            {guideTitle}
-          </Text>
-        </View>
-        <View style={styles.tajweedGuideRow}>
-          {rules.map(({ rule, label, color, backgroundColor, borderColor }) => {
-            const active = selectedRule === rule;
-            return (
-              <Pressable
-                key={rule}
-                onPress={() => onSelectRule?.(rule)}
-                accessibilityRole="button"
-                accessibilityLabel={`Show Tajweed rule guide for ${label}`}
-                hitSlop={8}
-                style={({ pressed }) => [
-                  styles.tajweedGuideChip,
-                  {
-                    backgroundColor,
-                    borderColor,
-                    opacity: pressed ? 0.8 : 1,
-                    transform: [{ scale: active ? 1.02 : 1 }],
-                  },
-                ]}
-              >
-                <View
-                  style={[styles.tajweedGuideDot, { backgroundColor: color }]}
-                />
-                <Text style={[styles.tajweedGuideChipText, { color }]}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        </Pressable>
+        {expanded ? (
+          <View style={styles.tajweedGuideRow}>
+            {rules.map(
+              ({ rule, label, color, backgroundColor, borderColor }) => {
+                const active = selectedRule === rule;
+                return (
+                  <Pressable
+                    key={rule}
+                    onPress={() => onSelectRule?.(rule)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t("Show Tajweed rule info for") || "Show Tajweed rule info for"} ${label}`}
+                    accessibilityState={{ selected: active }}
+                    hitSlop={8}
+                    style={({ pressed }) => [
+                      styles.tajweedGuideChip,
+                      {
+                        backgroundColor,
+                        borderColor: active ? color : borderColor,
+                        opacity: pressed ? 0.8 : 1,
+                        borderWidth: active ? 1.5 : StyleSheet.hairlineWidth,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.tajweedGuideDot,
+                        { backgroundColor: color },
+                      ]}
+                    />
+                    <Text style={[styles.tajweedGuideChipText, { color }]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              },
+            )}
+          </View>
+        ) : null}
       </View>
     );
   },
@@ -799,7 +860,6 @@ const SurahDetails = () => {
     useQuranTranslationStore();
 
   const listRef = useRef(null);
-  const tajweedInfoTimerRef = useRef(null);
   const isMounted = useRef(true);
   const showScrollTopRef = useRef(false);
   const currentTopIndexRef = useRef(0);
@@ -814,6 +874,7 @@ const SurahDetails = () => {
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showTajweed, setShowTajweed] = useState(true);
+  const [tajweedGuideExpanded, setTajweedGuideExpanded] = useState(false);
   const [selectedTajweedRule, setSelectedTajweedRule] = useState(null);
 
   useEffect(() => {
@@ -831,7 +892,6 @@ const SurahDetails = () => {
       active = false;
     };
   }, []);
-  const [tajweedInfoCountdown, setTajweedInfoCountdown] = useState(0);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const [actionVerse, setActionVerse] = useState(null);
@@ -892,6 +952,7 @@ const SurahDetails = () => {
         theme.colors.onSurfaceVariant ||
         withAlpha(theme.colors.onSurface, 0.65),
       accent: theme.colors.progressColor || theme.colors.primary,
+      dark: Boolean(theme.dark),
       surface: theme.colors.surface,
       background: theme.colors.background,
       border:
@@ -970,6 +1031,7 @@ const SurahDetails = () => {
     setHighlightedAyahId(null);
     setExpandedTafseerIds(new Set());
     setSelectedTajweedRule(null);
+    setTajweedGuideExpanded(false);
     setShowScrollTop(false);
     showScrollTopRef.current = false;
     currentTopIndexRef.current = 0;
@@ -1344,50 +1406,26 @@ const SurahDetails = () => {
       ).catch(() => {});
       if (!next) {
         setSelectedTajweedRule(null);
-        setTajweedInfoCountdown(0);
+        setTajweedGuideExpanded(false);
       }
       return next;
     });
   }, []);
 
   const dismissTajweedInfo = useCallback(() => {
-    if (tajweedInfoTimerRef.current) {
-      clearInterval(tajweedInfoTimerRef.current);
-      tajweedInfoTimerRef.current = null;
-    }
     setSelectedTajweedRule(null);
-    setTajweedInfoCountdown(0);
   }, []);
 
   const openTajweedRuleInfo = useCallback((rule) => {
     if (!rule) return;
-    if (tajweedInfoTimerRef.current) {
-      clearInterval(tajweedInfoTimerRef.current);
-    }
     setSelectedTajweedRule(rule);
-    setTajweedInfoCountdown(4);
-
-    tajweedInfoTimerRef.current = setInterval(() => {
-      setTajweedInfoCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(tajweedInfoTimerRef.current);
-          tajweedInfoTimerRef.current = null;
-          setSelectedTajweedRule(null);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    setTajweedGuideExpanded(true);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (tajweedInfoTimerRef.current) {
-        clearInterval(tajweedInfoTimerRef.current);
-        tajweedInfoTimerRef.current = null;
-      }
-    };
-  }, []);
+  const toggleTajweedGuide = useCallback(
+    () => setTajweedGuideExpanded((expanded) => !expanded),
+    [],
+  );
 
   const handleFlingLeft = useCallback(
     ({ nativeEvent }) => {
@@ -1835,6 +1873,8 @@ const SurahDetails = () => {
           colors={colors}
           rules={surahTajweedRules}
           showTajweed={showTajweed}
+          expanded={tajweedGuideExpanded}
+          onToggle={toggleTajweedGuide}
           onSelectRule={openTajweedRuleInfo}
           selectedRule={selectedTajweedRule}
           t={t}
@@ -1876,8 +1916,10 @@ const SurahDetails = () => {
       colors,
       labels,
       showTajweed,
+      tajweedGuideExpanded,
       surahTajweedRules,
       selectedTajweedRule,
+      toggleTajweedGuide,
       openTajweedRuleInfo,
       t,
       downloadAll,
@@ -1949,97 +1991,6 @@ const SurahDetails = () => {
         menuVisible={headerMenuVisible}
         setMenuVisible={setHeaderMenuVisible}
       />
-
-      {showTajweed && activeTajweedRuleMeta ? (
-        <Animated.View
-          entering={FadeIn.duration(180)}
-          exiting={FadeOut.duration(120)}
-          style={[
-            styles.tajweedInfoBubble,
-            {
-              top: insets.top + 74,
-              backgroundColor: withAlpha(colors.surface, 0.98),
-              borderColor: activeTajweedRuleMeta.borderColor || colors.border,
-              shadowColor: colors.shadow,
-            },
-          ]}
-        >
-          <View style={styles.tajweedInfoHeader}>
-            <View
-              style={[
-                styles.tajweedInfoDot,
-                {
-                  backgroundColor: activeTajweedRuleMeta.color || colors.accent,
-                },
-              ]}
-            />
-            <Text
-              style={[
-                styles.tajweedInfoTitle,
-                { color: activeTajweedRuleMeta.color || colors.text },
-              ]}
-            >
-              {activeTajweedRuleMeta.label ||
-                t("Tajweed rule") ||
-                "Tajweed rule"}
-            </Text>
-            <View style={styles.tajweedInfoMeta}>
-              <Text
-                style={[styles.tajweedInfoTimer, { color: colors.secondary }]}
-              >
-                {tajweedInfoCountdown}s
-              </Text>
-            </View>
-          </View>
-
-          <Text
-            style={[styles.tajweedInfoDescription, { color: colors.secondary }]}
-          >
-            {activeTajweedRuleMeta.description ||
-              t("Rule details") ||
-              "Rule details"}
-          </Text>
-
-          <View style={styles.tajweedInfoActions}>
-            <Pressable
-              onPress={dismissTajweedInfo}
-              style={({ pressed }) => [
-                styles.tajweedInfoAction,
-                {
-                  backgroundColor: withAlpha(colors.accent, 0.12),
-                  opacity: pressed ? 0.78 : 1,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={
-                t("Hide Tajweed rule info") || "Hide Tajweed rule info"
-              }
-            >
-              <Text
-                style={[styles.tajweedInfoActionText, { color: colors.accent }]}
-              >
-                {t("Hide") || "Hide"}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={dismissTajweedInfo}
-              style={({ pressed }) => [
-                styles.tajweedInfoClose,
-                {
-                  backgroundColor: withAlpha(colors.text, 0.06),
-                  opacity: pressed ? 0.78 : 1,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={
-                t("Close Tajweed rule info") || "Close Tajweed rule info"
-              }
-            >
-              <Icon source="close" size={14} color={colors.secondary} />
-            </Pressable>
-          </View>
-        </Animated.View>
-      ) : null}
 
       <FlingGestureHandler
         direction={Directions.LEFT}
@@ -2180,6 +2131,47 @@ const SurahDetails = () => {
         onClose={() => setPickerVisible(false)}
         theme={theme}
       />
+
+      <GeneralModal
+        visible={showTajweed && Boolean(activeTajweedRuleMeta)}
+        title={activeTajweedRuleMeta?.label || t("Tajweed rule")}
+        description={activeTajweedRuleMeta?.description}
+        writingDirection={isRtlTranslationLanguage ? "rtl" : "ltr"}
+        onClose={dismissTajweedInfo}
+      >
+        {activeTajweedRuleMeta ? (
+          <View
+            style={[
+              styles.tajweedRuleHint,
+              {
+                backgroundColor: activeTajweedRuleMeta.backgroundColor,
+                borderColor:
+                  activeTajweedRuleMeta.borderColor || colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.tajweedGuideDot,
+                { backgroundColor: activeTajweedRuleMeta.color },
+              ]}
+            />
+            <Text
+              style={[
+                styles.tajweedRuleHintText,
+                {
+                  color: colors.text,
+                  textAlign: isRtlTranslationLanguage ? "right" : "left",
+                  writingDirection: isRtlTranslationLanguage ? "rtl" : "ltr",
+                },
+              ]}
+            >
+              {t("Find this color in the Arabic text") ||
+                "Find this color in the Arabic text"}
+            </Text>
+          </View>
+        ) : null}
+      </GeneralModal>
 
       <GeneralModal
         visible={Boolean(actionVerse)}
@@ -2472,10 +2464,10 @@ const styles = StyleSheet.create({
   },
 
   tajweedGuideCard: {
-    marginTop: 8,
-    marginBottom: 10,
+    marginTop: 10,
+    marginBottom: 12,
     padding: 12,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     ...Platform.select({
       ios: {
@@ -2489,26 +2481,55 @@ const styles = StyleSheet.create({
   tajweedGuideHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    marginBottom: 10,
+    gap: 10,
+    minHeight: 42,
+  },
+  tajweedGuideIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tajweedGuideHeading: {
+    flex: 1,
+    gap: 3,
   },
   tajweedGuideTitle: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: "700",
-    letterSpacing: 0.15,
+  },
+  tajweedGuideHint: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  tajweedGuideCount: {
+    minWidth: 28,
+    height: 28,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tajweedGuideCountText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   tajweedGuideRow: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "flex-start",
     gap: 8,
+    paddingTop: 12,
+    paddingBottom: 2,
   },
   tajweedGuideChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
   },
   tajweedGuideDot: {
@@ -2517,79 +2538,22 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   tajweedGuideChipText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: "700",
-    letterSpacing: 0.15,
   },
-  tajweedInfoBubble: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    zIndex: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
+  tajweedRuleHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    marginTop: 14,
+    padding: 11,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    ...Platform.select({
-      ios: {
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.14,
-        shadowRadius: 10,
-      },
-      android: { elevation: 4 },
-    }),
   },
-  tajweedInfoHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  tajweedInfoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-  },
-  tajweedInfoTitle: {
+  tajweedRuleHintText: {
     flex: 1,
-    fontSize: 12.5,
-    fontWeight: "800",
-    letterSpacing: 0.15,
-  },
-  tajweedInfoMeta: {
-    minWidth: 30,
-    alignItems: "flex-end",
-  },
-  tajweedInfoTimer: {
-    fontSize: 10.5,
-    fontWeight: "700",
-  },
-  tajweedInfoDescription: {
-    marginTop: 6,
-    fontSize: 11.5,
-    lineHeight: 18,
-  },
-  tajweedInfoActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 10,
-  },
-  tajweedInfoAction: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  tajweedInfoActionText: {
-    fontSize: 10.5,
-    fontWeight: "700",
-  },
-  tajweedInfoClose: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
+    fontSize: 12,
+    lineHeight: 17,
   },
   listContent: {
     paddingHorizontal: 12,

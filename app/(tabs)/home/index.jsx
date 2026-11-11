@@ -22,6 +22,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import useThemeStore from "../../../components/store/useThemeStore";
 import { darkTheme, lightTheme } from "../../../components/Theme";
+import { isRTL } from "../../../components/utils/rtlUtils";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -50,40 +51,60 @@ const withAlpha = (color, alpha) => {
 // ─── Search Bar Component ───────────────────────────────────────────────────
 
 const SearchBar = memo(
-  ({ value, onChangeText, colors, placeholder, isRtl }) => {
+  ({ value, onChangeText, colors, placeholder, isRtl, t }) => {
+    const [isFocused, setIsFocused] = useState(false);
+
     return (
       <View
         style={[
           styles.searchContainer,
           {
-            backgroundColor: colors.searchBg,
-            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            borderColor: isFocused
+              ? withAlpha(colors.accent, 0.55)
+              : colors.border,
             flexDirection: isRtl ? "row-reverse" : "row",
           },
         ]}
       >
-        <Icon source="magnify" size={20} color={colors.secondary} />
+        <Icon
+          source="magnify"
+          size={22}
+          color={isFocused ? colors.accent : colors.secondary}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={[
             styles.searchInput,
             {
               color: colors.text,
               textAlign: isRtl ? "right" : "left",
+              writingDirection: isRtl ? "rtl" : "ltr",
             },
           ]}
           value={value}
           onChangeText={onChangeText}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
           placeholderTextColor={colors.secondary}
           returnKeyType="search"
           autoCorrect={false}
-          clearButtonMode="while-editing"
+          autoCapitalize="none"
+          clearButtonMode="never"
+          accessibilityLabel={placeholder}
         />
-        {value.length > 0 && Platform.OS === "android" && (
-          <Pressable onPress={() => onChangeText("")} hitSlop={8}>
-            <Icon source="close-circle" size={18} color={colors.secondary} />
+        {value.length > 0 ? (
+          <Pressable
+            onPress={() => onChangeText("")}
+            hitSlop={12}
+            style={styles.clearBtn}
+            accessibilityLabel={t("Clear") || "Clear"}
+            accessibilityRole="button"
+          >
+            <Icon source="close-circle" size={20} color={colors.secondary} />
           </Pressable>
-        )}
+        ) : null}
       </View>
     );
   },
@@ -352,10 +373,11 @@ const Home = () => {
 
   const isDarkTheme = useThemeStore((s) => s.isDarkTheme);
   const theme = isDarkTheme ? darkTheme : lightTheme;
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
 
   const isRtl = true;
+  const searchInputIsRtl = isRTL(i18n.language);
 
   const opacity = useSharedValue(0);
   const animatedContainerStyle = useAnimatedStyle(() => ({
@@ -365,17 +387,21 @@ const Home = () => {
 
   // Stable theme colors
   const colors = useMemo(() => {
-    const accentColor = theme.colors.progressColor || theme.colors.textColor;
+    const accentColor = theme.colors.progressColor || theme.colors.primary;
     return {
       card: theme.colors.surface || theme.colors.primary,
-      text: theme.colors.textColor,
-      secondary: isDarkTheme ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.55)",
+      surface: theme.colors.surface || theme.colors.background,
+      text: theme.colors.onSurface,
+      secondary:
+        theme.colors.onSurfaceVariant ||
+        withAlpha(theme.colors.onSurface, 0.65),
       accent: accentColor,
       ripple: withAlpha(accentColor, 0.12),
       badgeBg: withAlpha(accentColor, 0.08),
       badgeBorder: withAlpha(accentColor, 0.2),
-      border: isDarkTheme ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
-      searchBg: isDarkTheme ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+      border:
+        theme.colors.outlineVariant ||
+        (theme.dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
       skeleton: isDarkTheme ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
       meccanBg: isDarkTheme
         ? "rgba(46, 204, 113, 0.15)"
@@ -485,11 +511,12 @@ const Home = () => {
           onChangeText={setSearchQuery}
           colors={colors}
           placeholder={t("Search Surahs...") || "Search Surahs..."}
-          isRtl={isRtl}
+          isRtl={searchInputIsRtl}
+          t={t}
         />
       </View>
     ),
-    [colors, isRtl, searchQuery, t],
+    [colors, searchInputIsRtl, searchQuery, t],
   );
 
   if (loading) {
@@ -596,17 +623,33 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    height: 46,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 8,
+    paddingHorizontal: 14,
+    height: 52,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    gap: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  searchIcon: {
+    marginTop: 1,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16.5,
     height: "100%",
     paddingVertical: 0,
+    letterSpacing: 0.15,
+  },
+  clearBtn: {
+    padding: 4,
   },
 
   // Surah Card

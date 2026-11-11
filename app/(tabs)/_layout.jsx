@@ -93,7 +93,7 @@ const TabsLayout = () => {
       iconColor={iconColor}
       indicatorColor={colors.selectionIndicator} // Android only
       labelStyle={labelStyle}
-      tintColor={colors.activeColor} // selected icon + label tint
+      tintColor={colors.activeColor} // selected icon + label tin
       // Keeps tab bar opaque when scrolled to edge (iOS ≤ 18)
       // On iOS 26+ Liquid Glass this has limited effect, but is still safe
       disableTransparentOnScrollEdge

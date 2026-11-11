@@ -40,11 +40,7 @@ import {
   ModelRegistry,
 } from "react-native-litert-lm";
 
-import {
-  useAppLanguageStore,
-  useQuranTranslationStore,
-  useHadithTranslationStore,
-} from "../../../components/store/store";
+import { useAppLanguageStore } from "../../../components/store/store";
 import {
   getTextAlignment,
   getWritingDirection,
@@ -52,22 +48,32 @@ import {
 } from "../../../components/utils/rtlUtils";
 import {
   buildSearchCorpus,
-  buildEmbeddingIndex,
-  saveEmbeddingIndex,
   loadEmbeddingIndex,
   searchSemantic,
   MIN_QUERY_LENGTH,
 } from "../../../components/searchEngine";
+import {
+  getSearchLanguageForAppLocale,
+  normalizeSearchLanguage,
+  SEARCH_LANGUAGES,
+} from "../../../components/searchQueryLanguage";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const GEMMA_MODEL_LABEL = "EmbeddingGemma 2 Text (270M)";
 const GEMMA_STATE_KEY = "holyquran:embeddinggemma-v2-state";
 const MODEL_DISMISS_KEY = "holyquran:smartsearch-banner-dismissed";
+const SEARCH_LANGUAGE_KEY = "holyquran:search-language";
 const GEMMA_MODEL_TOTAL_BYTES = 165 * 1024 * 1024; // ~165 MB
 const DEBOUNCE_MS = 160;
 const SEARCH_TIMEOUT_MS = 12000;
 const CHIP_TIMING = { duration: 140, easing: Easing.out(Easing.quad) };
+const SEARCH_LANGUAGE_LABELS = {
+  english: "English",
+  pashto: "Pashto",
+  dari: "Dari",
+  arabic: "Arabic",
+};
 
 const getCachedGemmaModelTotalBytes = () => {
   try {
@@ -277,7 +283,11 @@ const QuranResultCard = memo(
             { backgroundColor: withAlpha(colors.accent, 0.13) },
           ]}
         >
-          <Icon source="book-open-page-variant" size={13} color={colors.accent} />
+          <Icon
+            source="book-open-page-variant"
+            size={13}
+            color={colors.accent}
+          />
           <Text style={[styles.typeBadgeText, { color: colors.accent }]}>
             {t("Quran")}
           </Text>
@@ -291,7 +301,10 @@ const QuranResultCard = memo(
       </View>
 
       {item.arabic ? (
-        <Text style={[styles.arabicText, { color: colors.text }]} numberOfLines={3}>
+        <Text
+          style={[styles.arabicText, { color: colors.text }]}
+          numberOfLines={3}
+        >
           {item.arabic}
         </Text>
       ) : null}
@@ -554,14 +567,14 @@ const SmartSearchCard = memo(
             : t("Enable Smart Search") || "Enable Smart Search";
 
     const description = isDownloading
-      ? (t("AI search works offline on this device.") ||
-          "AI search works offline on this device.")
+      ? t("AI search works offline on this device.") ||
+        "AI search works offline on this device."
       : isPreparing
-        ? (t("Loading the model…") || "Loading the model…")
-        : (t(
+        ? t("Loading the model…") || "Loading the model…"
+        : t(
             "Search the Quran & hadith by meaning, not just exact words — fully on-device.",
           ) ||
-            "Search the Quran & hadith by meaning, not just exact words — fully on-device.");
+          "Search the Quran & hadith by meaning, not just exact words — fully on-device.";
 
     const statusLabel = isDownloading
       ? `${Math.round(progress)}%`
@@ -718,8 +731,8 @@ const SmartSearchCard = memo(
             >
               <Text style={[styles.modelActionText, { color: colors.accent }]}>
                 {isPreparing
-                  ? (t("Preparing…") || "Preparing…")
-                  : (t("Cancel") || "Cancel")}
+                  ? t("Preparing…") || "Preparing…"
+                  : t("Cancel") || "Cancel"}
               </Text>
             </Pressable>
           ) : (
@@ -775,8 +788,7 @@ SmartSearchCard.displayName = "SmartSearchCard";
 
 const IndexingBanner = memo(
   ({ done, total, error, onRetry, colors, t, rtl }) => {
-    const pct =
-      total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
     const rowDirection = rtl ? "row-reverse" : "row";
 
     return (
@@ -817,7 +829,8 @@ const IndexingBanner = memo(
             >
               {error
                 ? t("Search index unavailable") || "Search index unavailable"
-                : t("Building semantic index") || "Building semantic index"}
+                : t("Loading bundled search index") ||
+                  "Loading bundled search index"}
             </Text>
             <Text
               style={[
@@ -829,11 +842,12 @@ const IndexingBanner = memo(
               ]}
             >
               {error
-                ? (t("Could not prepare the search index.") ||
-                    "Could not prepare the search index.")
-                : (t(
-                    "Indexing verses & hadiths once for instant AI search.",
-                  ) || "Indexing verses & hadiths once for instant AI search.")}
+                ? t(
+                    "Bundled search index is missing or invalid. Rebuild it on your computer and include both search-index assets.",
+                  ) ||
+                  "Bundled search index is missing or invalid. Rebuild it on your computer and include both search-index assets."
+                : t("Loading the bundled Quran and hadith search index.") ||
+                  "Loading the bundled Quran and hadith search index."}
             </Text>
           </View>
         </View>
@@ -955,13 +969,14 @@ const Search = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { language } = useAppLanguageStore();
-  const { translationLanguage: quranLang } = useQuranTranslationStore();
-  const { translationLanguage: hadithLang } = useHadithTranslationStore();
 
   const rtl = isRTL(language);
-  const quranRtl = isRTL(quranLang);
-  const textAlign = getTextAlignment(language);
-  const writingDirection = getWritingDirection(language);
+  const [searchLanguage, setSearchLanguage] = useState(() =>
+    getSearchLanguageForAppLocale(language),
+  );
+  const searchLanguageChanged = useRef(false);
+  const textAlign = getTextAlignment(searchLanguage);
+  const writingDirection = getWritingDirection(searchLanguage);
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -973,7 +988,7 @@ const Search = () => {
 
   // Search index (corpus + embeddings)
   const [corpusReady, setCorpusReady] = useState(false);
-  const [indexStatus, setIndexStatus] = useState("idle"); // idle | building | ready | error
+  const [indexStatus, setIndexStatus] = useState("idle"); // idle | loading | ready | error
   const [indexProgress, setIndexProgress] = useState({ done: 0, total: 0 });
   const [indexRetry, setIndexRetry] = useState(0);
 
@@ -998,6 +1013,36 @@ const Search = () => {
   const gemmaDownloadSessionRef = useRef(0);
   const gemmaSpeedSamplesRef = useRef([]);
 
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(SEARCH_LANGUAGE_KEY)
+      .then((savedLanguage) => {
+        if (
+          active &&
+          !searchLanguageChanged.current &&
+          normalizeSearchLanguage(savedLanguage)
+        ) {
+          setSearchLanguage(savedLanguage);
+        }
+      })
+      .catch((error) => {
+        console.error("[Search] failed to load search language", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSearchLanguageChange = useCallback((nextLanguage) => {
+    if (!normalizeSearchLanguage(nextLanguage)) return;
+    searchLanguageChanged.current = true;
+    setSearchLanguage(nextLanguage);
+    AsyncStorage.setItem(SEARCH_LANGUAGE_KEY, nextLanguage).catch((error) => {
+      console.error("[Search] failed to save search language", error);
+    });
+  }, []);
+
   const modelReady = modelStatus === "ready";
   const searchReady = modelReady && corpusReady && indexStatus === "ready";
 
@@ -1017,11 +1062,6 @@ const Search = () => {
       error: theme.colors.error,
     }),
     [theme],
-  );
-
-  const display = useMemo(
-    () => ({ quranLang, hadithLang }),
-    [quranLang, hadithLang],
   );
 
   const clearSearchState = useCallback(() => {
@@ -1124,7 +1164,7 @@ const Search = () => {
 
     let active = true;
     const timer = setTimeout(() => {
-      setIndexStatus("building");
+      setIndexStatus("loading");
       const corpus = corpusRef.current;
       if (!corpus) {
         setIndexStatus("error");
@@ -1134,32 +1174,9 @@ const Search = () => {
 
       (async () => {
         try {
-          const loaded = await loadEmbeddingIndex(corpus);
-          if (!active) return;
-
-          if (loaded) {
-            setIndexProgress({
-              done: corpus.all.length,
-              total: corpus.all.length,
-            });
-            setIndexStatus("ready");
-            return;
-          }
-
-          await buildEmbeddingIndex(
-            corpus,
-            embedderRef.current,
-            (done, total) => {
-              if (active) setIndexProgress({ done, total });
-            },
-          );
-          if (!active) return;
-
-          try {
-            await saveEmbeddingIndex(corpus);
-          } catch (saveErr) {
-            console.warn("[Search] failed to persist index", saveErr);
-          }
+          await loadEmbeddingIndex(corpus, (done, total) => {
+            if (active) setIndexProgress({ done, total });
+          });
           if (!active) return;
 
           setIndexProgress({
@@ -1168,7 +1185,7 @@ const Search = () => {
           });
           setIndexStatus("ready");
         } catch (err) {
-          console.warn("[Search] index build failed", err);
+          console.warn("[Search] prebuilt index load failed", err);
           if (active) setIndexStatus("error");
         }
       })();
@@ -1222,7 +1239,13 @@ const Search = () => {
       (async () => {
         try {
           const hits = await Promise.race([
-            searchSemantic(q, corpus, embedderRef.current, display, filter),
+            searchSemantic(
+              q,
+              corpus,
+              embedderRef.current,
+              filter,
+              searchLanguage,
+            ),
             new Promise((_, reject) =>
               setTimeout(() => reject(new Error("timeout")), SEARCH_TIMEOUT_MS),
             ),
@@ -1249,7 +1272,7 @@ const Search = () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [debouncedQuery, filter, searchReady, display, clearSearchState]);
+  }, [debouncedQuery, filter, searchLanguage, searchReady, clearSearchState]);
 
   const handleClear = useCallback(() => {
     safeHaptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
@@ -1306,8 +1329,7 @@ const Search = () => {
           );
           const deltaBytes = Math.max(0, nextBytes - gemmaLastBytesRef.current);
           const deltaMs = Math.max(250, now - gemmaLastSampleAtRef.current);
-          const rawSpeed =
-            deltaBytes > 0 ? deltaBytes / (deltaMs / 1000) : 0;
+          const rawSpeed = deltaBytes > 0 ? deltaBytes / (deltaMs / 1000) : 0;
           const samples = gemmaSpeedSamplesRef.current;
           samples.push(rawSpeed);
           if (samples.length > 8) samples.shift();
@@ -1441,7 +1463,7 @@ const Search = () => {
         params: {
           surahId: String(item.surahId),
           surahName: item.surahName,
-          ayahId: String(item.verseId),
+          ayahId: String(item.ayah),
         },
       });
     },
@@ -1479,8 +1501,8 @@ const Search = () => {
             item={item}
             colors={colors}
             onPress={handleQuranPress}
-            textAlign={quranRtl ? "right" : "left"}
-            writingDirection={quranRtl ? "rtl" : "ltr"}
+            textAlign={isRTL(item.translationLanguage) ? "right" : "left"}
+            writingDirection={isRTL(item.translationLanguage) ? "rtl" : "ltr"}
             t={t}
           />
         );
@@ -1490,15 +1512,13 @@ const Search = () => {
           item={item}
           colors={colors}
           onPress={handleHadithPress}
-          textAlign={isRTL(item.contentLanguage || hadithLang) ? "right" : "left"}
-          writingDirection={
-            isRTL(item.contentLanguage || hadithLang) ? "rtl" : "ltr"
-          }
+          textAlign={isRTL(item.contentLanguage) ? "right" : "left"}
+          writingDirection={isRTL(item.contentLanguage) ? "rtl" : "ltr"}
           t={t}
         />
       );
     },
-    [colors, handleQuranPress, handleHadithPress, quranRtl, hadithLang, t],
+    [colors, handleQuranPress, handleHadithPress, t],
   );
 
   const keyExtractor = useCallback((item) => item.id, []);
@@ -1506,6 +1526,15 @@ const Search = () => {
 
   const normalizedQuery = (query || "").trim();
   const isQueryPending = query.trim() !== debouncedQuery;
+  const searchLanguageOptions = useMemo(
+    () =>
+      SEARCH_LANGUAGES.map((value) => ({
+        label:
+          t(SEARCH_LANGUAGE_LABELS[value]) || SEARCH_LANGUAGE_LABELS[value],
+        value,
+      })),
+    [t],
+  );
 
   const showEmptyState = normalizedQuery.length < MIN_QUERY_LENGTH;
   const showLoading =
@@ -1538,11 +1567,11 @@ const Search = () => {
 
   const indexLabel = !corpusReady
     ? `${t("Preparing search index") || "Preparing search index"}…`
-    : indexStatus === "building"
-      ? `${t("Building semantic index") || "Building semantic index"}… ${Math.round(
+    : indexStatus === "loading"
+      ? `${t("Loading prebuilt search index") || "Loading prebuilt search index"}… ${Math.round(
           (indexProgress.done / Math.max(1, indexProgress.total)) * 100,
         )}%`
-      : t("Preparing search index") || "Preparing search index…";
+      : t("Loading prebuilt search index") || "Loading prebuilt search index…";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -1551,7 +1580,10 @@ const Search = () => {
       <View
         style={[
           styles.searchHeader,
-          { paddingTop: 12, backgroundColor: colors.background },
+          {
+            paddingTop: 8,
+            backgroundColor: colors.background,
+          },
         ]}
       >
         <Animated.View
@@ -1580,13 +1612,19 @@ const Search = () => {
             placeholderTextColor={colors.secondary}
             style={[
               styles.searchInput,
-              { color: colors.text, textAlign, writingDirection },
+              {
+                color: colors.text,
+                textAlign,
+                writingDirection,
+              },
             ]}
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="none"
             clearButtonMode="never"
-            accessibilityLabel={t("Search Quran & Hadith") || "Search Quran & Hadith"}
+            accessibilityLabel={
+              t("Search Quran & Hadith") || "Search Quran & Hadith"
+            }
           />
           {query.length > 0 ? (
             <Pressable
@@ -1600,6 +1638,28 @@ const Search = () => {
             </Pressable>
           ) : null}
         </Animated.View>
+
+        <View style={styles.searchLanguageSection}>
+          <Text style={{ color: colors.secondary, fontWeight: "600" }}>
+            {t("Search language") || "Search language"}
+          </Text>
+          <View
+            style={[
+              styles.searchLanguageRow,
+              { flexDirection: rtl ? "row-reverse" : "row" },
+            ]}
+          >
+            {searchLanguageOptions.map((option) => (
+              <FilterChip
+                key={option.value}
+                label={option.label}
+                active={searchLanguage === option.value}
+                onPress={() => handleSearchLanguageChange(option.value)}
+                colors={colors}
+              />
+            ))}
+          </View>
+        </View>
 
         <SearchProgressBar visible={showProgressBar} colors={colors} />
 
@@ -1700,9 +1760,7 @@ const Search = () => {
           ]}
           ListHeaderComponent={
             <Animated.View entering={FadeInUp.duration(90)}>
-              <Text
-                style={[styles.resultCount, { color: colors.secondary }]}
-              >
+              <Text style={[styles.resultCount, { color: colors.secondary }]}>
                 {`${results.length} ${t("results") || "results"}`}
               </Text>
             </Animated.View>
@@ -1766,6 +1824,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     marginTop: 14,
+  },
+  searchLanguageSection: {
+    gap: 6,
+    marginTop: 12,
+  },
+  searchLanguageRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
   chip: {
     borderRadius: 14,

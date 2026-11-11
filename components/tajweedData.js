@@ -371,16 +371,63 @@ const normalizeTajweedLanguage = (language) => {
   return "english";
 };
 
+const getLightThemeRuleColor = (color) => {
+  const hex = String(color || "").replace("#", "");
+  if (!/^[\da-f]{6}$/i.test(hex)) return color;
+
+  const rgb = [0, 2, 4].map((offset) =>
+    Number.parseInt(hex.slice(offset, offset + 2), 16),
+  );
+  const luminance = (channels) =>
+    channels
+      .map((channel) => {
+        const value = channel / 255;
+        return value <= 0.04045
+          ? value / 12.92
+          : ((value + 0.055) / 1.055) ** 2.4;
+      })
+      .reduce(
+        (sum, value, index) =>
+          sum + value * [0.2126, 0.7152, 0.0722][index],
+        0,
+      );
+
+  for (let shade = 1; shade >= 0.35; shade -= 0.05) {
+    const adjusted = rgb.map((channel) => Math.round(channel * shade));
+    if (1.05 / (luminance(adjusted) + 0.05) >= 5) {
+      return `#${adjusted.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+    }
+  }
+
+  return color;
+};
+
 const getTajweedRuleMeta = (rule, baseColors = {}, language = "english") => {
   const safeRule = String(rule || "default");
   const style = TAJWEED_RULES[safeRule] || TAJWEED_RULES.default;
   const localized = style.translations?.[normalizeTajweedLanguage(language)] || {};
+  const isNeutralRule = safeRule === "default" || safeRule === "plain";
+  const color = isNeutralRule
+    ? baseColors.text || baseColors.onSurface || style.color
+    : baseColors.dark
+      ? style.color || baseColors.accent || "#1F2937"
+      : getLightThemeRuleColor(
+          style.color || baseColors.accent || "#1F2937",
+        );
 
   return {
     ...style,
-    color: style.color || baseColors.accent || "#1F2937",
-    backgroundColor: style.backgroundColor || "transparent",
-    borderColor: style.color ? `${style.color}55` : "transparent",
+    color,
+    backgroundColor:
+      safeRule === "plain"
+        ? "transparent"
+        : safeRule === "default"
+          ? baseColors.dark
+            ? "rgba(255,255,255,0.08)"
+            : "rgba(31,41,55,0.08)"
+          : style.backgroundColor || "transparent",
+    borderColor:
+      isNeutralRule || !style.color ? "transparent" : `${color}55`,
     label: localized.label || style.label || safeRule.replace(/_/g, " "),
     description:
       localized.description || style.description || "Tajweed rule",
